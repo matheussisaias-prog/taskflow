@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TaskFlow — Gestão de Atividades</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><text x='50%' y='54%' font-size='18' text-anchor='middle' dominant-baseline='middle' fill='white'>⬡</text></svg>"/>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+
+  <!-- ============================================================ SIDEBAR ============================================================ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⬡</div>
+      <span class="logo-text">TaskFlow</span>
+      <span class="version-tag">v3.0</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-view="dashboard"   onclick="switchView('dashboard',this);return false;"><span class="nav-icon">◈</span><span>Dashboard</span></a>
+      <a href="#" class="nav-item"         data-view="charts"     onclick="switchView('charts',this);return false;"><span class="nav-icon">◬</span><span>Gráficos</span></a>
+      <a href="#" class="nav-item"         data-view="kanban"     onclick="switchView('kanban',this);return false;"><span class="nav-icon">▦</span><span>Kanban</span></a>
+      <a href="#" class="nav-item"         data-view="activities" onclick="switchView('activities',this);return false;"><span class="nav-icon">◉</span><span>Atividades</span></a>
+      <a href="#" class="nav-item"         data-view="projects"   onclick="switchView('projects',this);return false;"><span class="nav-icon">◧</span><span>Projetos</span></a>
+      <a href="#" class="nav-item"         data-view="import"     onclick="switchView('import',this);return false;"><span class="nav-icon">⇪</span><span>Importar</span></a>
+      <a href="#" class="nav-item"         data-view="history"    onclick="switchView('history',this);return false;"><span class="nav-icon">◎</span><span>Histórico</span></a>
+
+      <!-- Divisor -->
+      <div style="height:1px;background:rgba(255,255,255,0.07);margin:8px 4px;"></div>
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4ade80;padding:2px 12px 4px;">Calendários</div>
+
+      <a href="calendario-taskflow.html" class="nav-item" title="Calendário de Atividades (atalho: C)" style="position:relative;">
+        <span class="nav-icon">📅</span>
+        <span>Cal. Atividades</span>
+        <span id="cal-overdue-badge" class="hidden" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#ef4444;color:#fff;font-size:.6rem;font-weight:800;padding:1px 5px;border-radius:100px;min-width:16px;text-align:center;"></span>
+      </a>
+
+      <a href="calendario-equipe.html" class="nav-item" title="Calendário de Equipe — onde está cada funcionário">
+        <span class="nav-icon">👥</span>
+        <span>Cal. Equipe</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-shortcuts">
+      <div class="shortcut-title">Atalhos <span class="shortcut-hint" onclick="openShortcutsOverlay()">ver todos ?</span></div>
+      <div class="shortcut-row"><kbd>N</kbd> Nova atividade</div>
+      <div class="shortcut-row"><kbd>T</kbd> Tema claro/escuro</div>
+      <div class="shortcut-row"><kbd>F</kbd> Focar filtro</div>
+      <div class="shortcut-row"><kbd>C</kbd> Cal. Atividades</div>
+      <div class="shortcut-row"><kbd>E</kbd> Cal. Equipe</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-time" id="sidebar-clock">--:--</div>
+      <div class="sidebar-date" id="sidebar-date">--/--/----</div>
+    </div>
+  </aside>
+
+  <!-- ============================================================ MAIN ============================================================ -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+        <h1 class="page-title" id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-icon-btn" onclick="openWhatsAppConfig()" title="Configurar WhatsApp" id="wa-btn">
+          <span>📱</span><span class="notif-dot hidden" id="wa-dot" style="background:#25d366"></span>
+        </button>
+        <button class="topbar-icon-btn" id="notif-btn" onclick="toggleNotifPanel()" title="Notificações push">
+          <span>🔔</span><span class="notif-dot hidden" id="notif-dot"></span>
+        </button>
+        <button class="topbar-icon-btn" onclick="toggleTheme()" title="Alternar tema (T)" id="theme-btn">
+          <span id="theme-icon">☾</span>
+        </button>
+        <div class="topbar-divider"></div>
+        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">⬇ Excel</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportPDF()">⬇ PDF</button>
+        <button class="btn btn-primary" onclick="openModal()">＋ Nova Atividade</button>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION PANEL -->
+    <div class="notif-panel hidden" id="notif-panel">
+      <div class="notif-panel-header">
+        <span>🔔 Notificações Push</span>
+        <button class="btn-action" onclick="toggleNotifPanel()">✕</button>
+      </div>
+      <div class="notif-panel-body" id="notif-panel-body">
+        <p class="notif-desc">Receba alertas no navegador quando atividades estiverem vencendo ou críticas.</p>
+        <button class="btn btn-primary btn-sm" id="notif-enable-btn" onclick="requestNotifPermission()">Ativar Notificações</button>
+      </div>
+    </div>
+
+    <!-- ============ VIEW: DASHBOARD ============ -->
+    <section class="view" id="view-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-overdue" onclick="filterAndGo('Vencido')">
+          <div class="kpi-icon-wrap"><div class="kpi-icon">🔴</div></div>
+          <div class="kpi-body"><div class="kpi-value" id="kpi-overdue">0</div><div class="kpi-label">Vencidas</div></div>
+          <div class="kpi-badge hidden" id="kpi-critical-badge">!</div>
+        </div>
+        <div class="kpi-card kpi-today" onclick="filterAndGo('today')">
+          <div class="kpi-icon-wrap"><div class="kpi-icon">🟡</div></div>
+          <div class="kpi-body"><div class="kpi-value" id="kpi-today">0</div><div class="kpi-label">Para Hoje</div></div>
+        </div>
+        <div class="kpi-card kpi-ok" onclick="filterAndGo('ok')">
+          <div class="kpi-icon-wrap"><div class="kpi-icon">🟢</div></div>
+          <div class="kpi-body"><div class="kpi-value" id="kpi-ok">0</div><div class="kpi-label">Em Dia</div></div>
+        </div>
+        <div class="kpi-card kpi-done" onclick="filterAndGo('Concluído')">
+          <div class="kpi-icon-wrap"><div class="kpi-icon">✅</div></div>
+          <div class="kpi-body"><div class="kpi-value" id="kpi-done">0</div><div class="kpi-label">Concluídas</div></div>
+        </div>
+      </div>
+
+      <!-- Mini charts -->
+      <div class="mini-charts-row">
+        <div class="mini-chart-card">
+          <div class="mini-chart-label">Status geral</div>
+          <canvas id="chart-donut-dash"></canvas>
+        </div>
+        <div class="mini-chart-card">
+          <div class="mini-chart-label">Por projeto</div>
+          <canvas id="chart-bar-dash"></canvas>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h2 class="section-title">Atividades Críticas</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="section-hint">Ordenadas por urgência</span>
+          <button class="btn btn-ghost btn-sm" id="btn-load-seed" onclick="loadSeedData()" title="Carregar dados do Gantt PDF">⇪ Carregar dados do Gantt</button>
+        </div>
+      </div>
+      <div class="activity-table-wrap">
+        <table class="activity-table">
+          <thead><tr><th>Projeto</th><th>Título</th><th>Início</th><th>Término</th><th>Responsável</th><th>Duração</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="critical-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="critical-empty"><span>✦</span><p>Nenhuma atividade crítica</p></div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: GRÁFICOS ============ -->
+    <section class="view hidden" id="view-charts">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-header"><span class="chart-card-title">Status Geral</span></div>
+          <div class="chart-canvas-wrap"><canvas id="chart-status-donut"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header"><span class="chart-card-title">Por Equipe</span></div>
+          <div class="chart-canvas-wrap"><canvas id="chart-team-bar"></canvas></div>
+        </div>
+        <div class="chart-card chart-card-full">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Por Projeto — Concluídas vs Pendentes</span>
+          </div>
+          <div class="chart-canvas-wrap chart-canvas-tall"><canvas id="chart-project-stacked"></canvas></div>
+        </div>
+        <div class="chart-card chart-card-full">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Linha do Tempo — Prazos por Mês</span>
+          </div>
+          <div class="chart-canvas-wrap chart-canvas-tall"><canvas id="chart-timeline"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: KANBAN ============ -->
+    <section class="view hidden" id="view-kanban">
+      <div class="kanban-toolbar">
+        <div class="filter-group">
+          <label>Projeto</label>
+          <select id="kanban-filter-project" onchange="renderKanban()"><option value="">Todos os projetos</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Equipe</label>
+          <select id="kanban-filter-team" onchange="renderKanban()"><option value="">Todas as equipes</option></select>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="renderKanban()">↻ Atualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Nova Atividade</button>
+        </div>
+      </div>
+      <div class="kanban-phases-legend">
+        <span class="kanban-legend-title">Fases:</span>
+        <span class="kanban-legend-item" style="--c:#8b5cf6">Planejamento</span>
+        <span class="kanban-legend-item" style="--c:#1d4ed8">Projetos</span>
+        <span class="kanban-legend-item" style="--c:#d97706">Aquisições</span>
+        <span class="kanban-legend-item" style="--c:#ea580c">Fabricação</span>
+        <span class="kanban-legend-item" style="--c:#0891b2">Mobilização</span>
+        <span class="kanban-legend-item" style="--c:#059669">Instalação</span>
+        <span class="kanban-legend-item" style="--c:#64748b">Documentação</span>
+      </div>
+      <div class="kanban-board kanban-board-phases" id="kanban-board"></div>
+    </section>
+
+    <!-- ============ VIEW: ATIVIDADES ============ -->
+    <section class="view hidden" id="view-activities">
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>Projeto</label>
+          <select id="filter-project" onchange="applyFilters()"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Equipe</label>
+          <select id="filter-team" onchange="applyFilters()"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="filter-status" onchange="applyFilters()">
+            <option value="">Todos</option><option>Pendente</option>
+            <option>Concluído</option><option>Vencido</option><option>Reprogramado</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Data De</label>
+          <input type="date" id="filter-date-from" onchange="applyFilters()"/>
+        </div>
+        <div class="filter-group">
+          <label>Data Até</label>
+          <input type="date" id="filter-date-to" onchange="applyFilters()"/>
+        </div>
+        <button class="btn btn-ghost" onclick="clearFilters()">Limpar</button>
+      </div>
+      <div class="activity-table-wrap">
+        <table class="activity-table">
+          <thead><tr>
+            <th class="sortable" onclick="sortBy('project')">Projeto <span class="sort-arrow" id="sort-project">↕</span></th>
+            <th class="sortable" onclick="sortBy('description')">Título <span class="sort-arrow" id="sort-description">↕</span></th>
+            <th class="sortable" onclick="sortBy('startDate')">Início <span class="sort-arrow" id="sort-startDate">↕</span></th>
+            <th class="sortable" onclick="sortBy('dueDate')">Término <span class="sort-arrow" id="sort-dueDate">↕</span></th>
+            <th class="sortable" onclick="sortBy('responsible')">Responsável <span class="sort-arrow" id="sort-responsible">↕</span></th>
+            <th>Duração</th>
+            <th class="sortable" onclick="sortBy('status')">Status <span class="sort-arrow" id="sort-status">↕</span></th>
+            <th>Ações</th>
+          </tr></thead>
+          <tbody id="main-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="main-empty"><span>✦</span><p>Nenhuma atividade encontrada</p></div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: PROJETOS ============ -->
+    <section class="view hidden" id="view-projects">
+      <div class="section-header" style="margin-bottom:18px">
+        <h2 class="section-title">Projetos</h2>
+        <button class="btn btn-primary" onclick="openProjectModal()">＋ Novo Projeto</button>
+      </div>
+      <div class="projects-grid" id="projects-grid"></div>
+      <div class="empty-state hidden" id="projects-empty"><span>◧</span><p>Nenhum projeto cadastrado</p></div>
+    </section>
+
+    <!-- ============ VIEW: IMPORTAR ============ -->
+    <section class="view hidden" id="view-import">
+      <div class="section-header" style="margin-bottom:24px">
+        <h2 class="section-title">Importar Atividades</h2>
+        <span class="section-hint">Suporta PDF, Excel (.xlsx/.csv) e MS Project XML (.xml)</span>
+      </div>
+
+      <!-- Upload zone -->
+      <div class="import-upload-zone" id="import-drop-zone"
+           ondragover="importDragOver(event)" ondragleave="importDragLeave(event)" ondrop="importDrop(event)">
+        <div class="import-upload-icon">⇪</div>
+        <div class="import-upload-title">Arraste o arquivo aqui</div>
+        <div class="import-upload-sub">ou clique para selecionar</div>
+        <div class="import-upload-types">PDF · XLSX · CSV · XML (MS Project)</div>
+        <input type="file" id="import-file-input" accept=".pdf,.xlsx,.xls,.csv,.xml"
+               style="position:absolute;inset:0;opacity:0;cursor:pointer"
+               onchange="importFileSelected(event)"/>
+      </div>
+
+      <!-- Progress / status -->
+      <div class="import-status hidden" id="import-status">
+        <div class="import-status-icon" id="import-status-icon">⏳</div>
+        <div class="import-status-text" id="import-status-text">Lendo arquivo...</div>
+      </div>
+
+      <!-- Preview table -->
+      <div class="import-preview hidden" id="import-preview">
+        <div class="import-preview-header">
+          <div>
+            <div class="import-preview-title" id="import-preview-title">0 atividades encontradas</div>
+            <div class="import-preview-sub" id="import-preview-sub">Revise antes de importar</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer">
+              <input type="checkbox" id="import-skip-done" checked style="width:auto"/> Ignorar 100% concluídas
+            </label>
+            <button class="btn btn-ghost btn-sm" onclick="importClear()">✕ Cancelar</button>
+            <button class="btn btn-primary" onclick="importConfirm()" id="import-confirm-btn">✓ Importar tudo</button>
+          </div>
+        </div>
+
+        <!-- Mapeamento de colunas -->
+        <div class="import-map-row" id="import-map-row" style="display:none">
+          <span class="import-map-label">Mapear colunas:</span>
+          <div class="import-map-fields">
+            <div class="import-map-field">
+              <label>Título/Descrição</label>
+              <select id="map-description"></select>
+            </div>
+            <div class="import-map-field">
+              <label>Data Início</label>
+              <select id="map-start"></select>
+            </div>
+            <div class="import-map-field">
+              <label>Data Fim / Prazo</label>
+              <select id="map-end"></select>
+            </div>
+            <div class="import-map-field">
+              <label>Responsável</label>
+              <select id="map-responsible"></select>
+            </div>
+            <div class="import-map-field">
+              <label>Projeto</label>
+              <select id="map-project"></select>
+            </div>
+            <div class="import-map-field">
+              <label>Status</label>
+              <select id="map-status"></select>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="importRemap()" style="align-self:flex-end">↻ Aplicar</button>
+          </div>
+        </div>
+
+        <div class="activity-table-wrap" style="margin-top:0">
+          <table class="activity-table">
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="import-check-all" onchange="importToggleAll(this)" style="width:auto"/></th>
+                <th>Descrição</th>
+                <th>Projeto</th>
+                <th>Responsável</th>
+                <th>Data Início</th>
+                <th>Prazo</th>
+                <th>Status</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="import-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: HISTÓRICO ============ -->
+    <section class="view hidden" id="view-history">
+      <div class="section-header">
+        <h2 class="section-title">Histórico de Alterações</h2>
+        <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Limpar histórico</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty-state" id="history-empty"><span>◎</span><p>Nenhuma alteração registrada</p></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================ MODAIS ============================================================ -->
+
+  <!-- Nova / Editar atividade -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Nova Atividade</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-id"/><input type="hidden" id="form-original-date"/>
+        <div class="form-grid">
+          <div class="form-group"><label>Projeto <span class="req">*</span></label>
+            <input type="text" id="form-project" placeholder="Ex: Portal Cliente" list="projects-list"/>
+            <datalist id="projects-list"></datalist></div>
+          <div class="form-group"><label>Equipe <span class="req">*</span></label>
+            <select id="form-team"><option value="">Selecione</option>
+              <option>Equipe 01</option><option>Equipe 02</option><option>Equipe 03</option>
+              <option>Equipe 04</option><option>Equipe 05</option></select></div>
+          <div class="form-group form-full"><label>Descrição <span class="req">*</span></label>
+            <input type="text" id="form-description" placeholder="Descreva a atividade"/></div>
+          <div class="form-group"><label>Responsável <span class="req">*</span></label>
+            <input type="text" id="form-responsible" placeholder="Nome do responsável"/></div>
+          <div class="form-group"><label>Data de Início</label>
+            <input type="date" id="form-start-date"/></div>
+          <div class="form-group"><label>Término (Prazo) <span class="req">*</span></label>
+            <input type="date" id="form-date"/></div>
+          <div class="form-group"><label>Duração (horas)</label>
+            <input type="number" id="form-duration" placeholder="Ex: 50" min="0" step="0.5"/></div>
+          <div class="form-group"><label>Status</label>
+            <select id="form-status"><option value="Pendente">Pendente</option>
+              <option value="Concluído">Concluído</option><option value="Reprogramado">Reprogramado</option></select></div>
+          <div class="form-group form-full"><label>Observações</label>
+            <textarea id="form-obs" rows="3" placeholder="Observações adicionais..."></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveActivity()">Salvar Atividade</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reprogramar -->
+  <div class="modal-overlay" id="reschedule-overlay" onclick="closeRescheduleOutside(event)">
+    <div class="modal modal-sm">
+      <div class="modal-header"><h2>Reprogramar Atividade</h2>
+        <button class="modal-close" onclick="closeReschedule()">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Nova Data <span class="req">*</span></label>
+          <input type="date" id="reschedule-date"/></div>
+        <div class="form-group" style="margin-top:12px"><label>Motivo</label>
+          <input type="text" id="reschedule-reason" placeholder="Motivo da reprogramação"/></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeReschedule()">Cancelar</button>
+        <button class="btn btn-warning" onclick="confirmReschedule()">Reprogramar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Atalhos de teclado -->
+  <div class="modal-overlay" id="shortcuts-overlay" onclick="closeShortcutsOutside(event)">
+    <div class="modal modal-sm">
+      <div class="modal-header"><h2>⌨ Atalhos de Teclado</h2>
+        <button class="modal-close" onclick="closeShortcutsOverlay()">✕</button></div>
+      <div class="modal-body">
+        <table class="shortcuts-table">
+          <tbody>
+            <tr><td><kbd>N</kbd></td><td>Nova atividade</td></tr>
+            <tr><td><kbd>D</kbd></td><td>Dashboard</td></tr>
+            <tr><td><kbd>G</kbd></td><td>Gráficos</td></tr>
+            <tr><td><kbd>K</kbd></td><td>Kanban</td></tr>
+            <tr><td><kbd>A</kbd></td><td>Atividades</td></tr>
+            <tr><td><kbd>H</kbd></td><td>Histórico</td></tr>
+            <tr><td><kbd>T</kbd></td><td>Alternar tema</td></tr>
+            <tr><td><kbd>F</kbd></td><td>Focar filtro</td></tr>
+            <tr><td><kbd>?</kbd></td><td>Esta ajuda</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Fechar modal</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal WhatsApp Config -->
+  <div class="modal-overlay" id="wa-config-overlay" onclick="closeWAConfigOutside(event)">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>📱 Configurar WhatsApp (CallMeBot)</h2>
+        <button class="modal-close" onclick="closeWAConfig()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="wa-steps">
+          <div class="wa-step"><span class="wa-step-num">1</span>
+            <span>Salve o número <strong>+34 644 44 21 48</strong> nos seus contatos com o nome <em>CallMeBot</em></span>
+          </div>
+          <div class="wa-step"><span class="wa-step-num">2</span>
+            <span>Abra o WhatsApp e envie exatamente: <strong>I allow callmebot to send me messages</strong> para esse contato. <em>Este passo é obrigatório — sem ele a API Key não funciona.</em></span>
+          </div>
+          <div class="wa-step"><span class="wa-step-num">3</span>
+            <span>O CallMeBot responderá com: <em>"Your APIKEY is 123456"</em> — copie apenas os números</span>
+          </div>
+          <div class="wa-step"><span class="wa-step-num">4</span>
+            <span>No campo <strong>Número</strong> abaixo, use DDI+DDD+número sem espaços ou símbolos.<br/>Exemplo Brasil: <code>5585999991234</code></span>
+          </div>
+          <div class="wa-step"><span class="wa-step-num">5</span>
+            <span>Cole a API Key, clique <strong>Salvar</strong> e depois <strong>🧪 Testar envio</strong> para confirmar.</span>
+          </div>
+        </div>
+        <div style="background:var(--yellow-dim);border:1px solid rgba(217,119,6,0.3);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--yellow);margin-bottom:4px">
+          ⚠ <strong>Atenção:</strong> O CallMeBot é um serviço gratuito de terceiros. Se a mensagem não chegar, refaça o passo 2 — a ativação expira ocasionalmente.
+        </div>
+        <div class="form-group" style="margin-top:16px">
+          <label>Seu número com DDI (ex: 5585999991234)</label>
+          <input type="text" id="wa-phone" placeholder="5585999991234" maxlength="20"/>
+        </div>
+        <div class="form-group" style="margin-top:10px">
+          <label>API Key do CallMeBot</label>
+          <input type="text" id="wa-apikey" placeholder="Cole aqui a API Key recebida"/>
+        </div>
+        <div class="form-group" style="margin-top:10px">
+          <label>Alertas automáticos</label>
+          <select id="wa-auto">
+            <option value="1">Ativado — alerta ao abrir e a cada hora</option>
+            <option value="0">Desativado — apenas manual</option>
+          </select>
+        </div>
+        <div id="wa-status-msg" style="margin-top:10px;font-size:0.8rem;color:var(--green);display:none"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="btn btn-ghost btn-sm" onclick="testWAMessage()">🧪 Testar envio</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="closeWAConfig()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveWAConfig()" style="background:#25d366;box-shadow:0 2px 10px rgba(37,211,102,0.3)">💾 Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Projeto -->
+  <div class="modal-overlay" id="project-modal-overlay" onclick="closeProjectModalOutside(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="project-modal-title">Novo Projeto</h2>
+        <button class="modal-close" onclick="closeProjectModal()">✕</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="proj-tab-info"   onclick="switchProjTab('info')">◈ Dados do Projeto</button>
+        <button class="modal-tab"        id="proj-tab-import" onclick="switchProjTab('import')">⇪ Importar Atividades</button>
+      </div>
+
+      <!-- Tab: Dados -->
+      <div class="modal-body" id="proj-panel-info">
+        <input type="hidden" id="proj-form-id"/>
+        <div class="form-grid">
+          <div class="form-group"><label>Código do Projeto</label>
+            <input type="text" id="proj-code" placeholder="Ex: CRG-04-260219-01"/></div>
+          <div class="form-group"><label>Nome do Projeto <span class="req">*</span></label>
+            <input type="text" id="proj-name" placeholder="Ex: Portal Cliente"/></div>
+          <div class="form-group form-full"><label>Descrição</label>
+            <textarea id="proj-desc" rows="2" placeholder="Descreva o objetivo do projeto..."></textarea></div>
+          <div class="form-group"><label>Responsável / Gestor <span class="req">*</span></label>
+            <input type="text" id="proj-manager" placeholder="Nome do gestor"/></div>
+          <div class="form-group"><label>Status</label>
+            <select id="proj-status">
+              <option value="Em andamento">● Em andamento</option>
+              <option value="Novas">✦ Novas</option>
+              <option value="Finalizadas">✓ Finalizadas</option>
+              <option value="Ativo">Ativo</option>
+              <option value="Pausado">⏸ Pausado</option>
+              <option value="Encerrado">Encerrado</option>
+            </select></div>
+          <div class="form-group"><label>Data de Início <span class="req">*</span></label>
+            <input type="date" id="proj-start"/></div>
+          <div class="form-group"><label>Data de Fim (prevista)</label>
+            <input type="date" id="proj-end"/></div>
+          <div class="form-group"><label>Duração Total (horas)</label>
+            <input type="number" id="proj-duration" placeholder="Ex: 870" min="0" step="0.5"/></div>
+          <div class="form-group"><label>Progresso (%)</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="range" id="proj-progress" min="0" max="100" step="1" value="0"
+                     style="flex:1" oninput="document.getElementById('proj-progress-val').textContent=this.value+'%'"/>
+              <span id="proj-progress-val" style="font-weight:600;min-width:38px;color:var(--primary)">0%</span>
+            </div>
+          </div>
+          <div class="form-group form-full"><label>Cor de identificação</label>
+            <div class="color-picker-row" id="proj-color-picker"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Importar -->
+      <div class="modal-body hidden" id="proj-panel-import">
+
+        <!-- Aviso: precisa salvar primeiro -->
+        <div class="proj-import-warning" id="proj-import-warning">
+          <span>⚠</span>
+          <span>Salve o projeto primeiro na aba <strong>Dados do Projeto</strong> para habilitar a importação.</span>
+        </div>
+
+        <!-- Upload zone (só aparece quando projeto tem nome) -->
+        <div id="proj-import-body" class="hidden">
+
+          <!-- Banner do projeto destino -->
+          <div class="proj-import-banner">
+            <div class="proj-import-banner-left">
+              <div class="proj-import-banner-icon" id="proj-import-banner-icon">◧</div>
+              <div>
+                <div class="proj-import-banner-label">Atividades serão vinculadas a:</div>
+                <div class="proj-import-banner-name" id="proj-import-name-label">—</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="switchProjTab('info')" title="Voltar e editar dados do projeto">✎ Editar projeto</button>
+          </div>
+
+          <!-- Seletor de equipe padrão -->
+          <div class="proj-import-team-row">
+            <label>Equipe padrão para as atividades importadas</label>
+            <select id="proj-import-team">
+              <option value="Equipe 01">Equipe 01</option>
+              <option value="Equipe 02">Equipe 02</option>
+              <option value="Equipe 03">Equipe 03</option>
+              <option value="Equipe 04">Equipe 04</option>
+              <option value="Equipe 05">Equipe 05</option>
+            </select>
+          </div>
+
+          <div class="import-upload-zone" id="proj-import-drop-zone" style="padding:32px 24px;margin-bottom:16px"
+               ondragover="importDragOver2(event)" ondragleave="importDragLeave2(event)" ondrop="importDrop2(event)">
+            <div class="import-upload-icon" style="font-size:2rem">⇪</div>
+            <div class="import-upload-title" style="font-size:0.9rem">Arraste o arquivo aqui</div>
+            <div class="import-upload-sub">PDF · XLSX · CSV · XML (MS Project)</div>
+            <input type="file" id="proj-import-file" accept=".pdf,.xlsx,.xls,.csv,.xml"
+                   style="position:absolute;inset:0;opacity:0;cursor:pointer"
+                   onchange="projImportFileSelected(event)"/>
+          </div>
+
+          <!-- Status -->
+          <div class="import-status hidden" id="proj-import-status">
+            <div class="import-status-icon" id="proj-import-status-icon">⏳</div>
+            <div class="import-status-text" id="proj-import-status-text">Lendo arquivo...</div>
+          </div>
+
+          <!-- Preview compacto -->
+          <div id="proj-import-preview" class="hidden">
+            <div class="proj-import-preview-header">
+              <div>
+                <span class="proj-import-count" id="proj-import-count">0 atividades</span>
+                <span class="proj-import-sub" id="proj-import-sub"></span>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:var(--text-secondary);cursor:pointer">
+                  <input type="checkbox" id="proj-import-skip-done" checked style="width:auto"/> Ignorar concluídas
+                </label>
+                <button class="btn btn-ghost btn-sm" onclick="projImportClear()">✕</button>
+              </div>
+            </div>
+
+            <div class="activity-table-wrap" style="max-height:280px;overflow-y:auto">
+              <table class="activity-table">
+                <thead>
+                  <tr>
+                    <th style="width:32px"><input type="checkbox" id="proj-import-check-all" onchange="projImportToggleAll(this)" style="width:auto"/></th>
+                    <th>Descrição</th>
+                    <th>Responsável</th>
+                    <th>Início</th>
+                    <th>Prazo</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="proj-import-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="proj-modal-footer">
+        <button class="btn btn-ghost" onclick="closeProjectModal()">Cancelar</button>
+        <button class="btn btn-primary" id="proj-save-btn" onclick="saveProject()">Salvar Projeto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="script.js"></script>
+
+  <!-- Calendários: badge de vencidas + atalhos C e E -->
+  <script>
+    (function() {
+      function updateCalBadge() {
+        try {
+          const raw = localStorage.getItem('taskflow_activities');
+          const acts = raw ? JSON.parse(raw) : [];
+          const today = new Date().toISOString().slice(0, 10);
+          const overdue = acts.filter(a => a.status !== 'Concluído' && a.dueDate < today).length;
+          const badge = document.getElementById('cal-overdue-badge');
+          if (!badge) return;
+          if (overdue > 0) {
+            badge.textContent = overdue > 99 ? '99+' : overdue;
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');
+          }
+        } catch(e) {}
+      }
+
+      document.addEventListener('keydown', function(e) {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if (typing) return;
+        if (e.key === 'c' || e.key === 'C') window.location.href = 'calendario-taskflow.html';
+        if (e.key === 'e' || e.key === 'E') window.location.href = 'calendario-equipe.html';
+      });
+
+      document.addEventListener('DOMContentLoaded', function() {
+        updateCalBadge();
+        setInterval(updateCalBadge, 60000);
+        window.addEventListener('storage', updateCalBadge);
+      });
+    })();
+  </script>
+</body>
+</html>
