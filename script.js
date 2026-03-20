@@ -911,51 +911,40 @@ function saveWAConfig() {
  * @param {string} text - Mensagem (será URL-encoded)
  * @param {object} cfg  - { phone, apikey }
  */
+/**
+ * Envia mensagem via servidor local Python (sem proxy externo)
+ * O servidor callmebot_server.py deve estar rodando em localhost:5000
+ */
 async function sendWAMessage(text, cfg) {
-  if (!cfg || !cfg.phone || !cfg.apikey) return false;
+  const LOCAL_SERVER = 'https://taskflow-h9ya.onrender.com/send';
 
-  const encoded  = encodeURIComponent(text);
-  const directUrl = `https://api.callmebot.com/whatsapp.php?phone=${cfg.phone}&text=${encoded}&apikey=${cfg.apikey}`;
-
-  // Estratégia 1: proxy allorigins (contorna CORS, faz req server-side)
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(directUrl)}`;
   try {
-    const res  = await fetch(proxyUrl, { method: 'GET' });
-    if (res.ok) {
-      const data = await res.json();
-      // allorigins retorna { contents: "...", status: { http_code: 200 } }
-      const httpCode = data?.status?.http_code;
-      const body     = (data?.contents || '').toLowerCase();
-      if (httpCode === 200 && (body.includes('message queued') || body.includes('ok') || body.includes('sent'))) {
-        return true;
-      }
-      // API retornou mas com erro no corpo
-      console.warn('CallMeBot resposta:', data?.contents);
+    const res = await fetch(LOCAL_SERVER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+      console.warn('Servidor local retornou erro HTTP:', res.status);
       return false;
     }
-  } catch (e1) {
-    console.warn('Proxy allorigins falhou:', e1.message);
-  }
 
-  // Estratégia 2: proxy corsproxy.io
-  const proxy2 = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
-  try {
-    const res2 = await fetch(proxy2, { method: 'GET' });
-    if (res2.ok) {
-      const body = (await res2.text()).toLowerCase();
-      if (body.includes('message queued') || body.includes('ok') || body.includes('sent')) {
-        return true;
-      }
-      console.warn('CallMeBot (proxy2) resposta:', body);
+    const data = await res.json();
+
+    if (data.ok) {
+      console.log('✅ Mensagem enviada via servidor local!');
+      return true;
+    } else {
+      console.warn('CallMeBot recusou:', data.response || data.error);
       return false;
     }
-  } catch (e2) {
-    console.warn('Proxy corsproxy falhou:', e2.message);
-  }
 
-  // Estratégia 3: abre URL direto em nova aba (último recurso — usuário vê a resposta)
-  window.open(directUrl, '_blank', 'width=600,height=400,noopener');
-  return true;
+  } catch (err) {
+    console.error('❌ Servidor local não encontrado:', err.message);
+    showToast('⚠ Inicie o callmebot_server.py no seu PC para enviar mensagens!', 'error');
+    return false;
+  }
 }
 
 /**
