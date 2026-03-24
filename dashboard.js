@@ -368,16 +368,23 @@ function renderUpcoming() {
   const empty = document.getElementById('upcoming-empty');
   if (!wrap) return;
 
-  const allActs = state.activities || [];
+  // Suporta tanto state.activities (script.js) quanto outros nomes
+  const allActs = (state && state.activities) ? state.activities : [];
 
-  // Pega atividades não concluídas ordenadas pela data mais próxima
+  // Pega TODAS as atividades não concluídas, com ou sem data
+  // Ordena: com data primeiro (pela mais próxima), sem data no final
   const upcoming = allActs
-    .filter(a => a.status !== 'Concluído' && a.dueDate)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .filter(a => a.status !== 'Concluído' && a.status !== 'concluido')
+    .sort((a, b) => {
+      if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return 0;
+    })
     .slice(0, 5);
 
   if (!upcoming.length) {
-    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:.82rem;padding:16px">Nenhuma atividade pendente.</div>';
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:.82rem;padding:16px 0">Nenhuma atividade cadastrada.</div>';
     return;
   }
 
@@ -399,7 +406,11 @@ function renderUpcoming() {
     const diff  = diffDays(a.dueDate);
     let cardCls, dueCls, dueLabel, badgeBg, badgeColor;
 
-    if (diff < 0) {
+    if (!a.dueDate) {
+      cardCls = 'uc-normal'; dueCls = 'due-normal';
+      dueLabel = 'Sem prazo definido';
+      badgeBg = 'rgba(148,163,184,.12)'; badgeColor = 'var(--text-muted)';
+    } else if (diff < 0) {
       cardCls = 'uc-today'; dueCls = 'due-today';
       dueLabel = `Venceu há ${Math.abs(diff)} dia(s)`;
       badgeBg = 'rgba(239,68,68,.12)'; badgeColor = '#dc2626';
@@ -433,7 +444,7 @@ function renderUpcoming() {
           <span class="upcoming-card-resp">👤 ${escHtml(a.responsible || '—')}</span>
           <span class="upcoming-card-badge" style="background:${badgeBg};color:${badgeColor}">${escHtml(statusBadge)}</span>
         </div>
-        <div class="upcoming-card-due ${dueCls}">📅 ${formatDate(a.dueDate)} · ${dueLabel}</div>
+        <div class="upcoming-card-due ${dueCls}">📅 ${a.dueDate ? formatDate(a.dueDate) + " · " : ""}${dueLabel}</div>
       </div>`;
   }).join('');
 }
