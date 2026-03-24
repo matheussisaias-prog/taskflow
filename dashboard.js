@@ -39,6 +39,9 @@ function renderDashboard() {
 
   // ── Mini gráficos
   renderDashboardCharts(m, acts);
+
+  // ── Próximas a Vencer
+  renderUpcoming();
 }
 
 function setEl(id, val) {
@@ -358,6 +361,73 @@ function renderTimelineChart() {
   });
 }
 
+
+/* ── PRÓXIMAS A VENCER ───────────────────────────────────── */
+function renderUpcoming() {
+  const wrap  = document.getElementById('upcoming-cards');
+  const empty = document.getElementById('upcoming-empty');
+  if (!wrap) return;
+
+  // Pega atividades pendentes, ordena pela data de vencimento mais próxima
+  const upcoming = (state.activities || [])
+    .filter(a => a.status !== 'Concluído' && a.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 5);
+
+  if (!upcoming.length) {
+    wrap.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  // Cor do projeto
+  function projColor(projName) {
+    const p = (state.projects || []).find(x => x.name === projName);
+    return p?.color || '#3b82f6';
+  }
+
+  wrap.innerHTML = upcoming.map(a => {
+    const diff  = diffDays(a.dueDate);
+    let cardCls, dueCls, dueLabel, badgeBg, badgeColor;
+
+    if (diff < 0) {
+      cardCls = 'uc-today'; dueCls = 'due-today';
+      dueLabel = `Venceu há ${Math.abs(diff)} dia(s)`;
+      badgeBg = 'rgba(239,68,68,.12)'; badgeColor = '#dc2626';
+    } else if (diff === 0) {
+      cardCls = 'uc-today'; dueCls = 'due-today';
+      dueLabel = 'Vence hoje!';
+      badgeBg = 'rgba(239,68,68,.12)'; badgeColor = '#dc2626';
+    } else if (diff <= 3) {
+      cardCls = 'uc-soon'; dueCls = 'due-soon';
+      dueLabel = `Em ${diff} dia(s)`;
+      badgeBg = 'rgba(245,158,11,.12)'; badgeColor = '#d97706';
+    } else {
+      cardCls = 'uc-normal'; dueCls = 'due-normal';
+      dueLabel = `Em ${diff} dia(s)`;
+      badgeBg = 'rgba(59,130,246,.10)'; badgeColor = '#2563eb';
+    }
+
+    const color = projColor(a.project);
+    const statusBadge = a.status || 'Pendente';
+
+    return `
+      <div class="upcoming-card ${cardCls}" title="Clique para editar" style="cursor:pointer" onclick="openModal('${escAttr(a.id)}')">
+        <div class="upcoming-card-proj">
+          <div class="upcoming-card-proj-dot" style="background:${color}"></div>
+          ${escHtml(a.project || '—')}
+        </div>
+        <div class="upcoming-card-title">${escHtml(a.description)}</div>
+        <div class="upcoming-card-meta">
+          <span class="upcoming-card-resp">👤 ${escHtml(a.responsible || '—')}</span>
+          <span class="upcoming-card-badge" style="background:${badgeBg};color:${badgeColor}">${statusBadge}</span>
+        </div>
+        <div class="upcoming-card-due ${dueCls}">📅 ${formatDate(a.dueDate)} · ${dueLabel}</div>
+      </div>`;
+  }).join('');
+}
+
 window.renderDashboard   = renderDashboard;
 window.renderCrisisPanel = renderCrisisPanel;
 window.renderAnalytics   = renderAnalytics;
@@ -407,3 +477,5 @@ function buildTaskRow(a) {
 }
 
 window.buildTaskRow = buildTaskRow;
+
+window.renderUpcoming = renderUpcoming;

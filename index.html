@@ -159,6 +159,47 @@
     .conflict-item-title { font-weight:700;color:#dc2626;margin-bottom:4px; }
     .conflict-item-detail { color:var(--text-secondary);line-height:1.6; }
 
+    /* ── Gestão de Custos ── */
+    .custos-kpi-strip { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:22px; }
+    .custos-kpi { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px; }
+    .custos-kpi-label { font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px; }
+    .custos-kpi-value { font-size:1.5rem;font-weight:800;color:var(--text-primary);line-height:1.1; }
+    .custos-kpi-sub { font-size:.68rem;color:var(--text-muted);margin-top:3px; }
+    .custos-kpi.kpi-good .custos-kpi-value { color:#059669; }
+    .custos-kpi.kpi-bad  .custos-kpi-value { color:#dc2626; }
+    .custos-kpi.kpi-warn .custos-kpi-value { color:#d97706; }
+    .custos-chart-wrap { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:22px; }
+    .custos-chart-title { font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px; }
+    .custos-bar-group { display:flex;flex-direction:column;gap:14px; }
+    .custos-bar-row { display:grid;grid-template-columns:140px 1fr auto;align-items:center;gap:12px; }
+    .custos-bar-label { font-size:.75rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .custos-bar-track { position:relative;height:24px;background:var(--border);border-radius:6px;overflow:visible; }
+    .custos-bar-budget { position:absolute;left:0;top:0;height:100%;border-radius:6px;opacity:.3; }
+    .custos-bar-real { position:absolute;left:0;top:4px;height:16px;border-radius:4px; }
+    .custos-bar-pct { font-size:.7rem;font-weight:700;color:var(--text-secondary);min-width:50px;text-align:right; }
+    .custos-table { width:100%;border-collapse:collapse;font-size:.78rem; }
+    .custos-table th { background:var(--bg-panel);color:var(--text-muted);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap; }
+    .custos-table td { padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle; }
+    .custos-table tr:last-child td { border-bottom:none; }
+    .custos-table tr:hover td { background:rgba(99,102,241,.04); }
+    .custos-var-pos { color:#059669;font-weight:700; }
+    .custos-var-neg { color:#dc2626;font-weight:700; }
+    .custos-var-neut { color:var(--text-muted);font-weight:600; }
+    .custos-badge { display:inline-block;padding:2px 8px;border-radius:99px;font-size:.65rem;font-weight:700; }
+    .custos-badge-ok   { background:rgba(5,150,105,.12);color:#059669; }
+    .custos-badge-warn { background:rgba(245,158,11,.12);color:#d97706; }
+    .custos-badge-over { background:rgba(239,68,68,.12);color:#dc2626; }
+    .custos-proj-dot { width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0; }
+    .custos-detail-btn { background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:2px 6px;border-radius:4px;transition:all .15s; }
+    .custos-detail-btn:hover { background:var(--border);color:var(--text-primary); }
+    .custos-detail-panel { display:none;background:var(--bg-panel);border-top:1px solid var(--border); }
+    .custos-detail-panel.open { display:table-row; }
+    .custos-detail-inner { padding:12px 16px; }
+    .custos-act-table { width:100%;border-collapse:collapse;font-size:.72rem; }
+    .custos-act-table th { color:var(--text-muted);font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;padding:4px 8px;border-bottom:1px solid var(--border); }
+    .custos-act-table td { padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.1); }
+    .custos-act-table tr:last-child td { border-bottom:none; }
+
     /* ── Gestão de Equipe ── */
     .equipe-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
     .equipe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-bottom:28px; }
@@ -206,6 +247,7 @@
       <a href="#" class="nav-item"         data-view="gantt"      onclick="switchView('gantt',this);return false;"><span class="nav-icon">▬</span><span>Gantt</span></a>
       <a href="#" class="nav-item"         data-view="activities" onclick="switchView('activities',this);return false;"><span class="nav-icon">◉</span><span>Atividades</span></a>
       <a href="#" class="nav-item"         data-view="portfolio"  onclick="switchView('portfolio',this);return false;"><span class="nav-icon">⬡</span><span>Portfólio</span></a>
+      <a href="#" class="nav-item"         data-view="custos"    onclick="switchView('custos',this);return false;"><span class="nav-icon">💰</span><span>Custos</span></a>
       <a href="#" class="nav-item"         data-view="projects"   onclick="switchView('projects',this);return false;"><span class="nav-icon">◧</span><span>Projetos</span></a>
       <a href="#" class="nav-item"         data-view="recursos"   onclick="switchView('recursos',this);return false;"><span class="nav-icon">👥</span><span>Recursos</span></a>
       <a href="#" class="nav-item"         data-view="equipe"     onclick="switchView('equipe',this);return false;"><span class="nav-icon">◑</span><span>Equipe</span></a>
@@ -361,6 +403,16 @@
         </table>
         <div class="empty-state" id="critical-empty"><span>✦</span><p>Nenhuma atividade crítica</p></div>
       </div>
+
+      <!-- Próximas a Vencer -->
+      <div class="section-header" style="margin-top:28px">
+        <h2 class="section-title">🗓 Próximas a Vencer</h2>
+        <span class="section-hint">5 atividades mais próximas do prazo</span>
+      </div>
+      <div class="upcoming-cards" id="upcoming-cards">
+        <div class="empty-state" id="upcoming-empty" style="display:none"><span>✦</span><p>Nenhuma atividade pendente</p></div>
+      </div>
+
     </section>
 
     <!-- ============ VIEW: GRÁFICOS ============ -->
@@ -497,6 +549,61 @@
     </section>
 
     <!-- ============ VIEW: PROJETOS ============ -->
+    <!-- ============ VIEW: CUSTOS ============ -->
+    <section class="view hidden" id="view-custos">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <h2 class="section-title" style="margin:0">Gestão de Custos</h2>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <label style="font-size:.75rem;color:var(--text-muted)">Projeto:</label>
+          <select id="custos-filter-proj" class="filter-select" onchange="renderCustos()" style="font-size:.75rem;padding:4px 8px">
+            <option value="">Todos</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="openEditBudgetModal()">✎ Editar Orçamentos</button>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div class="custos-kpi-strip" id="custos-kpis"></div>
+      <!-- Gráfico -->
+      <div class="custos-chart-wrap">
+        <div class="custos-chart-title">Orçado vs Realizado por Projeto</div>
+        <div class="custos-bar-group" id="custos-bar-group"></div>
+      </div>
+      <!-- Tabela detalhada -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <table class="custos-table" id="custos-table">
+          <thead>
+            <tr>
+              <th>Projeto</th>
+              <th>Orçado</th>
+              <th>Realizado</th>
+              <th>Variação R$</th>
+              <th>Variação %</th>
+              <th>CPI</th>
+              <th>Status</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="custos-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MODAL: Editar Orçamentos -->
+    <div class="modal-overlay hidden" id="budget-modal-overlay" onclick="closeBudgetModalOutside(event)">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+          <h3 class="modal-title">💰 Editar Orçamentos</h3>
+          <button class="modal-close" onclick="closeBudgetModal()">✕</button>
+        </div>
+        <div class="modal-body" id="budget-modal-body"></div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeBudgetModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveBudgets()">💾 Salvar</button>
+        </div>
+      </div>
+    </div>
+
+
     <section class="view hidden" id="view-projects">
       <div class="section-header" style="margin-bottom:18px">
         <h2 class="section-title">Projetos</h2>
@@ -977,6 +1084,10 @@
             <input type="date" id="proj-end"/></div>
           <div class="form-group"><label>Duração Total (horas)</label>
             <input type="number" id="proj-duration" placeholder="Ex: 870" min="0" step="0.5"/></div>
+          <div class="form-group"><label>💰 Orçamento Total (R$)</label>
+            <input type="number" id="proj-budget" placeholder="Ex: 85000.00" min="0" step="0.01" style="font-weight:600"/>
+            <small style="color:var(--text-muted);font-size:.68rem;margin-top:3px;display:block">Custo total previsto para o projeto. O realizado é calculado automaticamente pelas atividades.</small>
+          </div>
           <div class="form-group"><label>Progresso (%)</label>
             <div style="display:flex;align-items:center;gap:10px">
               <input type="range" id="proj-progress" min="0" max="100" step="1" value="0"
