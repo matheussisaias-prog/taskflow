@@ -1278,44 +1278,58 @@ function saveWAConfig() {
 }
 
 /**
- * Envia mensagem via CallMeBot API
- * @param {string} text - Mensagem (será URL-encoded)
+ * Envia mensagem via CallMeBot
+ * Tenta 3 proxies CORS em sequência; se todos falharem, abre aba direta.
+ * @param {string} text - Mensagem
  * @param {object} cfg  - { phone, apikey }
  */
-/**
- * Envia mensagem via servidor local Python (sem proxy externo)
- * O servidor callmebot_server.py deve estar rodando em localhost:5000
- */
 async function sendWAMessage(text, cfg) {
-  const LOCAL_SERVER = 'http://localhost:5000/send';
+  const phone  = (cfg && cfg.phone)  || _waConfig().phone;
+  const apikey = (cfg && cfg.apikey) || _waConfig().apikey;
+  if (!phone || !apikey) return false;
 
-  try {
-    const res = await fetch(LOCAL_SERVER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
+  const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${apikey}`;
 
-    if (!res.ok) {
-      console.warn('Servidor local retornou erro HTTP:', res.status);
-      return false;
+  const PROXIES = [
+    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
+
+  for (const makeProxy of PROXIES) {
+    try {
+      const res  = await fetch(makeProxy(targetUrl), { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const raw  = await res.text();
+      const body = raw.toLowerCase();
+      if (body.includes('message queued') || body.includes('queued') || body.includes('"contents"')) {
+        console.log('✅ CallMeBot: mensagem enfileirada via proxy');
+        return true;
+      }
+      // allorigins encapsula em JSON — verifica contents
+      try {
+        const j = JSON.parse(raw);
+        const inner = (j.contents || '').toLowerCase();
+        if (inner.includes('message queued') || inner.includes('queued')) return true;
+        if (inner.includes('error') || inner.includes('invalid')) {
+          console.warn('CallMeBot recusou:', j.contents);
+          return false; // API key/número errado — não adianta tentar outros proxies
+        }
+      } catch(_) {}
+    } catch (e) {
+      console.warn('Proxy falhou:', e.message);
     }
-
-    const data = await res.json();
-
-    if (data.ok) {
-      console.log('✅ Mensagem enviada via servidor local!');
-      return true;
-    } else {
-      console.warn('CallMeBot recusou:', data.response || data.error);
-      return false;
-    }
-
-  } catch (err) {
-    console.error('❌ Servidor local não encontrado:', err.message);
-    showToast('⚠ Inicie o callmebot_server.py no seu PC para enviar mensagens!', 'error');
-    return false;
   }
+
+  // Último recurso: abre aba (funciona sempre, mas requer interação)
+  console.warn('Todos os proxies falharam — abrindo aba direta');
+  window.open(targetUrl, '_blank', 'width=600,height=400,noopener');
+  return false;
+}
+
+/** Lê configuração salva do localStorage */
+function _waConfig() {
+  try { return JSON.parse(localStorage.getItem('taskflow_wa_cfg') || '{}'); } catch(_) { return {}; }
 }
 
 /**
@@ -1446,40 +1460,29 @@ async function testWAMessage() {
     return;
   }
 
-  const msg = '✅ *TaskFlow* — Teste de conexão! Se você recebeu esta mensagem, as notificações estão funcionando.';
+  const msg = '✅ *TaskFlow PRO* — Teste de conexão confirmado! As notificações estão ativas.';
   const statusEl = document.getElementById('wa-status-msg');
   statusEl.style.display = 'block';
   statusEl.style.color   = 'var(--text-muted)';
-  statusEl.innerHTML     = '⏳ Conectando ao CallMeBot via proxy... aguarde.';
-
-  // Diagnóstico direto: testa o proxy antes de enviar
-  let proxyOk = false;
-  try {
-    const pingRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.callmebot.com'), { method: 'GET' });
-    proxyOk = pingRes.ok;
-  } catch(e) { proxyOk = false; }
-
-  if (!proxyOk) {
-    statusEl.style.color = 'var(--yellow)';
-    statusEl.innerHTML   = '⚠ Proxy indisponível. Tentando envio direto em nova aba...';
-    const directUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(msg)}&apikey=${apikey}`;
-    window.open(directUrl, '_blank', 'width=700,height=500,noopener');
-    statusEl.innerHTML = '⚠ Uma aba foi aberta com a requisição. Verifique se a resposta foi "Message queued" e confira seu WhatsApp.';
-    return;
-  }
+  statusEl.innerHTML     = '⏳ Tentando enviar via CallMeBot... aguarde até 15s.';
 
   try {
     const ok = await sendWAMessage(msg, { phone, apikey });
     if (ok) {
-      statusEl.style.color = 'var(--green)';
-      statusEl.innerHTML   = '✓ Mensagem enviada via proxy! Verifique seu WhatsApp em instantes.<br/><small>Se não chegar em 1 minuto, refaça o passo 2 (enviar ativação ao CallMeBot).</small>';
+      statusEl.style.color = '#059669';
+      statusEl.innerHTML   = '✅ Mensagem enviada! Verifique seu WhatsApp em instantes.<br/><small>Se não chegar em 2 minutos, refaça o Passo 2 (enviar "I allow callmebot..." para o contato).</small>';
     } else {
-      statusEl.style.color = 'var(--red)';
-      statusEl.innerHTML   = '✗ CallMeBot recusou a requisição.<br/><small>Causas comuns: API Key errada, número incorreto, ou ativação não concluída (passo 2).</small>';
+      statusEl.style.color = '#dc2626';
+      statusEl.innerHTML   = '✗ CallMeBot recusou ou proxy falhou.<br/>' +
+        '<small>Verifique:<br/>' +
+        '• Número correto (DDI+DDD+número, sem espaços): ex. 5585998268803<br/>' +
+        '• API Key correta (apenas os números que o CallMeBot enviou)<br/>' +
+        '• Passo 2 concluído (enviar "I allow callmebot to send me messages")<br/>' +
+        '• <a href="https://api.callmebot.com/whatsapp.php?phone=' + phone + '&text=Teste+TaskFlow&apikey=' + apikey + '" target="_blank" style="color:#2563eb">Clique aqui para testar diretamente no navegador</a></small>';
     }
   } catch(e) {
-    statusEl.style.color = 'var(--red)';
-    statusEl.innerHTML   = '✗ Erro: ' + e.message;
+    statusEl.style.color = '#dc2626';
+    statusEl.innerHTML   = '✗ Erro inesperado: ' + e.message;
   }
 }
 
