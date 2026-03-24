@@ -1658,11 +1658,25 @@ function renderProjects() {
 
       <div class="project-card-footer">
         <span class="project-tasks-count">◈ ${total} atividade(s)</span>
-        <button class="btn btn-ghost btn-sm" onclick="filterAndGo('proj_${escAttr(proj.name)}')">Ver atividades →</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="openModalForProject('${escAttr(proj.name)}')" title="Adicionar atividade neste projeto" style="color:var(--primary);font-weight:700">＋ Atividade</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterAndGo('proj_${escAttr(proj.name)}')">Ver atividades →</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
+
+/* ── Abrir modal de atividade pré-selecionando o projeto ── */
+function openModalForProject(projName) {
+  openModal();
+  setTimeout(() => {
+    const inp = document.getElementById('form-project');
+    if (inp) inp.value = projName;
+    document.getElementById('form-description')?.focus();
+  }, 80);
+}
+window.openModalForProject = openModalForProject;
 
 /* ── Modal projeto ── */
 function openProjectModal() {

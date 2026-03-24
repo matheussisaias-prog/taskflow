@@ -514,6 +514,7 @@ function renderProjects() {
           ${m.healthLabel}
         </div>
         <div class="project-card-actions">
+          <button class="btn-action" onclick="openModalForProject('${escAttr(p.name)}')" style="background:rgba(99,102,241,.1);color:var(--primary);border:1px solid rgba(99,102,241,.3);font-weight:700" title="Nova atividade neste projeto">＋ Atividade</button>
           <button class="btn-action btn-edit" onclick="editProject('${p.id}')">✎ Editar</button>
           <button class="btn-action btn-delete" onclick="deleteProjectAction('${p.id}')">✕ Excluir</button>
         </div>
@@ -725,6 +726,16 @@ function saveActivity() {
 }
 
 window.openModal         = openModal;
+
+function openModalForProject(projName) {
+  openModal();
+  setTimeout(() => {
+    const inp = document.getElementById('form-project');
+    if (inp) inp.value = projName;
+    document.getElementById('form-description')?.focus();
+  }, 80);
+}
+window.openModalForProject = openModalForProject;
 window.closeModal        = closeModal;
 window.closeModalOutside = closeModalOutside;
 window.saveActivity      = saveActivity;
