@@ -368,23 +368,31 @@ function renderUpcoming() {
   const empty = document.getElementById('upcoming-empty');
   if (!wrap) return;
 
-  // Pega atividades pendentes, ordena pela data de vencimento mais próxima
-  const upcoming = (state.activities || [])
+  const allActs = state.activities || [];
+
+  // Pega atividades não concluídas ordenadas pela data mais próxima
+  const upcoming = allActs
     .filter(a => a.status !== 'Concluído' && a.dueDate)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 5);
 
   if (!upcoming.length) {
-    wrap.innerHTML = '';
-    if (empty) empty.style.display = 'block';
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:.82rem;padding:16px">Nenhuma atividade pendente.</div>';
     return;
   }
-  if (empty) empty.style.display = 'none';
 
-  // Cor do projeto
+  // Busca cor do projeto — suporta tanto state.projects quanto projectState.projects
   function projColor(projName) {
-    const p = (state.projects || []).find(x => x.name === projName);
-    return p?.color || '#3b82f6';
+    const pool = (typeof projectState !== 'undefined' && projectState.projects)
+      ? projectState.projects
+      : (state.projects || []);
+    const p = pool.find(x => x.name === projName);
+    if (p && p.color) return p.color;
+    // Fallback: gera cor determinística pelo nome
+    const palette = ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#ec4899','#0ea5e9','#f97316'];
+    let h = 0;
+    for (let i = 0; i < (projName || '').length; i++) h = (h * 31 + projName.charCodeAt(i)) % palette.length;
+    return palette[Math.abs(h)];
   }
 
   wrap.innerHTML = upcoming.map(a => {
@@ -410,18 +418,20 @@ function renderUpcoming() {
     }
 
     const color = projColor(a.project);
+    const projName = a.project || '—';
     const statusBadge = a.status || 'Pendente';
+    const safeId = (a.id || '').replace(/'/g, "\'");
 
     return `
-      <div class="upcoming-card ${cardCls}" title="Clique para editar" style="cursor:pointer" onclick="openModal('${escAttr(a.id)}')">
+      <div class="upcoming-card ${cardCls}" title="Clique para editar" style="cursor:pointer;border-top:3px solid ${color}" onclick="openModal('${safeId}')">
         <div class="upcoming-card-proj">
           <div class="upcoming-card-proj-dot" style="background:${color}"></div>
-          ${escHtml(a.project || '—')}
+          ${escHtml(projName)}
         </div>
-        <div class="upcoming-card-title">${escHtml(a.description)}</div>
+        <div class="upcoming-card-title">${escHtml(a.description || a.title || '—')}</div>
         <div class="upcoming-card-meta">
           <span class="upcoming-card-resp">👤 ${escHtml(a.responsible || '—')}</span>
-          <span class="upcoming-card-badge" style="background:${badgeBg};color:${badgeColor}">${statusBadge}</span>
+          <span class="upcoming-card-badge" style="background:${badgeBg};color:${badgeColor}">${escHtml(statusBadge)}</span>
         </div>
         <div class="upcoming-card-due ${dueCls}">📅 ${formatDate(a.dueDate)} · ${dueLabel}</div>
       </div>`;

@@ -1437,16 +1437,7 @@ textarea { resize: vertical; }
   box-shadow: 0 4px 18px rgba(0,0,0,.1);
   transform: translateY(-2px);
 }
-.upcoming-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  border-radius: 12px 0 0 12px;
-}
-.upcoming-card.uc-today::before   { background: #ef4444; }
-.upcoming-card.uc-soon::before    { background: #f59e0b; }
-.upcoming-card.uc-normal::before  { background: #3b82f6; }
+/* border-top colorida aplicada inline com cor do projeto */
 .upcoming-card-proj {
   font-size: .62rem;
   font-weight: 700;
