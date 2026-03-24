@@ -11,6 +11,183 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    /* ── Hierarquia WBS ── */
+    .wbs-cell { white-space:nowrap; width:82px; }
+    .wbs-num  { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--text-muted); font-weight:600; }
+    .btn-expand { background:none; border:none; cursor:pointer; color:var(--text-muted);
+                  font-size:.65rem; padding:0 2px; line-height:1; transition:color .15s; }
+    .btn-expand:hover { color:var(--primary); }
+    .expand-placeholder { display:inline-block; width:16px; }
+    .sub-arrow  { color:var(--text-muted); margin-right:4px; font-size:.72rem; }
+    .btn-add-sub { color:var(--primary) !important; font-size:.65rem !important; opacity:.7; }
+    .btn-add-sub:hover { opacity:1; }
+    tr.level-1 td { background:rgba(79,139,255,.03); }
+    tr.level-2 td { background:rgba(79,139,255,.055); }
+    tr.level-3 td { background:rgba(79,139,255,.08); }
+    tr.level-0 .desc-cell { font-weight:600; }
+    .dur-auto { font-variant-numeric:tabular-nums; color:var(--text-muted); font-size:.8rem; }
+
+    /* ── KPI Pro ── */
+    .kpi-pro-section { margin-top:20px; }
+    .kpi-pro-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:10px; }
+    .kpi-pro-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .kpi-pro-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+    .kpi-pro-label { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:4px; }
+    .kpi-pro-value { font-size:1.5rem; font-weight:800; color:var(--text-primary); line-height:1; }
+    .kpi-pro-sub { font-size:.68rem; color:var(--text-muted); margin-top:3px; }
+    .kpi-pro-pbar-wrap { height:5px; background:var(--bg-input); border-radius:99px; overflow:hidden; margin-top:8px; }
+    .kpi-pro-pbar { height:100%; background:var(--primary); border-radius:99px; transition:width .6s; }
+    .kpi-crit-val { color:#ef4444 !important; }
+
+    /* ── Gantt ── */
+    .gantt-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+    .gantt-zoom-btns { display:flex; gap:4px; }
+    .gantt-zoom-btns button { width:28px; height:28px; border:1px solid var(--border); border-radius:6px; background:var(--surface); cursor:pointer; font-size:.85rem; color:var(--text-primary); display:flex; align-items:center; justify-content:center; }
+    .gantt-zoom-btns button:hover { background:var(--bg-hover); }
+    .gantt-inner { display:flex; height:calc(100vh - 200px); min-height:360px; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .gantt-left-panel { width:290px; min-width:290px; flex-shrink:0; border-right:2px solid var(--border); display:flex; flex-direction:column; background:var(--surface); }
+    .gantt-left-header { height:56px; display:flex; align-items:center; padding:0 10px; gap:8px; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:2px solid var(--border); background:var(--bg-panel); flex-shrink:0; }
+    .gantt-left-rows { flex:1; overflow-y:scroll; scrollbar-width:none; }
+    .gantt-left-rows::-webkit-scrollbar { display:none; }
+    .gantt-left-row { display:flex; align-items:center; padding:0 8px; gap:5px; border-bottom:1px solid var(--border); font-size:.72rem; transition:background .1s; cursor:default; }
+    .gantt-left-row:hover { background:var(--bg-hover); }
+    .gantt-crit-row { background:rgba(239,68,68,.06) !important; }
+    .gantt-wbs { font-size:.6rem; color:var(--text-muted); font-weight:700; font-family:monospace; min-width:26px; flex-shrink:0; }
+    .gantt-task-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gantt-crit-dot { color:#ef4444; font-size:.55rem; flex-shrink:0; }
+    .gantt-right-panel { flex:1; overflow:auto; position:relative; }
+    .gantt-header-sticky { position:sticky; top:0; z-index:4; background:var(--bg-panel); }
+    .gantt-months-row { display:flex; border-bottom:1px solid var(--border); height:28px; }
+    .gantt-month { border-right:1px solid var(--border); font-size:.6rem; font-weight:700; display:flex; align-items:center; padding:0 6px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; flex-shrink:0; overflow:hidden; }
+    .gantt-days-row { display:flex; border-bottom:2px solid var(--border); height:28px; background:var(--surface); }
+    .gantt-day { border-right:1px solid rgba(148,163,184,.12); font-size:.58rem; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
+    .gantt-day-weekend { background:rgba(148,163,184,.1); }
+    .gantt-day-today { background:rgba(79,139,255,.18); color:var(--primary); font-weight:800; }
+    .gantt-bars-area { position:relative; }
+    .gantt-row-bg { position:absolute; left:0; right:0; }
+    .gantt-row-bg:nth-child(even) { background:rgba(148,163,184,.03); }
+    .gantt-row-sep { position:absolute; height:1px; left:0; background:rgba(148,163,184,.12); }
+    .gantt-vline { position:absolute; top:0; width:1px; background:rgba(148,163,184,.1); }
+    .gantt-vline-weekend { background:rgba(148,163,184,.16); }
+    .gantt-today-line { position:absolute; top:0; width:2px; background:rgba(79,139,255,.55); z-index:2; pointer-events:none; }
+    .gantt-bar-row { position:absolute; left:0; }
+    .gantt-bar { position:absolute; height:24px; top:8px; border-radius:4px; cursor:grab; display:flex; align-items:center; padding:0 6px; transition:filter .12s,box-shadow .12s; box-shadow:0 1px 3px rgba(0,0,0,.2); user-select:none; z-index:1; }
+    .gantt-bar:hover { filter:brightness(1.12); box-shadow:0 2px 8px rgba(0,0,0,.25); }
+    .gantt-bar:active { cursor:grabbing; }
+    .gantt-bar-critical { box-shadow:0 0 0 2px #ef4444, 0 2px 6px rgba(239,68,68,.35) !important; }
+    .gantt-bar-done { opacity:.65; }
+    .gantt-bar-label { font-size:.58rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; font-weight:600; flex:1; }
+    .gantt-bar-resize { position:absolute; right:0; top:0; bottom:0; width:7px; cursor:ew-resize; flex-shrink:0; }
+    .gantt-arrows-svg { position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
+    tr.row-critical > td:first-child { border-left:3px solid #ef4444; }
+
+    /* ── Portfólio ── */
+    .portfolio-header { display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap; }
+    .portfolio-kpi-strip { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:22px; }
+    .portfolio-kpi { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px; }
+    .portfolio-kpi-label { font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px; }
+    .portfolio-kpi-value { font-size:1.6rem;font-weight:800;color:var(--text-primary);line-height:1; }
+    .portfolio-kpi-sub { font-size:.68rem;color:var(--text-muted);margin-top:2px; }
+    .portfolio-timeline-wrap { background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px; }
+    .portfolio-tl-head { display:flex;border-bottom:2px solid var(--border);background:var(--bg-panel); }
+    .portfolio-tl-names { width:220px;min-width:220px;border-right:2px solid var(--border);flex-shrink:0; }
+    .portfolio-tl-months { flex:1;overflow:hidden;display:flex; }
+    .portfolio-tl-month { flex-shrink:0;border-right:1px solid var(--border);font-size:.6rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;padding:0 6px;height:34px; }
+    .portfolio-tl-body { display:flex;flex-direction:column; }
+    .portfolio-tl-row { display:flex;border-bottom:1px solid var(--border);min-height:52px;align-items:center; }
+    .portfolio-tl-row:last-child { border-bottom:none; }
+    .portfolio-tl-name-cell { width:220px;min-width:220px;border-right:2px solid var(--border);padding:8px 12px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:3px; }
+    .portfolio-tl-proj-name { font-size:.78rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .portfolio-tl-proj-meta { font-size:.65rem;color:var(--text-muted); }
+    .portfolio-tl-bars { flex:1;position:relative;height:52px;overflow:hidden; }
+    .portfolio-tl-bar { position:absolute;height:22px;top:8px;border-radius:4px;display:flex;align-items:center;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,.15); }
+    .portfolio-tl-bar-label { font-size:.6rem;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .portfolio-tl-baseline { position:absolute;height:4px;top:36px;border-radius:2px;opacity:.45; }
+    .portfolio-tl-progress { position:absolute;height:22px;top:8px;border-radius:4px 0 0 4px;opacity:.35; }
+    .portfolio-tl-today { position:absolute;top:0;bottom:0;width:2px;background:rgba(79,139,255,.6);pointer-events:none;z-index:2; }
+    .portfolio-tl-milestone { position:absolute;top:10px;width:18px;height:18px;transform:rotate(45deg);border-radius:2px;z-index:3; }
+    .semaforo { display:inline-flex;align-items:center;gap:5px;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:100px; }
+    .sem-verde  { background:rgba(5,150,105,.12);color:#059669; }
+    .sem-amarelo{ background:rgba(245,158,11,.12);color:#d97706; }
+    .sem-vermelho{ background:rgba(239,68,68,.12);color:#ef4444; }
+    .sem-cinza  { background:rgba(148,163,184,.12);color:#64748b; }
+    .portfolio-list { display:flex;flex-direction:column;gap:10px; }
+    .portfolio-row { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto auto auto auto;align-items:center;gap:16px; }
+    .pf-row-name { font-weight:700;font-size:.85rem;color:var(--text-primary); }
+    .pf-row-meta { font-size:.7rem;color:var(--text-muted); }
+    .pf-pbar-wrap { width:120px;height:6px;background:var(--bg-input);border-radius:99px;overflow:hidden;position:relative; }
+    .pf-pbar-baseline { position:absolute;height:100%;background:rgba(148,163,184,.45);border-radius:99px; }
+    .pf-pbar-real { position:absolute;height:100%;border-radius:99px;transition:width .5s; }
+
+    /* ── % progresso tarefa (Gantt e tabela) ── */
+    .gantt-bar-progress { position:absolute;left:0;top:0;bottom:0;border-radius:4px 0 0 4px;background:rgba(255,255,255,.3);pointer-events:none; }
+    .progress-cell { display:flex;align-items:center;gap:6px; }
+    .progress-mini-bar { flex:1;height:5px;background:var(--bg-input);border-radius:99px;overflow:hidden;min-width:40px; }
+    .progress-mini-fill { height:100%;background:var(--primary);border-radius:99px;transition:width .4s; }
+
+    /* ── Baseline badge no Gantt ── */
+    .baseline-diff-pos { color:#059669;font-size:.65rem;font-weight:700; }
+    .baseline-diff-neg { color:#ef4444;font-size:.65rem;font-weight:700; }
+
+    /* ── Conflito de Recursos ── */
+    .recursos-toolbar { display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap; }
+    .recursos-period-btn { padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:.75rem;color:var(--text-primary);transition:all .15s; }
+    .recursos-period-btn.active,.recursos-period-btn:hover { background:var(--primary);color:#fff;border-color:var(--primary); }
+    .recursos-heatmap { display:flex;flex-direction:column;gap:0; background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px; }
+    .recursos-heatmap-head { display:flex;border-bottom:2px solid var(--border);background:var(--bg-panel); }
+    .recursos-name-col { width:160px;min-width:160px;flex-shrink:0;border-right:2px solid var(--border);padding:8px 12px;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted); }
+    .recursos-weeks { flex:1;display:flex; }
+    .recursos-week-hd { flex:1;text-align:center;font-size:.6rem;font-weight:700;color:var(--text-muted);padding:8px 2px;border-right:1px solid var(--border); }
+    .recursos-heatmap-row { display:flex;border-bottom:1px solid var(--border);min-height:44px;align-items:center; }
+    .recursos-heatmap-row:last-child { border-bottom:none; }
+    .recursos-person-cell { width:160px;min-width:160px;flex-shrink:0;border-right:2px solid var(--border);padding:6px 12px;display:flex;flex-direction:column;gap:2px; }
+    .recursos-person-name { font-size:.78rem;font-weight:700;color:var(--text-primary); }
+    .recursos-person-role { font-size:.65rem;color:var(--text-muted); }
+    .recursos-cell { flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);font-size:.7rem;font-weight:700;cursor:default;transition:filter .1s;position:relative; }
+    .recursos-cell:last-child { border-right:none; }
+    .recursos-cell:hover { filter:brightness(.9); }
+    .rc-free   { background:rgba(5,150,105,.08);color:#059669; }
+    .rc-warn   { background:rgba(245,158,11,.18);color:#92400e; }
+    .rc-over   { background:rgba(239,68,68,.18);color:#991b1b; }
+    .rc-empty  { background:transparent;color:var(--text-muted); }
+    .recursos-legend { display:flex;gap:14px;font-size:.7rem;margin-bottom:14px; }
+    .recursos-legend-item { display:flex;align-items:center;gap:5px; }
+    .recursos-legend-dot { width:10px;height:10px;border-radius:2px; }
+    .recursos-conflict-list { display:flex;flex-direction:column;gap:8px;margin-top:4px; }
+    .conflict-item { background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:.78rem; }
+    .conflict-item-title { font-weight:700;color:#dc2626;margin-bottom:4px; }
+    .conflict-item-detail { color:var(--text-secondary);line-height:1.6; }
+
+    /* ── Gestão de Equipe ── */
+    .equipe-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .equipe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-bottom:28px; }
+    .colab-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; position:relative; transition:box-shadow .15s; }
+    .colab-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
+    .colab-card-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .colab-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.85rem; color:#fff; flex-shrink:0; }
+    .colab-name { font-weight:700; font-size:.88rem; color:var(--text-primary); }
+    .colab-role { font-size:.7rem; color:var(--text-muted); margin-top:1px; }
+    .colab-badge { display:inline-block; font-size:.6rem; font-weight:700; padding:2px 7px; border-radius:100px; text-transform:uppercase; letter-spacing:.04em; }
+    .colab-badge-ok { background:rgba(5,150,105,.12); color:#059669; }
+    .colab-badge-warn { background:rgba(245,158,11,.12); color:#d97706; }
+    .colab-badge-over { background:rgba(239,68,68,.12); color:#ef4444; }
+    .colab-load-wrap { margin-top:10px; }
+    .colab-load-label { display:flex; justify-content:space-between; font-size:.68rem; color:var(--text-muted); margin-bottom:4px; }
+    .colab-load-bar { height:6px; background:var(--bg-input); border-radius:99px; overflow:hidden; }
+    .colab-load-fill { height:100%; border-radius:99px; transition:width .5s; }
+    .colab-meta-row { display:flex; gap:12px; margin-top:8px; font-size:.68rem; color:var(--text-muted); flex-wrap:wrap; }
+    .colab-meta-item { display:flex; align-items:center; gap:4px; }
+    .colab-actions { display:flex; gap:6px; margin-top:10px; }
+    .colab-tasks-list { margin-top:8px; max-height:100px; overflow-y:auto; }
+    .colab-task-item { font-size:.65rem; color:var(--text-secondary); padding:2px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+    .equipe-section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin:20px 0 10px; }
+    .load-summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:20px; }
+    .load-summary-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px; }
+    .load-summary-label { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); }
+    .load-summary-value { font-size:1.4rem; font-weight:800; color:var(--text-primary); margin-top:2px; }
+    .load-summary-sub { font-size:.65rem; color:var(--text-muted); margin-top:2px; }
+  </style>
 </head>
 <body>
 
@@ -26,8 +203,12 @@
       <a href="#" class="nav-item active" data-view="dashboard"   onclick="switchView('dashboard',this);return false;"><span class="nav-icon">◈</span><span>Dashboard</span></a>
       <a href="#" class="nav-item"         data-view="charts"     onclick="switchView('charts',this);return false;"><span class="nav-icon">◬</span><span>Gráficos</span></a>
       <a href="#" class="nav-item"         data-view="kanban"     onclick="switchView('kanban',this);return false;"><span class="nav-icon">▦</span><span>Kanban</span></a>
+      <a href="#" class="nav-item"         data-view="gantt"      onclick="switchView('gantt',this);return false;"><span class="nav-icon">▬</span><span>Gantt</span></a>
       <a href="#" class="nav-item"         data-view="activities" onclick="switchView('activities',this);return false;"><span class="nav-icon">◉</span><span>Atividades</span></a>
+      <a href="#" class="nav-item"         data-view="portfolio"  onclick="switchView('portfolio',this);return false;"><span class="nav-icon">⬡</span><span>Portfólio</span></a>
       <a href="#" class="nav-item"         data-view="projects"   onclick="switchView('projects',this);return false;"><span class="nav-icon">◧</span><span>Projetos</span></a>
+      <a href="#" class="nav-item"         data-view="recursos"   onclick="switchView('recursos',this);return false;"><span class="nav-icon">👥</span><span>Recursos</span></a>
+      <a href="#" class="nav-item"         data-view="equipe"     onclick="switchView('equipe',this);return false;"><span class="nav-icon">◑</span><span>Equipe</span></a>
       <a href="#" class="nav-item"         data-view="import"     onclick="switchView('import',this);return false;"><span class="nav-icon">⇪</span><span>Importar</span></a>
       <a href="#" class="nav-item"         data-view="history"    onclick="switchView('history',this);return false;"><span class="nav-icon">◎</span><span>Histórico</span></a>
 
@@ -122,8 +303,40 @@
         </div>
       </div>
 
-      <!-- Mini charts -->
-      <div class="mini-charts-row">
+      <!-- KPI Pro -->
+      <div class="kpi-pro-section">
+        <div class="kpi-pro-title">Indicadores de Performance</div>
+        <div class="kpi-pro-grid">
+          <div class="kpi-pro-card">
+            <div class="kpi-pro-label">Progresso Geral</div>
+            <div class="kpi-pro-value" id="kpi-pro-pct">0%</div>
+            <div class="kpi-pro-pbar-wrap"><div class="kpi-pro-pbar" id="kpi-pro-pbar" style="width:0%"></div></div>
+            <div class="kpi-pro-sub" id="kpi-pro-done-sub">0 de 0 concluídas</div>
+          </div>
+          <div class="kpi-pro-card">
+            <div class="kpi-pro-label">SPI — Desempenho de Prazo</div>
+            <div class="kpi-pro-value" id="kpi-pro-spi">—</div>
+            <div class="kpi-pro-sub">≥ 1.0 = dentro do prazo</div>
+          </div>
+          <div class="kpi-pro-card">
+            <div class="kpi-pro-label">Caminho Crítico</div>
+            <div class="kpi-pro-value kpi-crit-val" id="kpi-pro-critical">0</div>
+            <div class="kpi-pro-sub">tarefas sem folga</div>
+          </div>
+          <div class="kpi-pro-card">
+            <div class="kpi-pro-label">Em Andamento</div>
+            <div class="kpi-pro-value" id="kpi-pro-inprogress">0</div>
+            <div class="kpi-pro-sub">dentro do prazo</div>
+          </div>
+          <div class="kpi-pro-card">
+            <div class="kpi-pro-label">Total de Tarefas</div>
+            <div class="kpi-pro-value" id="kpi-pro-total">0</div>
+            <div class="kpi-pro-sub" id="kpi-pro-overdue-sub">0 vencidas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini charts -->      <div class="mini-charts-row">
         <div class="mini-chart-card">
           <div class="mini-chart-label">Status geral</div>
           <canvas id="chart-donut-dash"></canvas>
@@ -143,7 +356,7 @@
       </div>
       <div class="activity-table-wrap">
         <table class="activity-table">
-          <thead><tr><th>Projeto</th><th>Título</th><th>Início</th><th>Término</th><th>Responsável</th><th>Duração</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr><th class="wbs-cell">WBS</th><th>Projeto</th><th>Título</th><th>Início</th><th>Término</th><th>Responsável</th><th>Duração</th><th>%</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="critical-tbody"></tbody>
         </table>
         <div class="empty-state" id="critical-empty"><span>✦</span><p>Nenhuma atividade crítica</p></div>
@@ -205,6 +418,36 @@
       <div class="kanban-board kanban-board-phases" id="kanban-board"></div>
     </section>
 
+    <!-- ============ VIEW: GANTT ============ -->
+    <section class="view hidden" id="view-gantt">
+      <div class="gantt-toolbar">
+        <div class="filter-group">
+          <label>Projeto</label>
+          <select id="gantt-filter-project" onchange="ganttSetProject(this.value)">
+            <option value="">Todos os projetos</option>
+          </select>
+        </div>
+        <div class="gantt-zoom-btns">
+          <button onclick="ganttZoom(-1)" title="Diminuir zoom">−</button>
+          <button onclick="ganttZoom(0)" title="Resetar zoom">↺</button>
+          <button onclick="ganttZoom(1)" title="Aumentar zoom">+</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <span style="font-size:.7rem;color:var(--text-muted)">
+            <span style="display:inline-block;width:10px;height:10px;border:2px solid #ef4444;border-radius:2px;margin-right:4px"></span>Caminho crítico
+          </span>
+          <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+            <span style="display:inline-block;width:24px;height:4px;background:rgba(100,116,139,.45);border-radius:2px"></span>Baseline
+          </span>
+          <button class="btn btn-ghost btn-sm" onclick="saveBaseline()" title="Salvar datas atuais como planejado original">📌 Salvar Baseline</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearBaseline()" title="Remover baseline">✕ Baseline</button>
+          <button class="btn btn-ghost btn-sm" onclick="renderGantt()">↻ Atualizar</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Nova Tarefa</button>
+        </div>
+      </div>
+      <div id="gantt-wrap"></div>
+    </section>
+
     <!-- ============ VIEW: ATIVIDADES ============ -->
     <section class="view hidden" id="view-activities">
       <div class="filters-bar">
@@ -236,12 +479,14 @@
       <div class="activity-table-wrap">
         <table class="activity-table">
           <thead><tr>
+            <th class="wbs-cell">WBS</th>
             <th class="sortable" onclick="sortBy('project')">Projeto <span class="sort-arrow" id="sort-project">↕</span></th>
             <th class="sortable" onclick="sortBy('description')">Título <span class="sort-arrow" id="sort-description">↕</span></th>
             <th class="sortable" onclick="sortBy('startDate')">Início <span class="sort-arrow" id="sort-startDate">↕</span></th>
             <th class="sortable" onclick="sortBy('dueDate')">Término <span class="sort-arrow" id="sort-dueDate">↕</span></th>
             <th class="sortable" onclick="sortBy('responsible')">Responsável <span class="sort-arrow" id="sort-responsible">↕</span></th>
             <th>Duração</th>
+            <th class="sortable" onclick="sortBy('progress')">% <span class="sort-arrow" id="sort-progress">↕</span></th>
             <th class="sortable" onclick="sortBy('status')">Status <span class="sort-arrow" id="sort-status">↕</span></th>
             <th>Ações</th>
           </tr></thead>
@@ -259,6 +504,77 @@
       </div>
       <div class="projects-grid" id="projects-grid"></div>
       <div class="empty-state hidden" id="projects-empty"><span>◧</span><p>Nenhum projeto cadastrado</p></div>
+    </section>
+
+    <!-- ============ VIEW: PORTFÓLIO ============ -->
+    <section class="view hidden" id="view-portfolio">
+      <div class="portfolio-header">
+        <h2 class="section-title" style="margin:0">Portfólio de Projetos</h2>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <label style="font-size:.75rem;color:var(--text-muted)">Visualização:</label>
+          <button class="recursos-period-btn active" id="pf-view-timeline" onclick="setPortfolioView('timeline')">Timeline</button>
+          <button class="recursos-period-btn" id="pf-view-list" onclick="setPortfolioView('list')">Lista</button>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div class="portfolio-kpi-strip" id="portfolio-kpis"></div>
+      <!-- Timeline -->
+      <div id="portfolio-timeline-section">
+        <div class="portfolio-timeline-wrap" id="portfolio-timeline-wrap">
+          <div style="padding:32px;text-align:center;color:var(--text-muted)">Carregando portfólio…</div>
+        </div>
+      </div>
+      <!-- Lista -->
+      <div id="portfolio-list-section" style="display:none">
+        <div class="portfolio-list" id="portfolio-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: RECURSOS ============ -->
+    <section class="view hidden" id="view-recursos">
+      <div class="recursos-toolbar">
+        <h2 class="section-title" style="margin:0">Conflito de Recursos</h2>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <span style="font-size:.72rem;color:var(--text-muted)">Período:</span>
+          <button class="recursos-period-btn active" id="rec-btn-4" onclick="setRecursosPeriod(4,this)">4 semanas</button>
+          <button class="recursos-period-btn" id="rec-btn-8" onclick="setRecursosPeriod(8,this)">8 semanas</button>
+          <button class="recursos-period-btn" id="rec-btn-12" onclick="setRecursosPeriod(12,this)">12 semanas</button>
+        </div>
+      </div>
+      <div class="recursos-legend">
+        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(5,150,105,.35)"></div> Livre (&lt;70%)</div>
+        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(245,158,11,.45)"></div> Atenção (70–99%)</div>
+        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(239,68,68,.45)"></div> Sobrecarregado (≥100%)</div>
+      </div>
+      <div class="recursos-heatmap" id="recursos-heatmap"></div>
+      <div style="margin-top:18px">
+        <div class="kpi-pro-title">Conflitos detectados</div>
+        <div class="recursos-conflict-list" id="recursos-conflict-list">
+          <div style="color:var(--text-muted);font-size:.8rem;padding:12px">Nenhum conflito detectado.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: EQUIPE ============ -->
+    <section class="view hidden" id="view-equipe">
+      <div class="equipe-toolbar">
+        <h2 class="section-title" style="margin:0">Gestão de Equipe</h2>
+        <button class="btn btn-primary" onclick="openColabModal()">＋ Novo Colaborador</button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <select id="equipe-filter-project" onchange="renderEquipe()" style="font-size:.78rem;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
+            <option value="">Todos os projetos</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Resumo de carga -->
+      <div class="equipe-section-title">Resumo de Carga</div>
+      <div class="load-summary-grid" id="equipe-summary-grid"></div>
+
+      <!-- Cards de colaboradores -->
+      <div class="equipe-section-title">Colaboradores</div>
+      <div class="equipe-grid" id="equipe-grid"></div>
+      <div class="empty-state hidden" id="equipe-empty"><span>👥</span><p>Nenhum colaborador cadastrado</p></div>
     </section>
 
     <!-- ============ VIEW: IMPORTAR ============ -->
@@ -371,7 +687,7 @@
 
   <!-- Nova / Editar atividade -->
   <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
-    <div class="modal">
+    <div class="modal" style="max-width:720px">
       <div class="modal-header">
         <h2 id="modal-title">Nova Atividade</h2>
         <button class="modal-close" onclick="closeModal()">✕</button>
@@ -379,33 +695,107 @@
       <div class="modal-body">
         <input type="hidden" id="form-id"/><input type="hidden" id="form-original-date"/>
         <div class="form-grid">
+
+          <!-- ── Linha 1: Data Início / Data Fim ── -->
+          <div class="form-group"><label>Data de Início</label>
+            <input type="date" id="form-start-date" oninput="autoCalcDuration(); checkConflicts()"/></div>
+          <div class="form-group"><label>Término (Prazo) <span class="req">*</span></label>
+            <input type="date" id="form-date" oninput="autoCalcDuration(); checkConflicts()"/></div>
+
+          <!-- ── Linha 2: Local ── -->
+          <div class="form-group form-full"><label>Local (empresa) <span class="req">*</span></label>
+            <input type="text" id="form-local" placeholder="Digite para sugerir (ex.: Coca-Cola)" list="locals-list"/>
+            <datalist id="locals-list"></datalist>
+            <span style="font-size:.7rem;color:var(--text-muted);margin-top:3px;display:block">
+              Dica: se o local não existir, cadastre em <strong>Cadastro de empresa/local</strong>.
+            </span></div>
+
+          <!-- ── Linha 3: Serviço / Linha ── -->
+          <div class="form-group"><label>Serviço <span class="req">*</span></label>
+            <input type="text" id="form-servico" placeholder="Ex.: Instalação / Passagem"/></div>
+          <div class="form-group"><label>Linha</label>
+            <input type="text" id="form-linha" placeholder="Ex.: ETA / ETE / Utilidades..."/></div>
+
+          <!-- ── Linha 4: Projeto / Descrição ── -->
           <div class="form-group"><label>Projeto <span class="req">*</span></label>
             <input type="text" id="form-project" placeholder="Ex: Portal Cliente" list="projects-list"/>
             <datalist id="projects-list"></datalist></div>
-          <div class="form-group"><label>Equipe <span class="req">*</span></label>
-            <select id="form-team"><option value="">Selecione</option>
-              <option>Equipe 01</option><option>Equipe 02</option><option>Equipe 03</option>
-              <option>Equipe 04</option><option>Equipe 05</option></select></div>
-          <div class="form-group form-full"><label>Descrição <span class="req">*</span></label>
+          <div class="form-group"><label>Descrição da Atividade <span class="req">*</span></label>
             <input type="text" id="form-description" placeholder="Descreva a atividade"/></div>
-          <div class="form-group"><label>Responsável <span class="req">*</span></label>
-            <input type="text" id="form-responsible" placeholder="Nome do responsável"/></div>
-          <div class="form-group"><label>Data de Início</label>
-            <input type="date" id="form-start-date"/></div>
-          <div class="form-group"><label>Término (Prazo) <span class="req">*</span></label>
-            <input type="date" id="form-date"/></div>
-          <div class="form-group"><label>Duração (horas)</label>
-            <input type="number" id="form-duration" placeholder="Ex: 50" min="0" step="0.5"/></div>
+
+          <!-- ── Linha 5: Líder / Projetista ── -->
+          <div class="form-group"><label>Líder do Projeto <span class="req">*</span></label>
+            <input type="text" id="form-lider" placeholder="Nome do líder" list="members-list-lider"
+                   oninput="updateMembersDatalist('members-list-lider', this.value)"/>
+            <datalist id="members-list-lider"></datalist>
+            <span style="font-size:.68rem;color:var(--text-muted);margin-top:3px;display:block">
+              ⚡ Líder está <strong>isento</strong> de verificação de conflito.
+            </span></div>
+          <div class="form-group"><label>Projetista Responsável <span class="req">*</span></label>
+            <input type="text" id="form-projetista" placeholder="Nome do projetista (pode ser o mesmo líder)"
+                   list="members-list-proj" oninput="updateMembersDatalist('members-list-proj', this.value); checkConflicts()"/>
+            <datalist id="members-list-proj"></datalist></div>
+
+          <!-- ── Linha 6: Equipe (múltipla seleção) ── -->
+          <div class="form-group form-full">
+            <label>Equipe / Responsável <span style="font-size:.7rem;color:var(--text-muted)">(múltipla seleção)</span></label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="form-equipe-input" placeholder="Digite o nome e pressione Enter"
+                     list="members-list-equipe" style="flex:1"
+                     oninput="updateMembersDatalist('members-list-equipe', this.value)"
+                     onkeydown="handleEquipeKeydown(event)"/>
+              <datalist id="members-list-equipe"></datalist>
+              <button type="button" class="btn btn-primary btn-sm" onclick="addEquipeMember()" style="white-space:nowrap">Adicionar</button>
+            </div>
+            <span style="font-size:.68rem;color:var(--text-muted);margin-top:3px;display:block">
+              Dica: cadastre funcionários em <strong>Cadastro de funcionário</strong> para aparecerem aqui.
+            </span>
+            <div id="form-equipe-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- ── Alerta de Conflito ── -->
+          <div class="form-full" id="conflict-alert" style="display:none">
+            <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:8px;padding:12px 14px;">
+              <div style="font-weight:700;font-size:.82rem;color:#d97706;margin-bottom:6px">⚠ Conflito de Agenda Detectado</div>
+              <div id="conflict-list" style="font-size:.78rem;color:var(--text-primary);line-height:1.7"></div>
+              <div style="margin-top:8px;font-size:.74rem;color:var(--text-muted)">
+                Você pode continuar mesmo assim — o conflito ficará registrado.
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Linha 7: Duração / Status / % conclusão ── -->
+          <div class="form-group"><label>Duração (horas) <span style="font-size:.7rem;color:var(--text-muted)">auto-calculada</span></label>
+            <input type="number" id="form-duration" placeholder="Calculada pelas datas" min="0" step="0.5"
+                   oninput="this.dataset.manualOverride='1'" style="background:var(--bg-input)"/></div>
           <div class="form-group"><label>Status</label>
             <select id="form-status"><option value="Pendente">Pendente</option>
               <option value="Concluído">Concluído</option><option value="Reprogramado">Reprogramado</option></select></div>
+          <div class="form-group"><label>% Conclusão <span style="font-size:.7rem;color:var(--text-muted)">0–100</span></label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="range" id="form-progress" min="0" max="100" value="0" style="flex:1"
+                     oninput="document.getElementById('form-progress-val').textContent=this.value+'%'"/>
+              <span id="form-progress-val" style="min-width:36px;font-size:.82rem;font-weight:700;color:var(--primary)">0%</span>
+            </div></div>
+
+          <!-- ── Linha 8: Atividade Pai / Predecessora ── -->
+          <div class="form-group"><label>Atividade Pai <span style="font-size:.7rem;color:var(--text-muted)">(opcional)</span></label>
+            <select id="form-parent"><option value="">— Nenhuma (atividade raiz) —</option></select></div>
+          <div class="form-group"><label>Predecessora <span style="font-size:.7rem;color:var(--text-muted)">(dependência)</span></label>
+            <select id="form-predecessor"><option value="">— Sem dependência —</option></select></div>
+
+          <!-- ── Linha 9: Observações ── -->
           <div class="form-group form-full"><label>Observações</label>
-            <textarea id="form-obs" rows="3" placeholder="Observações adicionais..."></textarea></div>
+            <textarea id="form-obs" rows="3" placeholder="Observações gerais, PT, horários, pendências..."></textarea></div>
+
+        </div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">
+          Regras: <strong>Local</strong> e <strong>Serviço</strong> são obrigatórios.
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveActivity()">Salvar Atividade</button>
+        <button class="btn btn-primary" onclick="saveActivity()">Adicionar</button>
       </div>
     </div>
   </div>
@@ -503,6 +893,45 @@
           <button class="btn btn-ghost" onclick="closeWAConfig()">Cancelar</button>
           <button class="btn btn-primary" onclick="saveWAConfig()" style="background:#25d366;box-shadow:0 2px 10px rgba(37,211,102,0.3)">💾 Salvar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Colaborador -->
+  <div class="modal-overlay" id="colab-modal-overlay" onclick="closeColabModalOutside(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="colab-modal-title">Novo Colaborador</h2>
+        <button class="modal-close" onclick="closeColabModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="colab-form-id"/>
+        <div class="form-grid">
+          <div class="form-group"><label>Nome <span class="req">*</span></label>
+            <input type="text" id="colab-name" placeholder="Nome completo"/></div>
+          <div class="form-group"><label>Função / Cargo</label>
+            <input type="text" id="colab-role" placeholder="Ex: Engenheiro Mecânico"/></div>
+          <div class="form-group"><label>Equipe</label>
+            <select id="colab-team">
+              <option value="Equipe 01">Equipe 01</option>
+              <option value="Equipe 02">Equipe 02</option>
+              <option value="Equipe 03">Equipe 03</option>
+              <option value="Equipe 04">Equipe 04</option>
+              <option value="Equipe 05">Equipe 05</option>
+            </select></div>
+          <div class="form-group"><label>Capacidade (horas/dia)</label>
+            <input type="number" id="colab-capacity" value="8" min="1" max="24" step="0.5"/></div>
+          <div class="form-group"><label>Custo por Hora (R$)</label>
+            <input type="number" id="colab-cost-hour" placeholder="Ex: 75.00" min="0" step="0.01"/></div>
+          <div class="form-group"><label>Cor de identificação</label>
+            <input type="color" id="colab-color" value="#1d4ed8" style="height:36px;width:100%;border:1px solid var(--border);border-radius:6px;padding:2px 4px;background:var(--surface);cursor:pointer"/></div>
+          <div class="form-group form-full"><label>Observações</label>
+            <input type="text" id="colab-obs" placeholder="Observações adicionais"/></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeColabModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveColab()">Salvar</button>
       </div>
     </div>
   </div>

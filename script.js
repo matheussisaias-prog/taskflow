@@ -175,14 +175,24 @@ function createActivity(data) {
   const activity = {
     id:          genId(),
     project:     data.project.trim(),
-    team:        data.team,
+    team:        data.team || '',
     description: data.description.trim(),
-    responsible: data.responsible.trim(),
+    responsible: data.responsible ? data.responsible.trim() : '',
+    local:       data.local       ? data.local.trim()       : '',
+    servico:     data.servico     ? data.servico.trim()     : '',
+    linha:       data.linha       ? data.linha.trim()       : '',
+    lider:       data.lider       ? data.lider.trim()       : '',
+    projetista:  data.projetista  ? data.projetista.trim()  : '',
+    equipe:      Array.isArray(data.equipe) ? data.equipe   : [],
     startDate:   data.startDate || '',
     dueDate:     data.dueDate,
-    duration:    data.duration  || '',
+    duration:    data.duration  || null,
     status:      data.status || 'Pendente',
-    obs:         data.obs.trim(),
+    progress:    data.progress != null ? parseInt(data.progress) : 0,
+    obs:         data.obs ? data.obs.trim() : '',
+    parentId:    data.parentId  || null,
+    collapsed:   false,
+    sortOrder:   Date.now(),
     createdAt:   Date.now(),
     updatedAt:   Date.now(),
   };
@@ -203,14 +213,22 @@ function updateActivity(id, data, isReschedule = false) {
   state.activities[idx] = {
     ...state.activities[idx],
     project:     data.project.trim(),
-    team:        data.team,
+    team:        data.team || '',
     description: data.description.trim(),
-    responsible: data.responsible.trim(),
+    responsible: data.responsible ? data.responsible.trim() : '',
+    local:       data.local       ? data.local.trim()       : '',
+    servico:     data.servico     ? data.servico.trim()     : '',
+    linha:       data.linha       ? data.linha.trim()       : '',
+    lider:       data.lider       ? data.lider.trim()       : '',
+    projetista:  data.projetista  ? data.projetista.trim()  : '',
+    equipe:      Array.isArray(data.equipe) ? data.equipe   : (state.activities[idx].equipe || []),
     startDate:   data.startDate || state.activities[idx].startDate || '',
     dueDate:     data.dueDate,
-    duration:    data.duration  || state.activities[idx].duration  || '',
+    duration:    data.duration  || state.activities[idx].duration  || null,
     status:      isReschedule ? 'Reprogramado' : data.status,
+    progress:    data.progress != null ? parseInt(data.progress) : (state.activities[idx].progress || 0),
     obs:         data.obs.trim(),
+    parentId:    data.parentId !== undefined ? (data.parentId || null) : state.activities[idx].parentId,
     updatedAt:   Date.now(),
   };
 
@@ -290,8 +308,8 @@ function sortBy(field) {
 function getSorted(arr) {
   const { field, dir } = state.currentSort;
   return [...arr].sort((a, b) => {
-    const va = (a[field] || '').toString().toLowerCase();
-    const vb = (b[field] || '').toString().toLowerCase();
+    const va = field === 'progress' ? (a[field] || 0) : (a[field] || '').toString().toLowerCase();
+    const vb = field === 'progress' ? (b[field] || 0) : (b[field] || '').toString().toLowerCase();
     if (va < vb) return dir === 'asc' ? -1 : 1;
     if (va > vb) return dir === 'asc' ?  1 : -1;
     return 0;
@@ -299,7 +317,7 @@ function getSorted(arr) {
 }
 
 function updateSortArrows() {
-  ['project', 'description', 'startDate', 'dueDate', 'responsible', 'status'].forEach(f => {
+  ['project', 'description', 'startDate', 'dueDate', 'responsible', 'status', 'progress'].forEach(f => {
     const el = document.getElementById(`sort-${f}`);
     if (!el) return;
     if (state.currentSort.field === f) {
@@ -330,33 +348,154 @@ function dateClass(activity) {
   return 'date-future';
 }
 
+/* ──────────────────────────────────────────────────────────────
+   DURAÇÃO AUTO-CALCULADA
+────────────────────────────────────────────────────────────── */
+function calcDurationHours(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+  const s = new Date(startDate + 'T00:00:00');
+  const e = new Date(endDate   + 'T00:00:00');
+  const days = Math.round((e - s) / 86400000);
+  return days > 0 ? days * 8 : null;
+}
+
+function autoCalcDuration() {
+  const start    = document.getElementById('form-start-date').value;
+  const end      = document.getElementById('form-date').value;
+  const durField = document.getElementById('form-duration');
+  if (!durField || durField.dataset.manualOverride) return;
+  if (start && end) {
+    const h = calcDurationHours(start, end);
+    if (h !== null) durField.value = h;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ÁRVORE WBS (hierarquia ilimitada estilo MS Project)
+────────────────────────────────────────────────────────────── */
+function buildTree(activities) {
+  const byId = {};
+  activities.forEach(a => byId[a.id] = a);
+
+  const roots = activities.filter(a => !a.parentId || !byId[a.parentId]);
+  const childrenOf = {};
+  activities.forEach(a => {
+    if (a.parentId && byId[a.parentId]) {
+      if (!childrenOf[a.parentId]) childrenOf[a.parentId] = [];
+      childrenOf[a.parentId].push(a);
+    }
+  });
+
+  const result = [];
+  function walk(node, prefix, level) {
+    const kids = (childrenOf[node.id] || []).sort((a, b) => (a.sortOrder||0) - (b.sortOrder||0));
+    result.push({ ...node, _wbs: prefix, _level: level, _hasChildren: kids.length > 0 });
+    if (!node.collapsed) {
+      kids.forEach((child, i) => walk(child, `${prefix}.${i + 1}`, level + 1));
+    }
+  }
+  roots.sort((a, b) => (a.sortOrder||0) - (b.sortOrder||0))
+       .forEach((r, i) => walk(r, String(i + 1), 0));
+  return result;
+}
+
+function toggleCollapse(id) {
+  const idx = state.activities.findIndex(a => a.id === id);
+  if (idx !== -1) {
+    state.activities[idx].collapsed = !state.activities[idx].collapsed;
+    persistActivities();
+    renderActivities();
+    renderCritical();
+  }
+}
+
+function handleAddSub(parentId) {
+  const parent = state.activities.find(a => a.id === parentId);
+  state.editingId = null;
+  openModal();
+  setTimeout(() => {
+    document.getElementById('form-parent').value = parentId;
+    if (parent) {
+      document.getElementById('form-project').value = parent.project || '';
+      document.getElementById('form-team').value    = parent.team    || '';
+    }
+    document.getElementById('modal-title').textContent = 'Nova Sub-Atividade';
+  }, 20);
+}
+
+function updateParentOptions(excludeId = null) {
+  const sel = document.getElementById('form-parent');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Nenhuma (atividade raiz) —</option>';
+  const tree = buildTree(state.activities.filter(a => a.id !== excludeId));
+  tree.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    const pad = '  '.repeat(a._level);
+    opt.textContent = `${pad}${a._wbs} — ${a.description.slice(0, 55)}`;
+    sel.appendChild(opt);
+  });
+  sel.value = cur;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   RENDER — ROW (hierarquia WBS)
+────────────────────────────────────────────────────────────── */
 function renderRow(activity) {
-  const prio = getPriority(activity);
-  const rc   = rowClass(activity);
-  const dc   = dateClass(activity);
-  const obs  = activity.obs ? activity.obs.replace(/"/g, '&quot;') : '';
-  const obsAttr = obs ? `data-obs="${obs}" class="obs-tooltip"` : '';
+  const prio  = getPriority(activity);
+  const rc    = rowClass(activity);
+  const dc    = dateClass(activity);
+  const obs   = activity.obs ? activity.obs.replace(/"/g, '&quot;') : '';
+  const obsAttr = obs ? `data-obs="${obs}"` : '';
+
+  const level   = activity._level    || 0;
+  const wbs     = activity._wbs      || '—';
+  const hasKids = activity._hasChildren || false;
+  const indent  = level * 18;
+
+  const durH    = (activity.duration !== undefined && activity.duration !== null && activity.duration !== '')
+    ? activity.duration
+    : calcDurationHours(activity.startDate, activity.dueDate);
+  const durDisplay = durH ? `${durH}h` : '—';
+
+  const expandBtn = hasKids
+    ? `<button class="btn-expand" onclick="toggleCollapse('${activity.id}')" title="${activity.collapsed?'Expandir':'Colapsar'}">${activity.collapsed?'▶':'▼'}</button>`
+    : `<span class="expand-placeholder"></span>`;
 
   return `
-    <tr class="${rc}" id="row-${activity.id}">
+    <tr class="${rc} level-${level}" id="row-${activity.id}">
+      <td class="wbs-cell">
+        <div style="display:flex;align-items:center;gap:3px;padding-left:${indent}px">
+          ${expandBtn}<span class="wbs-num">${wbs}</span>
+        </div>
+      </td>
       <td class="fw-bold" style="font-size:0.75rem;color:var(--text-muted)">${escHtml(activity.project)}</td>
-      <td class="desc-cell" title="${escHtml(activity.description)}" ${obsAttr}>
-        ${escHtml(activity.description)}
+      <td class="desc-cell ${obs?'obs-tooltip':''}" title="${escHtml(activity.description)}" ${obsAttr} style="padding-left:${indent?indent+4:0}px">
+        ${level > 0 ? '<span class="sub-arrow">↳</span>' : ''}
+        <span style="font-weight:${level===0?600:400}">${escHtml(activity.description)}</span>
         ${obs ? ' <span style="opacity:.45;font-size:.7rem;">●</span>' : ''}
       </td>
       <td style="white-space:nowrap">${activity.startDate ? formatDate(activity.startDate) : '—'}</td>
       <td class="${dc}" style="white-space:nowrap">${formatDate(activity.dueDate)}</td>
       <td>${escHtml(activity.responsible)}</td>
-      <td style="white-space:nowrap;color:var(--text-muted);font-size:0.8rem">${activity.duration ? escHtml(String(activity.duration))+'h' : '—'}</td>
+      <td class="dur-auto">${durDisplay}</td>
+      <td>
+        <div class="progress-cell" style="min-width:70px">
+          <div class="progress-mini-bar"><div class="progress-mini-fill" style="width:${activity.progress||0}%"></div></div>
+          <span style="font-size:.68rem;font-weight:700;color:var(--text-muted);flex-shrink:0">${activity.progress||0}%</span>
+        </div>
+      </td>
       <td><span class="status-badge status-${escHtml(activity.status)}">${escHtml(activity.status)}</span></td>
       <td>
         <div class="actions-cell">
+          <button class="btn-action btn-add-sub" onclick="handleAddSub('${activity.id}')" title="Adicionar sub-atividade">↳+</button>
           ${activity.status !== 'Concluído' ? `
-            <button class="btn-action btn-complete"    onclick="handleComplete('${activity.id}')">✓ Concluir</button>
-            <button class="btn-action btn-reschedule"  onclick="handleReschedule('${activity.id}')">⟳ Reprog.</button>
+            <button class="btn-action btn-complete"   onclick="handleComplete('${activity.id}')">✓</button>
+            <button class="btn-action btn-reschedule" onclick="handleReschedule('${activity.id}')">⟳</button>
           ` : ''}
-          <button class="btn-action btn-edit"   onclick="handleEdit('${activity.id}')">✎ Editar</button>
-          <button class="btn-action btn-delete" onclick="handleDelete('${activity.id}')">✕ Excluir</button>
+          <button class="btn-action btn-edit"   onclick="handleEdit('${activity.id}')">✎</button>
+          <button class="btn-action btn-delete" onclick="handleDelete('${activity.id}')">✕</button>
         </div>
       </td>
     </tr>`;
@@ -366,27 +505,31 @@ function renderRow(activity) {
    RENDER — TABELAS PRINCIPAIS
 ────────────────────────────────────────────────────────────── */
 function renderActivities() {
-  const filtered = getSorted(getFiltered());
+  const filtered = getFiltered();
+  const tree     = buildTree(filtered);
+
   const tbody    = document.getElementById('main-tbody');
   const empty    = document.getElementById('main-empty');
 
   if (!tbody || !empty) return;
 
-  if (!filtered.length) {
+  if (!tree.length) {
     tbody.innerHTML = '';
     empty.style.display = 'flex';
     return;
   }
 
   empty.style.display = 'none';
-  tbody.innerHTML = filtered.map(renderRow).join('');
+  tbody.innerHTML = tree.map(renderRow).join('');
   updateFilterOptions();
 }
 
 function renderCritical() {
-  const critical = state.activities
+  const criticalFlat = state.activities
     .filter(a => a.status !== 'Concluído' && diffDays(a.dueDate) < 0)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  const critical = buildTree(criticalFlat);
 
   const tbody = document.getElementById('critical-tbody');
   const empty = document.getElementById('critical-empty');
@@ -562,15 +705,30 @@ function handleEdit(id) {
   document.getElementById('form-id').value            = id;
   document.getElementById('form-original-date').value = activity.dueDate;
   document.getElementById('form-project').value       = activity.project;
-  document.getElementById('form-team').value          = activity.team;
-  document.getElementById('form-description').value   = activity.description;
-  document.getElementById('form-responsible').value   = activity.responsible;
-  document.getElementById('form-start-date').value    = activity.startDate || '';
-  document.getElementById('form-date').value          = activity.dueDate;
-  document.getElementById('form-duration').value      = activity.duration  || '';
-  document.getElementById('form-status').value        = activity.status === 'Vencido' ? 'Pendente' : activity.status;
-  document.getElementById('form-obs').value           = activity.obs;
+  document.getElementById('form-local').value         = activity.local       || '';
+  document.getElementById('form-servico').value       = activity.servico     || '';
+  document.getElementById('form-linha').value         = activity.linha       || '';
+  document.getElementById('form-lider').value         = activity.lider       || '';
+  document.getElementById('form-projetista').value    = activity.projetista  || '';
+  document.getElementById('form-description').value  = activity.description;
+  document.getElementById('form-start-date').value   = activity.startDate || '';
+  document.getElementById('form-date').value         = activity.dueDate;
+  document.getElementById('form-duration').value     = activity.duration  || '';
+  document.getElementById('form-status').value       = activity.status === 'Vencido' ? 'Pendente' : activity.status;
+  document.getElementById('form-obs').value          = activity.obs;
+  const progEl = document.getElementById('form-progress');
+  if (progEl) { progEl.value = activity.progress || 0; document.getElementById('form-progress-val').textContent = (activity.progress||0)+'%'; }
 
+  // equipe tags
+  _equipeMembers = Array.isArray(activity.equipe) ? [...activity.equipe] : [];
+  renderEquipeTags();
+
+  const dur = document.getElementById('form-duration');
+  if (dur) delete dur.dataset.manualOverride;
+  updateParentOptions(id);
+  document.getElementById('form-parent').value = activity.parentId || '';
+  document.getElementById('conflict-alert').style.display = 'none';
+  updateLocalsDatalist();
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -613,20 +771,204 @@ function filterAndGo(type) {
 /* ──────────────────────────────────────────────────────────────
    MODAL — NOVA / EDITAR ATIVIDADE
 ────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   EQUIPE — TAGS MÚLTIPLAS
+────────────────────────────────────────────────────────────── */
+
+let _equipeMembers = [];
+
+function handleEquipeKeydown(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addEquipeMember(); }
+}
+
+function addEquipeMember() {
+  const input = document.getElementById('form-equipe-input');
+  const name  = (input.value || '').trim();
+  if (!name) return;
+  if (_equipeMembers.includes(name)) {
+    showToast(`${name} já está na equipe`, 'error');
+    input.value = '';
+    return;
+  }
+  _equipeMembers.push(name);
+  input.value = '';
+  renderEquipeTags();
+  checkConflicts();
+}
+
+function removeEquipeMember(name) {
+  _equipeMembers = _equipeMembers.filter(m => m !== name);
+  renderEquipeTags();
+  checkConflicts();
+}
+
+function renderEquipeTags() {
+  const container = document.getElementById('form-equipe-tags');
+  if (!container) return;
+  container.innerHTML = _equipeMembers.map(name => `
+    <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(79,139,255,.12);
+                 color:var(--primary);border-radius:100px;padding:3px 10px 3px 12px;font-size:.75rem;font-weight:600;">
+      ${escHtml(name)}
+      <button type="button" onclick="removeEquipeMember(${JSON.stringify(name)})"
+              style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:.8rem;
+                     line-height:1;padding:0;opacity:.7" title="Remover">✕</button>
+    </span>
+  `).join('');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DETECÇÃO DE CONFLITO
+────────────────────────────────────────────────────────────── */
+
+/**
+ * Verifica se algum membro da equipe (exceto o líder) tem sobreposição
+ * de datas com outra atividade já cadastrada.
+ * Retorna array de { member, project, start, end }
+ */
+function detectConflicts(data) {
+  const startNew = data.startDate || data.dueDate;
+  const endNew   = data.dueDate;
+  if (!startNew || !endNew) return [];
+
+  const lider   = (data.lider   || '').trim().toLowerCase();
+  // membros a verificar: equipe + projetista, exceto o líder
+  const toCheck = [...data.equipe];
+  const proj    = (data.projetista || '').trim();
+  if (proj && !toCheck.includes(proj)) toCheck.push(proj);
+
+  const membersToCheck = toCheck
+    .map(m => m.trim())
+    .filter(m => m && m.toLowerCase() !== lider);
+
+  if (membersToCheck.length === 0) return [];
+
+  const conflicts = [];
+  const editingId = state.editingId;
+
+  for (const member of membersToCheck) {
+    const memberLower = member.toLowerCase();
+
+    for (const act of state.activities) {
+      if (act.id === editingId) continue; // ignora a própria atividade sendo editada
+      if (act.status === 'Concluído') continue;
+
+      const actStart = act.startDate || act.dueDate;
+      const actEnd   = act.dueDate;
+      if (!actStart || !actEnd) continue;
+
+      // Verifica sobreposição de datas
+      const overlap = startNew <= actEnd && endNew >= actStart;
+      if (!overlap) continue;
+
+      // Verifica se o membro aparece nessa atividade
+      const actEquipe    = Array.isArray(act.equipe) ? act.equipe.map(m => m.toLowerCase()) : [];
+      const actProjetista = (act.projetista || '').trim().toLowerCase();
+      const actResponsavel = (act.responsible || '').trim().toLowerCase();
+
+      const memberInActivity =
+        actEquipe.includes(memberLower) ||
+        actProjetista === memberLower   ||
+        actResponsavel === memberLower;
+
+      if (memberInActivity) {
+        // Evita duplicatas do mesmo membro+projeto
+        const already = conflicts.find(c => c.member === member && c.project === act.project);
+        if (!already) {
+          conflicts.push({
+            member,
+            project: act.project,
+            start:   actStart,
+            end:     actEnd,
+          });
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/** Atualiza o painel de conflito inline no modal (chamado ao digitar datas/equipe) */
+function checkConflicts() {
+  const alertEl = document.getElementById('conflict-alert');
+  const listEl  = document.getElementById('conflict-list');
+  if (!alertEl || !listEl) return;
+
+  const data = {
+    startDate:  document.getElementById('form-start-date').value,
+    dueDate:    document.getElementById('form-date').value,
+    lider:      document.getElementById('form-lider').value,
+    projetista: document.getElementById('form-projetista').value,
+    equipe:     [..._equipeMembers],
+  };
+
+  const conflicts = detectConflicts(data);
+
+  if (conflicts.length === 0) {
+    alertEl.style.display = 'none';
+  } else {
+    listEl.innerHTML = conflicts.map(c =>
+      `• <strong>${escHtml(c.member)}</strong> está em <em>${escHtml(c.project)}</em> (${formatDate(c.start)} → ${formatDate(c.end)})`
+    ).join('<br>');
+    alertEl.style.display = 'block';
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DATALISTS — SUGESTÕES AUTOMÁTICAS
+────────────────────────────────────────────────────────────── */
+
+/** Atualiza datalist de locais a partir das atividades existentes */
+function updateLocalsDatalist() {
+  const locals = [...new Set(state.activities.map(a => a.local).filter(Boolean))].sort();
+  const dl = document.getElementById('locals-list');
+  if (dl) dl.innerHTML = locals.map(l => `<option value="${escAttr(l)}">`).join('');
+}
+
+/** Atualiza datalist de membros (todos os membros já cadastrados) */
+function updateMembersDatalist(datalistId, query) {
+  const allMembers = new Set();
+  state.activities.forEach(a => {
+    if (a.lider)      allMembers.add(a.lider.trim());
+    if (a.projetista) allMembers.add(a.projetista.trim());
+    if (a.responsible) allMembers.add(a.responsible.trim());
+    if (Array.isArray(a.equipe)) a.equipe.forEach(m => allMembers.add(m.trim()));
+  });
+  const filtered = [...allMembers].filter(m => m && (!query || m.toLowerCase().includes(query.toLowerCase()))).sort();
+  const dl = document.getElementById(datalistId);
+  if (dl) dl.innerHTML = filtered.map(m => `<option value="${escAttr(m)}">`).join('');
+}
+
 function openModal() {
   state.editingId = null;
   document.getElementById('modal-title').textContent = 'Nova Atividade';
   document.getElementById('form-id').value            = '';
   document.getElementById('form-original-date').value = '';
   document.getElementById('form-project').value       = '';
-  document.getElementById('form-start-date').value    = '';
-  document.getElementById('form-duration').value      = '';
-  document.getElementById('form-team').value          = '';
-  document.getElementById('form-description').value   = '';
-  document.getElementById('form-responsible').value   = '';
-  document.getElementById('form-date').value          = todayISO();
-  document.getElementById('form-status').value        = 'Pendente';
-  document.getElementById('form-obs').value           = '';
+  document.getElementById('form-local').value         = '';
+  document.getElementById('form-servico').value       = '';
+  document.getElementById('form-linha').value         = '';
+  document.getElementById('form-lider').value         = '';
+  document.getElementById('form-projetista').value    = '';
+  document.getElementById('form-start-date').value   = '';
+  document.getElementById('form-duration').value     = '';
+  document.getElementById('form-description').value  = '';
+  document.getElementById('form-date').value         = todayISO();
+  document.getElementById('form-status').value       = 'Pendente';
+  document.getElementById('form-obs').value          = '';
+  const progEl = document.getElementById('form-progress');
+  if (progEl) { progEl.value = 0; document.getElementById('form-progress-val').textContent = '0%'; }
+  // reset equipe tags
+  _equipeMembers = [];
+  renderEquipeTags();
+  // reset manual override
+  const dur = document.getElementById('form-duration');
+  if (dur) delete dur.dataset.manualOverride;
+  // reset conflito
+  document.getElementById('conflict-alert').style.display = 'none';
+  updateParentOptions();
+  document.getElementById('form-parent').value = '';
+  updateLocalsDatalist();
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -642,25 +984,46 @@ function closeModalOutside(e) {
 function saveActivity() {
   const data = {
     project:     document.getElementById('form-project').value,
-    team:        document.getElementById('form-team').value,
+    local:       document.getElementById('form-local').value,
+    servico:     document.getElementById('form-servico').value,
+    linha:       document.getElementById('form-linha').value,
+    lider:       document.getElementById('form-lider').value,
+    projetista:  document.getElementById('form-projetista').value,
+    equipe:      [..._equipeMembers],
     description: document.getElementById('form-description').value,
-    responsible: document.getElementById('form-responsible').value,
+    team:        document.getElementById('form-project').value, // compatibilidade
+    responsible: document.getElementById('form-lider').value || document.getElementById('form-projetista').value,
     startDate:   document.getElementById('form-start-date').value,
     dueDate:     document.getElementById('form-date').value,
-    duration:    document.getElementById('form-duration').value,
+    duration:    document.getElementById('form-duration').value || null,
     status:      document.getElementById('form-status').value,
+    progress:    parseInt(document.getElementById('form-progress')?.value || 0),
     obs:         document.getElementById('form-obs').value,
+    parentId:    document.getElementById('form-parent').value || null,
   };
 
-  // Validação básica
-  if (!data.project)     { showToast('Informe o projeto',          'error'); return; }
-  if (!data.team)        { showToast('Selecione a equipe',         'error'); return; }
-  if (!data.description) { showToast('Descreva a atividade',       'error'); return; }
-  if (!data.responsible) { showToast('Informe o responsável',      'error'); return; }
-  if (!data.dueDate)     { showToast('Informe a data prevista',    'error'); return; }
+  // ── Validação
+  if (!data.project)     { showToast('Informe o projeto',           'error'); return; }
+  if (!data.local)       { showToast('Informe o local (empresa)',   'error'); return; }
+  if (!data.servico)     { showToast('Informe o serviço',           'error'); return; }
+  if (!data.description) { showToast('Descreva a atividade',        'error'); return; }
+  if (!data.lider)       { showToast('Informe o líder do projeto',  'error'); return; }
+  if (!data.projetista)  { showToast('Informe o projetista',        'error'); return; }
+  if (!data.dueDate)     { showToast('Informe a data prevista',     'error'); return; }
+
+  // ── Verificação de conflito (equipe, exceto líder)
+  const conflicts = detectConflicts(data);
+  if (conflicts.length > 0) {
+    const names = conflicts.map(c => `• <strong>${c.member}</strong> já está em <em>${c.project}</em> (${formatDate(c.start)} → ${formatDate(c.end)})`).join('<br>');
+    const proceed = confirm(
+      `⚠ Conflito de Agenda Detectado!\n\n` +
+      conflicts.map(c => `• ${c.member} já está em "${c.project}" (${formatDate(c.start)} → ${formatDate(c.end)})`).join('\n') +
+      `\n\nDeseja adicionar mesmo assim?`
+    );
+    if (!proceed) return;
+  }
 
   if (state.editingId) {
-    // Detecta mudança de data → Reprogramado
     const originalDate = document.getElementById('form-original-date').value;
     const isReschedule = originalDate && originalDate !== data.dueDate;
     updateActivity(state.editingId, data, isReschedule);
@@ -717,7 +1080,9 @@ function switchView(viewName, navEl) {
   state.currentView = viewName;
 
   // Renderiza Kanban ao entrar
-  if (viewName === 'kanban') setTimeout(renderKanban, 50);
+  if (viewName === 'kanban')    setTimeout(renderKanban, 50);
+  if (viewName === 'portfolio') setTimeout(renderPortfolio, 50);
+  if (viewName === 'recursos')  setTimeout(renderRecursos, 50);
 
   // Fecha sidebar em mobile
   if (window.innerWidth <= 768) {
@@ -786,15 +1151,21 @@ function loadDemoData() {
   const future5  = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
   const future15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
 
+  const past14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const past10 = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+  const future20 = new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10);
+  const future30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
   const demos = [
-    { project: 'Portal Cliente',  team: 'Equipe 01', description: 'Implementar login SSO',         responsible: 'Ana Lima',    dueDate: past7,   status: 'Pendente',  obs: 'Aguarda credenciais do cliente' },
-    { project: 'Portal Cliente',  team: 'Equipe 01', description: 'Testes de integração API',     responsible: 'Bruno Souza', dueDate: past3,   status: 'Pendente',  obs: '' },
-    { project: 'ERP Interno',     team: 'Equipe 02', description: 'Módulo de relatórios',          responsible: 'Carla Mendes',dueDate: today,   status: 'Pendente',  obs: 'Prioridade alta' },
-    { project: 'ERP Interno',     team: 'Equipe 02', description: 'Migração de banco de dados',   responsible: 'Diego Costa', dueDate: future5, status: 'Pendente',  obs: '' },
-    { project: 'App Mobile',      team: 'Equipe 03', description: 'Tela de onboarding',           responsible: 'Elena Rocha', dueDate: future15,status: 'Concluído', obs: 'Entregue antes do prazo' },
-    { project: 'App Mobile',      team: 'Equipe 03', description: 'Push notifications',           responsible: 'Felipe Neto', dueDate: today,   status: 'Pendente',  obs: '' },
-    { project: 'Infraestrutura',  team: 'Equipe 04', description: 'Atualização de servidores',    responsible: 'Gabi Alves',  dueDate: future5, status: 'Reprogramado', obs: '[Reprogramado: aguardo janela de manutenção]' },
-    { project: 'Infraestrutura',  team: 'Equipe 04', description: 'Backup automático',             responsible: 'Hugo Pires',  dueDate: past3,   status: 'Concluído', obs: '' },
+    { project: 'Portal Cliente',  description: 'Implementar login SSO',       responsible: 'Ana Lima',    lider: 'Ana Lima',    projetista: 'Bruno Souza', equipe: ['Ana Lima','Bruno Souza'],          startDate: past14,  dueDate: past7,    status: 'Pendente',     progress: 65, obs: 'Aguarda credenciais do cliente' },
+    { project: 'Portal Cliente',  description: 'Testes de integração API',    responsible: 'Bruno Souza', lider: 'Ana Lima',    projetista: 'Bruno Souza', equipe: ['Bruno Souza','Carla Mendes'],      startDate: past7,   dueDate: past3,    status: 'Pendente',     progress: 30, obs: '' },
+    { project: 'ERP Interno',     description: 'Módulo de relatórios',        responsible: 'Carla Mendes',lider: 'Carla Mendes',projetista: 'Diego Costa', equipe: ['Carla Mendes','Diego Costa'],      startDate: past10,  dueDate: today,    status: 'Pendente',     progress: 80, obs: 'Prioridade alta' },
+    { project: 'ERP Interno',     description: 'Migração de banco de dados',  responsible: 'Diego Costa', lider: 'Carla Mendes',projetista: 'Diego Costa', equipe: ['Diego Costa','Bruno Souza'],       startDate: today,   dueDate: future5,  status: 'Pendente',     progress: 10, obs: '' },
+    { project: 'App Mobile',      description: 'Tela de onboarding',          responsible: 'Elena Rocha', lider: 'Elena Rocha', projetista: 'Felipe Neto', equipe: ['Elena Rocha'],                     startDate: past14,  dueDate: future15, status: 'Concluído',    progress: 100,obs: 'Entregue antes do prazo' },
+    { project: 'App Mobile',      description: 'Push notifications',          responsible: 'Felipe Neto', lider: 'Elena Rocha', projetista: 'Felipe Neto', equipe: ['Felipe Neto','Ana Lima'],          startDate: past3,   dueDate: future15, status: 'Pendente',     progress: 45, obs: '' },
+    { project: 'Infraestrutura',  description: 'Atualização de servidores',   responsible: 'Gabi Alves',  lider: 'Gabi Alves',  projetista: 'Hugo Pires',  equipe: ['Gabi Alves','Hugo Pires'],         startDate: today,   dueDate: future20, status: 'Reprogramado', progress: 20, obs: '[Reprogramado: aguardo janela de manutenção]' },
+    { project: 'Infraestrutura',  description: 'Backup automático',           responsible: 'Hugo Pires',  lider: 'Gabi Alves',  projetista: 'Hugo Pires',  equipe: ['Hugo Pires'],                      startDate: past14,  dueDate: past3,    status: 'Concluído',    progress: 100,obs: '' },
+    { project: 'Infraestrutura',  description: 'Monitoramento de redes',      responsible: 'Ana Lima',    lider: 'Gabi Alves',  projetista: 'Ana Lima',    equipe: ['Ana Lima','Diego Costa'],          startDate: future5, dueDate: future30, status: 'Pendente',     progress: 0,  obs: 'Ana Lima também no Portal Cliente — conflito' },
   ];
 
   demos.forEach(d => createActivity(d));
@@ -916,7 +1287,7 @@ function saveWAConfig() {
  * O servidor callmebot_server.py deve estar rodando em localhost:5000
  */
 async function sendWAMessage(text, cfg) {
-  const LOCAL_SERVER = 'https://taskflow-h9ya.onrender.com/send';
+  const LOCAL_SERVER = 'http://localhost:5000/send';
 
   try {
     const res = await fetch(LOCAL_SERVER, {
@@ -2880,57 +3251,57 @@ function loadSeedData() {
 
   const acts = [
     // ── RETÍFICA ──
-    [R,'Equipe 01','ACEITE DO PEDIDO','','2026-02-19','Concluído',''],
-    [R,'Equipe 01','REUNIÃO DE ABERTURA DO PROJETO (RAP)','WENDELL XAVIER','2026-02-20','Concluído',''],
-    [R,'Equipe 01','LEVANTAMENTO TÉCNICO','WENDELL XAVIER','2026-02-20','Concluído','Início: 20/02/2026'],
-    [R,'Equipe 02','PROJETO MECÂNICO - RETÍFICA 01','PAULO MELO','2026-03-20','Pendente','Início: 23/02/2026'],
-    [R,'Equipe 02','MODELAMENTO 3D - RETÍFICA 01','PAULO MELO','2026-03-03','Concluído','Início: 23/02/2026'],
-    [R,'Equipe 02','APRESENTAÇÃO INTERNA PROJETO','PAULO MELO','2026-03-04','Concluído',''],
-    [R,'Equipe 02','PRANCHAS DE DETALHAMENTO / PLANO TRABALHO / LISTA MATERIAL - RETÍFICA 01','PAULO MELO','2026-03-20','Pendente','Início: 06/03/2026'],
-    [R,'Equipe 02','APRESENTAÇÃO 01 - AÇO CEARENSE','PAULO MELO','2026-03-06','Concluído',''],
-    [R,'Equipe 02','PROJETO ELÉTRICO - RETÍFICA 01','PAULO MELO','2026-03-04','Concluído','Início: 27/02/2026'],
-    [R,'Equipe 02','PROJETO MECÂNICO - RETÍFICA 02','PAULO MELO','2026-03-29','Pendente','Início: 23/03/2026'],
-    [R,'Equipe 02','MODELAMENTO 3D - RETÍFICA 02','PAULO MELO','2026-03-24','Pendente','Início: 23/03/2026'],
-    [R,'Equipe 02','PRANCHAS DE DETALHAMENTO / PLANO TRABALHO / LISTA MATERIAL - RETÍFICA 02','PAULO MELO','2026-03-29','Pendente','Início: 25/03/2026'],
-    [R,'Equipe 02','APRESENTAÇÃO 02 - AÇO CEARENSE','PAULO MELO','2026-03-31','Pendente',''],
-    [R,'Equipe 02','PROJETO ELÉTRICO - RETÍFICA 02','PAULO MELO','2026-03-12','Concluído','Início: 09/03/2026'],
-    [R,'Equipe 03','MATERIAIS METALURGIA - RETÍFICA 01','CAROLINE BERNARDO','2026-03-30','Pendente','Início: 21/03/2026'],
-    [R,'Equipe 03','MATERIAIS ELÉTRICOS / SEGURANÇA - RETÍFICA 01 E 02','CAROLINE BERNARDO','2026-04-06','Pendente','Início: 12/03/2026'],
-    [R,'Equipe 03','MATERIAIS DE METALURGIA - RETÍFICA 02','CAROLINE BERNARDO','2026-04-08','Pendente','Início: 29/03/2026'],
-    [R,'Equipe 04','MECÂNICA RETÍFICA 01','MATHEUS ISAIAS','2026-04-09','Pendente','Início: 31/03/2026'],
-    [R,'Equipe 04','MONTAGEM QUADROS - RETÍFICA 01 / 02','MATHEUS ISAIAS','2026-04-13','Pendente','Início: 06/04/2026'],
-    [R,'Equipe 04','MECÂNICA RETÍFICA 02','MATHEUS ISAIAS','2026-05-01','Pendente','Início: 22/04/2026'],
-    [R,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - RETÍFICA 01','Vitoria Lima','2026-04-15','Pendente','Início: 13/04/2026'],
-    [R,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - RETÍFICA 02','Vitoria Lima','2026-05-06','Pendente','Início: 04/05/2026'],
-    [R,'Equipe 05','INSTALAÇÃO ELETROMECÂNICA - RETÍFICA 01','NAYARA DE SOUSA','2026-04-20','Pendente','Início: 16/04/2026'],
-    [R,'Equipe 05','INSTALAÇÃO ELETROMECÂNICA - RETÍFICA 02','NAYARA DE SOUSA','2026-05-11','Pendente','Início: 07/05/2026'],
-    [R,'Equipe 01','AS-BUILT RETÍFICA 01','WENDELL XAVIER','2026-04-26','Pendente','Início: 22/04/2026'],
-    [R,'Equipe 01','AS-BUILT RETÍFICA 02','WENDELL XAVIER','2026-05-16','Pendente','Início: 12/05/2026'],
+    [R,'Equipe 01','ACEITE DO PEDIDO',                                                          '','2026-02-19','2026-02-19','Concluído',''],
+    [R,'Equipe 01','REUNIÃO DE ABERTURA DO PROJETO (RAP)',                                       'WENDELL XAVIER','2026-02-20','2026-02-20','Concluído',''],
+    [R,'Equipe 01','LEVANTAMENTO TÉCNICO',                                                       'WENDELL XAVIER','2026-02-20','2026-02-20','Concluído',''],
+    [R,'Equipe 02','PROJETO MECÂNICO - RETÍFICA 01',                                            'PAULO MELO','2026-02-23','2026-03-20','Pendente',''],
+    [R,'Equipe 02','MODELAMENTO 3D - RETÍFICA 01',                                              'PAULO MELO','2026-02-23','2026-03-03','Concluído',''],
+    [R,'Equipe 02','APRESENTAÇÃO INTERNA PROJETO',                                               'PAULO MELO','2026-03-04','2026-03-04','Concluído',''],
+    [R,'Equipe 02','PRANCHAS DE DETALHAMENTO / PLANO TRABALHO / LISTA MATERIAL - RETÍFICA 01', 'PAULO MELO','2026-03-06','2026-03-20','Pendente',''],
+    [R,'Equipe 02','APRESENTAÇÃO 01 - AÇO CEARENSE',                                           'PAULO MELO','2026-03-06','2026-03-06','Concluído',''],
+    [R,'Equipe 02','PROJETO ELÉTRICO - RETÍFICA 01',                                            'PAULO MELO','2026-02-27','2026-03-04','Concluído',''],
+    [R,'Equipe 02','PROJETO MECÂNICO - RETÍFICA 02',                                            'PAULO MELO','2026-03-23','2026-03-29','Pendente',''],
+    [R,'Equipe 02','MODELAMENTO 3D - RETÍFICA 02',                                              'PAULO MELO','2026-03-23','2026-03-24','Pendente',''],
+    [R,'Equipe 02','PRANCHAS DE DETALHAMENTO / PLANO TRABALHO / LISTA MATERIAL - RETÍFICA 02', 'PAULO MELO','2026-03-25','2026-03-29','Pendente',''],
+    [R,'Equipe 02','APRESENTAÇÃO 02 - AÇO CEARENSE',                                           'PAULO MELO','2026-03-31','2026-03-31','Pendente',''],
+    [R,'Equipe 02','PROJETO ELÉTRICO - RETÍFICA 02',                                            'PAULO MELO','2026-03-09','2026-03-12','Concluído',''],
+    [R,'Equipe 03','MATERIAIS METALURGIA - RETÍFICA 01',                                        'CAROLINE BERNARDO','2026-03-21','2026-03-30','Pendente',''],
+    [R,'Equipe 03','MATERIAIS ELÉTRICOS / SEGURANÇA - RETÍFICA 01 E 02',                       'CAROLINE BERNARDO','2026-03-12','2026-04-06','Pendente',''],
+    [R,'Equipe 03','MATERIAIS DE METALURGIA - RETÍFICA 02',                                     'CAROLINE BERNARDO','2026-03-29','2026-04-08','Pendente',''],
+    [R,'Equipe 04','MECÂNICA RETÍFICA 01',                                                      'MATHEUS ISAIAS','2026-03-31','2026-04-09','Pendente',''],
+    [R,'Equipe 04','MONTAGEM QUADROS - RETÍFICA 01 / 02',                                       'MATHEUS ISAIAS','2026-04-06','2026-04-13','Pendente',''],
+    [R,'Equipe 04','MECÂNICA RETÍFICA 02',                                                      'MATHEUS ISAIAS','2026-04-22','2026-05-01','Pendente',''],
+    [R,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - RETÍFICA 01',                              'Vitoria Lima','2026-04-13','2026-04-15','Pendente',''],
+    [R,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - RETÍFICA 02',                              'Vitoria Lima','2026-05-04','2026-05-06','Pendente',''],
+    [R,'Equipe 05','INSTALAÇÃO ELETROMECÂNICA - RETÍFICA 01',                                   'NAYARA DE SOUSA','2026-04-16','2026-04-20','Pendente',''],
+    [R,'Equipe 05','INSTALAÇÃO ELETROMECÂNICA - RETÍFICA 02',                                   'NAYARA DE SOUSA','2026-05-07','2026-05-11','Pendente',''],
+    [R,'Equipe 01','AS-BUILT RETÍFICA 01',                                                      'WENDELL XAVIER','2026-04-22','2026-04-26','Pendente',''],
+    [R,'Equipe 01','AS-BUILT RETÍFICA 02',                                                      'WENDELL XAVIER','2026-05-12','2026-05-16','Pendente',''],
     // ── MANIPULADOR ──
-    [M,'Equipe 01','ACEITE DO PEDIDO','WENDELL XAVIER','2026-02-19','Concluído',''],
-    [M,'Equipe 01','REUNIÃO ABERTURA DO PROJETO','WENDELL XAVIER','2026-02-20','Concluído',''],
-    [M,'Equipe 01','LEVANTAMENTO TÉCNICO - MANIPULADORES','WENDELL XAVIER','2026-02-25','Concluído','Início: 24/02/2026'],
-    [M,'Equipe 02','PROJETO MECÂNICO - MANIPULADORES','PAULO MELO','2026-03-13','Pendente','Início: 26/02/2026'],
-    [M,'Equipe 02','MODELAMENTO 3D - MANIPULADORES','PAULO MELO','2026-03-06','Concluído','Início: 26/02/2026'],
-    [M,'Equipe 02','APRESENTAÇÃO INTERNA PROJETO - MANIPULADORES','PAULO MELO','2026-03-05','Concluído',''],
-    [M,'Equipe 02','APRESENTAÇÃO 01 - AÇO CEARENSE - MANIPULADORES','PAULO MELO','2026-03-06','Concluído',''],
-    [M,'Equipe 02','DETALHAMENTO - COLUNA E BRAÇO DE SUSTENTAÇÃO (LISTA MATERIAL 01)','PAULO MELO','2026-03-11','Pendente','Início: 09/03/2026'],
-    [M,'Equipe 02','DETALHAMENTO - GARRA (LISTA MATERIAL 02)','PAULO MELO','2026-03-13','Pendente','Início: 10/03/2026'],
-    [M,'Equipe 03','MATERIAIS METALURGIA - COLUNA E BRAÇO (LISTA MATERIAL 01)','CAROLINE BERNARDO','2026-03-18','Pendente','Início: 11/03/2026'],
-    [M,'Equipe 03','AQUISIÇÃO ROLAMENTOS','CAROLINE BERNARDO','2026-03-13','Pendente','Início: 11/03/2026'],
-    [M,'Equipe 03','SERVIÇO USINAGEM','CAROLINE BERNARDO','2026-03-23','Pendente','Início: 14/03/2026'],
-    [M,'Equipe 03','AQUISIÇÃO TALHA ELÉTRICA','CAROLINE BERNARDO','2026-03-30','Pendente','Início: 11/03/2026'],
-    [M,'Equipe 03','MATERIAL PNEUMÁTICA','CAROLINE BERNARDO','2026-03-26','Pendente','Início: 11/03/2026'],
-    [M,'Equipe 03','MATERIAIS METALURGIA - BRAÇOS GARRAS (LISTA MATERIAL 02)','CAROLINE BERNARDO','2026-03-20','Pendente','Início: 16/03/2026'],
-    [M,'Equipe 04','FABRICAÇÃO MANIPULADOR 01 / 02','MATHEUS ISAIAS','2026-04-11','Pendente','Início: 18/03/2026'],
-    [M,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - MANIPULADORES','Vitoria Lima','2026-04-15','Pendente','Início: 13/04/2026'],
-    [M,'Equipe 05','INSTALAÇÃO MANIPULADOR 01','NAYARA DE SOUSA','2026-04-17','Pendente','Início: 16/04/2026'],
-    [M,'Equipe 05','INSTALAÇÃO MANIPULADOR 02','NAYARA DE SOUSA','2026-04-21','Pendente','Início: 20/04/2026'],
-    [M,'Equipe 01','MANUAL TÉCNICO MANIPULADORES','WENDELL XAVIER','2026-04-28','Pendente','Início: 22/04/2026'],
+    [M,'Equipe 01','ACEITE DO PEDIDO',                                                          'WENDELL XAVIER','2026-02-19','2026-02-19','Concluído',''],
+    [M,'Equipe 01','REUNIÃO ABERTURA DO PROJETO',                                               'WENDELL XAVIER','2026-02-20','2026-02-20','Concluído',''],
+    [M,'Equipe 01','LEVANTAMENTO TÉCNICO - MANIPULADORES',                                      'WENDELL XAVIER','2026-02-24','2026-02-25','Concluído',''],
+    [M,'Equipe 02','PROJETO MECÂNICO - MANIPULADORES',                                          'PAULO MELO','2026-02-26','2026-03-13','Pendente',''],
+    [M,'Equipe 02','MODELAMENTO 3D - MANIPULADORES',                                            'PAULO MELO','2026-02-26','2026-03-06','Concluído',''],
+    [M,'Equipe 02','APRESENTAÇÃO INTERNA PROJETO - MANIPULADORES',                              'PAULO MELO','2026-03-05','2026-03-05','Concluído',''],
+    [M,'Equipe 02','APRESENTAÇÃO 01 - AÇO CEARENSE - MANIPULADORES',                           'PAULO MELO','2026-03-06','2026-03-06','Concluído',''],
+    [M,'Equipe 02','DETALHAMENTO - COLUNA E BRAÇO DE SUSTENTAÇÃO (LISTA MATERIAL 01)',          'PAULO MELO','2026-03-09','2026-03-11','Pendente',''],
+    [M,'Equipe 02','DETALHAMENTO - GARRA (LISTA MATERIAL 02)',                                  'PAULO MELO','2026-03-10','2026-03-13','Pendente',''],
+    [M,'Equipe 03','MATERIAIS METALURGIA - COLUNA E BRAÇO (LISTA MATERIAL 01)',                 'CAROLINE BERNARDO','2026-03-11','2026-03-18','Pendente',''],
+    [M,'Equipe 03','AQUISIÇÃO ROLAMENTOS',                                                      'CAROLINE BERNARDO','2026-03-11','2026-03-13','Pendente',''],
+    [M,'Equipe 03','SERVIÇO USINAGEM',                                                          'CAROLINE BERNARDO','2026-03-14','2026-03-23','Pendente',''],
+    [M,'Equipe 03','AQUISIÇÃO TALHA ELÉTRICA',                                                  'CAROLINE BERNARDO','2026-03-11','2026-03-30','Pendente',''],
+    [M,'Equipe 03','MATERIAL PNEUMÁTICA',                                                       'CAROLINE BERNARDO','2026-03-11','2026-03-26','Pendente',''],
+    [M,'Equipe 03','MATERIAIS METALURGIA - BRAÇOS GARRAS (LISTA MATERIAL 02)',                  'CAROLINE BERNARDO','2026-03-16','2026-03-20','Pendente',''],
+    [M,'Equipe 04','FABRICAÇÃO MANIPULADOR 01 / 02',                                            'MATHEUS ISAIAS','2026-03-18','2026-04-11','Pendente',''],
+    [M,'Equipe 05','EMBALAGEM / SEPARAÇÃO / FRETE - MANIPULADORES',                            'Vitoria Lima','2026-04-13','2026-04-15','Pendente',''],
+    [M,'Equipe 05','INSTALAÇÃO MANIPULADOR 01',                                                 'NAYARA DE SOUSA','2026-04-16','2026-04-17','Pendente',''],
+    [M,'Equipe 05','INSTALAÇÃO MANIPULADOR 02',                                                 'NAYARA DE SOUSA','2026-04-20','2026-04-21','Pendente',''],
+    [M,'Equipe 01','MANUAL TÉCNICO MANIPULADORES',                                              'WENDELL XAVIER','2026-04-22','2026-04-28','Pendente',''],
   ];
 
-  acts.forEach(([project, team, description, responsible, dueDate, status, obs]) => {
-    createActivity({ project, team, description, responsible, dueDate, status, obs });
+  acts.forEach(([project, team, description, responsible, startDate, dueDate, status, obs]) => {
+    createActivity({ project, team, description, responsible, startDate, dueDate, status, obs });
   });
 
   renderAll();
@@ -2944,3 +3315,1233 @@ function loadSeedData() {
   setTimeout(() => switchView('kanban', document.querySelector('[data-view="kanban"]')), 800);
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 1 — GANTT + CAMINHO CRÍTICO + KPIs PRO
+══════════════════════════════════════════════════════════════ */
+
+// ── Constantes ──────────────────────────────────────────────────
+const GANTT_CFG = { DAY_PX: 26, ROW_H: 40, HDR_H: 56 };
+const CPM_MS = 86400000;
+
+// ── Helpers ─────────────────────────────────────────────────────
+function isoToDays(iso) {
+  if (!iso) return 0;
+  return Math.floor(new Date(iso + 'T00:00:00').getTime() / CPM_MS);
+}
+function daysToISO(n) {
+  return new Date(n * CPM_MS).toISOString().slice(0, 10);
+}
+function durDays(act) {
+  if (!act.startDate || !act.dueDate) return 1;
+  return Math.max(isoToDays(act.dueDate) - isoToDays(act.startDate), 1);
+}
+
+// ── CAMINHO CRÍTICO (CPM) ─────────────────────────────────────────
+let _cpmCache = null;
+
+function runCPM() {
+  if (_cpmCache) return _cpmCache;
+  const acts = state.activities;
+  const byId = Object.fromEntries(acts.map(a => [a.id, a]));
+  const EST = {}, EFT = {}, LST = {}, LFT = {};
+  const vis = new Set();
+
+  function fw(id) {
+    if (vis.has(id)) return;
+    vis.add(id);
+    const a = byId[id]; if (!a) return;
+    let est = isoToDays(a.startDate || todayISO());
+    for (const dep of (a.predecessors || [])) {
+      const pred = byId[dep.predId]; if (!pred) continue;
+      fw(dep.predId);
+      if (dep.type === 'SS') est = Math.max(est, EST[dep.predId] ?? est);
+      else                   est = Math.max(est, EFT[dep.predId] ?? est);
+    }
+    EST[id] = est;
+    EFT[id] = est + durDays(a);
+  }
+  acts.forEach(a => fw(a.id));
+
+  const projEnd = acts.length ? Math.max(...acts.map(a => EFT[a.id] || 0)) : isoToDays(todayISO());
+
+  // Mapa de sucessores
+  const succs = {};
+  acts.forEach(a => {
+    for (const dep of (a.predecessors || [])) {
+      if (!succs[dep.predId]) succs[dep.predId] = [];
+      succs[dep.predId].push({ succId: a.id, type: dep.type });
+    }
+  });
+
+  const bvis = new Set();
+  function bw(id) {
+    if (bvis.has(id)) return;
+    bvis.add(id);
+    const a = byId[id]; if (!a) return;
+    let lft = projEnd;
+    for (const { succId, type } of (succs[id] || [])) {
+      bw(succId);
+      if (type === 'SS') lft = Math.min(lft, (LST[succId] ?? projEnd) + durDays(byId[succId] || {}));
+      else               lft = Math.min(lft, LST[succId] ?? projEnd);
+    }
+    LFT[id] = lft;
+    LST[id] = lft - durDays(a);
+  }
+  acts.forEach(a => { if (!succs[a.id]?.length) bw(a.id); });
+  acts.forEach(a => bw(a.id));
+
+  const floats = {}, critical = new Set();
+  acts.forEach(a => {
+    if (a.status === 'Concluído') return;
+    const f = (LST[a.id] ?? 0) - (EST[a.id] ?? 0);
+    floats[a.id] = f;
+    if (f <= 0) critical.add(a.id);
+  });
+
+  _cpmCache = { critical, floats, EST, EFT, LST, LFT, projEnd };
+  return _cpmCache;
+}
+
+// ── KPIs PRO ──────────────────────────────────────────────────────
+function renderKPIsPro() {
+  const acts = state.activities;
+  const total = acts.length;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  if (!total) {
+    ['kpi-pro-pct','kpi-pro-spi','kpi-pro-critical','kpi-pro-inprogress','kpi-pro-total'].forEach(id => set(id, '0'));
+    return;
+  }
+
+  const today = todayISO();
+  const done     = acts.filter(a => a.status === 'Concluído').length;
+  const overdue  = acts.filter(a => a.status !== 'Concluído' && a.dueDate < today).length;
+  const active   = acts.filter(a => a.status === 'Pendente' && a.dueDate >= today).length;
+  const pct      = Math.round((done / total) * 100);
+  const planned  = acts.filter(a => a.dueDate <= today).length;
+  const spiNum   = planned > 0 ? done / planned : null;
+  const cpm      = runCPM();
+  const critCount= cpm.critical.size;
+
+  set('kpi-pro-pct', pct + '%');
+  set('kpi-pro-total', total);
+  set('kpi-pro-inprogress', active);
+  set('kpi-pro-critical', critCount);
+  set('kpi-pro-done-sub', `${done} de ${total} concluídas`);
+  set('kpi-pro-overdue-sub', `${overdue} vencida${overdue !== 1 ? 's' : ''}`);
+
+  const pbar = document.getElementById('kpi-pro-pbar');
+  if (pbar) pbar.style.width = pct + '%';
+
+  if (spiNum !== null) {
+    const spiEl = document.getElementById('kpi-pro-spi');
+    if (spiEl) {
+      spiEl.textContent = spiNum.toFixed(2);
+      spiEl.style.color = spiNum >= 1 ? 'var(--green)' : spiNum >= 0.8 ? 'var(--yellow)' : 'var(--red)';
+    }
+  } else {
+    set('kpi-pro-spi', '—');
+  }
+}
+
+// ── GANTT STATE ───────────────────────────────────────────────────
+const _gs = { zoom: 1, filterProject: '', minDay: 0 };
+
+function ganttDPX() { return Math.round(GANTT_CFG.DAY_PX * _gs.zoom); }
+
+function ganttZoom(delta) {
+  if (delta === 0) _gs.zoom = 1;
+  else _gs.zoom = Math.max(0.4, Math.min(4, _gs.zoom + delta * 0.25));
+  renderGantt();
+}
+
+function ganttSetProject(val) {
+  _gs.filterProject = val;
+  renderGantt();
+}
+
+function updateGanttFilters() {
+  const sel = document.getElementById('gantt-filter-project');
+  if (!sel) return;
+  const cur = sel.value;
+  const projs = [...new Set(state.activities.map(a => a.project).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos os projetos</option>' +
+    projs.map(p => `<option value="${escAttr(p)}"${p===cur?' selected':''}>${escHtml(p)}</option>`).join('');
+}
+
+// ── RENDER GANTT ───────────────────────────────────────────────────
+function renderGantt() {
+  const wrap = document.getElementById('gantt-wrap');
+  if (!wrap) return;
+
+  try {
+    _cpmCache = null; // força recálculo
+    const cpm = runCPM();
+
+    // Aceita atividades com pelo menos dueDate; usa dueDate como startDate se não tiver
+    let acts = state.activities.filter(a => {
+      if (_gs.filterProject && a.project !== _gs.filterProject) return false;
+      return !!a.dueDate;
+    }).map(a => ({
+      ...a,
+      startDate: a.startDate || a.dueDate, // fallback: 1 dia antes do término
+    }));
+
+    if (!acts.length) {
+      wrap.innerHTML = '<div class="empty-state" style="padding:40px"><span>📅</span><p>Sem atividades com datas para exibir.<br><small>Recarregue os dados de demo ou adicione atividades com datas.</small></p></div>';
+      return;
+    }
+
+    const tree = buildTree(acts);
+    const DPX  = ganttDPX();
+    const ROW  = GANTT_CFG.ROW_H;
+    const today = isoToDays(todayISO());
+
+  // Range de datas
+  const allD = acts.flatMap(a => [isoToDays(a.startDate), isoToDays(a.dueDate)]).filter(Boolean);
+  const minDay = Math.min(...allD) - 2;
+  const maxDay = Math.max(...allD) + 10;
+  _gs.minDay = minDay;
+  const totalDays = maxDay - minDay;
+  const totalW = totalDays * DPX;
+  const totalH = tree.length * ROW;
+
+  // ── Header: meses ──
+  let monthsHTML = '';
+  let d = minDay;
+  while (d < maxDay) {
+    const dt = new Date(d * CPM_MS);
+    const mo = dt.getMonth(), yr = dt.getFullYear();
+    let end = d;
+    while (end < maxDay) {
+      const dt2 = new Date(end * CPM_MS);
+      if (dt2.getMonth() !== mo || dt2.getFullYear() !== yr) break;
+      end++;
+    }
+    const w = (end - d) * DPX;
+    monthsHTML += `<div class="gantt-month" style="width:${w}px">${dt.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
+    d = end;
+  }
+
+  // ── Header: dias ──
+  let daysHTML = '';
+  for (let dd = minDay; dd < maxDay; dd++) {
+    const dt = new Date(dd * CPM_MS);
+    const weekend = dt.getDay()===0||dt.getDay()===6;
+    const isT = dd === today;
+    daysHTML += `<div class="gantt-day ${weekend?'gantt-day-weekend':''} ${isT?'gantt-day-today':''}" style="width:${DPX}px">${dt.getDate()}</div>`;
+  }
+
+  // ── Rows esquerda + barras ──
+  let leftHTML = '', barsHTML = '', sepHTML = '';
+  const treeById = Object.fromEntries(tree.map((a,i) => [a.id, { act: a, row: i }]));
+
+  tree.forEach((act, i) => {
+    const isCrit = cpm.critical.has(act.id);
+    const s = isoToDays(act.startDate);
+    const e = isoToDays(act.dueDate);
+    const bLeft = (s - minDay) * DPX;
+    const bW    = Math.max((e - s) * DPX, DPX * 0.5);
+    const top   = i * ROW;
+    const indent = act._level * 14;
+
+    const colMap = { 'Concluído':'#059669','Pendente':'#1d4ed8','Vencido':'#ef4444','Reprogramado':'#d97706' };
+    const barColor = colMap[act.status] || '#1d4ed8';
+
+    // Painel esquerdo
+    const pct2 = act.progress || 0;
+    leftHTML += `
+      <div class="gantt-left-row ${isCrit?'gantt-crit-row':''}" style="height:${ROW}px" ondblclick="handleEdit('${act.id}')">
+        <span class="gantt-wbs">${act._wbs||''}</span>
+        <span class="gantt-task-name" style="padding-left:${indent}px" title="${escHtml(act.description)}">${escHtml(act.description.slice(0,26))}${act.description.length>26?'…':''}</span>
+        <span style="font-size:.6rem;font-weight:700;color:${pct2===100?'#059669':'var(--text-muted)'};margin-left:auto;flex-shrink:0;padding-right:4px">${pct2}%</span>
+        ${isCrit?'<span class="gantt-crit-dot" title="Caminho crítico">●</span>':''}
+      </div>`;
+
+    // Barra
+    const progressPct = Math.min(100, Math.max(0, act.progress || 0));
+    const blDiff = getBaselineDiff(act.id);
+    let blBarHTML = '';
+    if (blDiff) {
+      const blLeft = (blDiff.blStart - minDay) * DPX;
+      const blW    = Math.max((blDiff.blEnd - blDiff.blStart) * DPX, DPX * 0.5);
+      const diffLabel = blDiff.endDiff > 0 ? `+${blDiff.endDiff}d adiantado` : blDiff.endDiff < 0 ? `${blDiff.endDiff}d atrasado` : 'no prazo';
+      blBarHTML = `<div style="position:absolute;left:${blLeft}px;width:${blW}px;height:4px;top:${top + ROW - 8}px;background:rgba(148,163,184,.5);border-radius:2px;pointer-events:none" title="Baseline: ${formatDate(blDiff.blStartISO)} → ${formatDate(blDiff.blEndISO)} (${diffLabel})"></div>`;
+    }
+    barsHTML += `
+      <div class="gantt-bar-row" style="top:${top}px;height:${ROW}px">
+        <div class="gantt-bar ${isCrit?'gantt-bar-critical':''} ${act.status==='Concluído'?'gantt-bar-done':''}"
+             style="left:${bLeft}px;width:${bW}px;background:${barColor}"
+             data-id="${act.id}"
+             title="${escHtml(act.description)} | ${formatDate(act.startDate)} → ${formatDate(act.dueDate)} | ${progressPct}% concluído"
+             onmousedown="ganttBarMD(event,'${act.id}','move')"
+             ondblclick="handleEdit('${act.id}')">
+          <div class="gantt-bar-progress" style="width:${progressPct}%"></div>
+          <span class="gantt-bar-label" style="position:relative;z-index:1">${DPX > 18 ? escHtml(act.description.slice(0,22)) : ''}</span>
+          <div class="gantt-bar-resize" onmousedown="ganttBarMD(event,'${act.id}','resize')"></div>
+        </div>
+      </div>
+      ${blBarHTML}`;
+
+    // Separadores de linha
+    sepHTML += `<div class="gantt-row-sep" style="top:${(i+1)*ROW}px;width:${totalW}px"></div>`;
+  });
+
+  // ── Linhas verticais de grade ──
+  let vlines = '';
+  for (let dd = 0; dd < totalDays; dd++) {
+    const dt = new Date((minDay+dd)*CPM_MS);
+    const weekend = dt.getDay()===0||dt.getDay()===6;
+    vlines += `<div class="gantt-vline ${weekend?'gantt-vline-weekend':''}" style="left:${dd*DPX}px;height:${totalH}px;${weekend?`width:${DPX}px`:''}"></div>`;
+  }
+
+  // ── Linha de hoje ──
+  const todayX = (today - minDay) * DPX;
+  const todayLine = todayX >= 0 && todayX <= totalW
+    ? `<div class="gantt-today-line" style="left:${todayX}px;height:${totalH}px"></div>` : '';
+
+  // ── Setas de dependência (SVG) ──
+  let svgPaths = '';
+  tree.forEach(act => {
+    for (const dep of (act.predecessors || [])) {
+      const predInfo = treeById[dep.predId];
+      const succInfo = treeById[act.id];
+      if (!predInfo || !succInfo) continue;
+
+      const pred = predInfo.act;
+      const isCrit = cpm.critical.has(act.id) && cpm.critical.has(dep.predId);
+      const color = isCrit ? '#ef4444' : '#94a3b8';
+
+      let x1, x2;
+      if (dep.type === 'SS') {
+        x1 = (isoToDays(pred.startDate) - minDay) * DPX + 4;
+        x2 = (isoToDays(act.startDate)  - minDay) * DPX + 4;
+      } else {
+        x1 = (isoToDays(pred.dueDate)   - minDay) * DPX + Math.max((isoToDays(pred.dueDate)-isoToDays(pred.startDate))*DPX, 8);
+        x2 = (isoToDays(act.startDate)  - minDay) * DPX;
+      }
+      const y1 = predInfo.row * ROW + ROW / 2;
+      const y2 = succInfo.row * ROW + ROW / 2;
+      const mx = (x1 + x2) / 2;
+
+      svgPaths += `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" stroke="${color}" stroke-width="1.5" fill="none" marker-end="url(#arr-${isCrit?'r':'g'})"/>`;
+    }
+  });
+
+  // ── Monta HTML final ──
+  wrap.innerHTML = `
+    <div class="gantt-inner">
+      <div class="gantt-left-panel">
+        <div class="gantt-left-header"><span>WBS</span><span>Título</span></div>
+        <div class="gantt-left-rows" id="gantt-left-rows">${leftHTML}</div>
+      </div>
+      <div class="gantt-right-panel" id="gantt-right-panel">
+        <div class="gantt-header-sticky">
+          <div class="gantt-months-row" style="width:${totalW}px">${monthsHTML}</div>
+          <div class="gantt-days-row"   style="width:${totalW}px">${daysHTML}</div>
+        </div>
+        <div class="gantt-bars-area" id="gantt-bars-area" style="width:${totalW}px;height:${totalH}px">
+          ${vlines}${todayLine}${sepHTML}${barsHTML}
+          <svg class="gantt-arrows-svg" width="${totalW}" height="${totalH}">
+            <defs>
+              <marker id="arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/></marker>
+              <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker>
+            </defs>
+            ${svgPaths}
+          </svg>
+        </div>
+      </div>
+    </div>`;
+
+  // Scroll sync
+  const leftRows   = document.getElementById('gantt-left-rows');
+  const rightPanel = document.getElementById('gantt-right-panel');
+  let _sync = false;
+  if (leftRows && rightPanel) {
+    rightPanel.addEventListener('scroll', () => {
+      if (_sync) return; _sync = true;
+      leftRows.scrollTop = rightPanel.scrollTop;
+      _sync = false;
+    });
+    leftRows.addEventListener('scroll', () => {
+      if (_sync) return; _sync = true;
+      rightPanel.scrollTop = leftRows.scrollTop;
+      _sync = false;
+    });
+  }
+  } catch(err) {
+    console.error('Gantt render error:', err);
+    wrap.innerHTML = `<div class="empty-state" style="padding:40px"><span>⚠</span><p>Erro ao renderizar o Gantt.<br><small>${err.message}</small></p></div>`;
+  }
+}
+
+// ── Gantt Drag ─────────────────────────────────────────────────────
+let _gd = null;
+
+function ganttBarMD(e, id, type) {
+  e.preventDefault(); e.stopPropagation();
+  const act = state.activities.find(a => a.id === id);
+  if (!act || act.status === 'Concluído') return;
+  _gd = { id, type, startX: e.clientX, origS: act.startDate, origE: act.dueDate, DPX: ganttDPX() };
+}
+
+document.addEventListener('mousemove', function(e) {
+  if (!_gd) return;
+  const dx   = e.clientX - _gd.startX;
+  const dD   = Math.round(dx / _gd.DPX);
+  if (!dD) return;
+
+  const origS = isoToDays(_gd.origS);
+  const origE = isoToDays(_gd.origE);
+  let newS = origS, newE = origE;
+  if (_gd.type === 'move')   { newS = origS + dD; newE = origE + dD; }
+  else                        { newE = Math.max(origE + dD, origS + 1); }
+
+  const bar = document.querySelector(`.gantt-bar[data-id="${_gd.id}"]`);
+  if (bar) {
+    bar.style.left  = ((newS - _gs.minDay) * _gd.DPX) + 'px';
+    bar.style.width = Math.max((newE - newS) * _gd.DPX, 4) + 'px';
+  }
+  _gd._ns = daysToISO(newS);
+  _gd._ne = daysToISO(newE);
+});
+
+document.addEventListener('mouseup', function() {
+  if (!_gd) return;
+  if (_gd._ns && _gd._ne) {
+    const act = state.activities.find(a => a.id === _gd.id);
+    if (act) {
+      updateActivity(_gd.id, { ...act, startDate: _gd._ns, dueDate: _gd._ne });
+      _cpmCache = null;
+      showToast('Datas atualizadas via Gantt ✓', 'success');
+      setTimeout(renderGantt, 50);
+    }
+  }
+  _gd = null;
+});
+
+// ── Predecessor modal ──────────────────────────────────────────────
+function updatePredecessorOptions(excludeId) {
+  const sel = document.getElementById('form-predecessor');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Sem dependência —</option>';
+  buildTree(state.activities.filter(a => a.id !== excludeId)).forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = `${'  '.repeat(a._level)}${a._wbs} — ${a.description.slice(0,50)}`;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+// ── Patches: openModal, handleEdit, saveActivity, renderAll ────────
+const _tf1_openModal = openModal;
+openModal = function() {
+  _tf1_openModal();
+  setTimeout(() => { updateParentOptions(null); updatePredecessorOptions(null); }, 15);
+};
+
+const _tf1_handleEdit = handleEdit;
+handleEdit = function(id) {
+  _tf1_handleEdit(id);
+  setTimeout(() => {
+    updatePredecessorOptions(id);
+    const act = state.activities.find(a => a.id === id);
+    if (act?.predecessors?.length) {
+      const p = act.predecessors[0];
+      const ps = document.getElementById('form-predecessor');
+      const dt = document.getElementById('form-dep-type');
+      if (ps) ps.value = p.predId;
+      if (dt) dt.value = p.type || 'FS';
+    }
+  }, 40);
+};
+
+const _tf1_saveActivity = saveActivity;
+saveActivity = function() {
+  const predId  = document.getElementById('form-predecessor')?.value || '';
+  const depType = document.getElementById('form-dep-type')?.value || 'FS';
+  const editId  = state.editingId; // captura antes de _origSave limpar
+  _tf1_saveActivity();
+  // Atualiza predecessors no item salvo
+  const targetId = editId || state.activities[state.activities.length - 1]?.id;
+  if (targetId) {
+    const idx = state.activities.findIndex(a => a.id === targetId);
+    if (idx !== -1) {
+      state.activities[idx].predecessors = predId ? [{ predId, type: depType }] : [];
+      persistActivities();
+      _cpmCache = null;
+    }
+  }
+};
+
+const _tf1_renderAll = renderAll;
+renderAll = function() {
+  _cpmCache = null;
+  _tf1_renderAll();
+  renderKPIsPro();
+  if (state.currentView === 'gantt') renderGantt();
+};
+
+// ── Patch switchView para Gantt ────────────────────────────────────
+const _tf1_switchView = window.switchView;
+window.switchView = function(viewName, navEl) {
+  const r = _tf1_switchView ? _tf1_switchView(viewName, navEl) : null;
+  if (viewName === 'gantt') {
+    const t = document.getElementById('page-title');
+    if (t) t.textContent = 'Gantt';
+    updateGanttFilters();
+    setTimeout(() => {
+      _cpmCache = null;
+      renderGantt();
+    }, 80);
+  }
+  return r;
+};
+
+// ── Destaque visual tarefas críticas na tabela ─────────────────────
+const _tf1_renderRow = renderRow;
+renderRow = function(activity) {
+  let html = _tf1_renderRow(activity);
+  try {
+    const cpm = runCPM();
+    if (cpm.critical.has(activity.id)) {
+      html = html.replace(`id="row-${activity.id}"`, `id="row-${activity.id}" class="row-critical"`);
+    }
+  } catch(e) {}
+  return html;
+};
+
+// ── Init KPIs Pro no DOMContentLoaded ─────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(renderKPIsPro, 300);
+});
+
+
+/* ══════════════════════════════════════════════════════════════
+   BASELINE — SALVAR / COMPARAR PLANEJADO vs REALIZADO
+══════════════════════════════════════════════════════════════ */
+
+const BASELINE_KEY = 'taskflow_baseline';
+
+function saveBaseline() {
+  if (!state.activities.length) { showToast('Nenhuma atividade para salvar como baseline', 'error'); return; }
+  if (!confirm('Salvar baseline agora? Isso registra as datas atuais como "planejado original". Você pode sobrescrever depois.')) return;
+  const snapshot = state.activities.map(a => ({
+    id:        a.id,
+    startDate: a.startDate,
+    dueDate:   a.dueDate,
+    progress:  a.progress || 0,
+    savedAt:   Date.now(),
+  }));
+  localStorage.setItem(BASELINE_KEY, JSON.stringify(snapshot));
+  showToast('✓ Baseline salva! As datas atuais foram registradas como planejado original.', 'success');
+}
+
+function loadBaseline() {
+  try { return JSON.parse(localStorage.getItem(BASELINE_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function clearBaseline() {
+  if (!confirm('Apagar a baseline atual?')) return;
+  localStorage.removeItem(BASELINE_KEY);
+  showToast('Baseline removida.', 'info');
+  renderGantt();
+}
+
+/** Retorna { startDiff, endDiff } em dias entre baseline e atual (positivo = adiantado, negativo = atrasado) */
+function getBaselineDiff(activityId) {
+  const bl = loadBaseline();
+  if (!bl) return null;
+  const entry = bl.find(b => b.id === activityId);
+  if (!entry) return null;
+  const act = state.activities.find(a => a.id === activityId);
+  if (!act) return null;
+  const blStart = isoToDays(entry.startDate);
+  const blEnd   = isoToDays(entry.dueDate);
+  const curStart = isoToDays(act.startDate || act.dueDate);
+  const curEnd   = isoToDays(act.dueDate);
+  return {
+    startDiff: blStart - curStart,
+    endDiff:   blEnd   - curEnd,
+    blStart, blEnd, curStart, curEnd,
+    blStartISO: entry.startDate,
+    blEndISO:   entry.dueDate,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PORTFÓLIO DE PROJETOS
+══════════════════════════════════════════════════════════════ */
+
+let _portfolioView = 'timeline';
+
+function setPortfolioView(v) {
+  _portfolioView = v;
+  document.getElementById('pf-view-timeline').classList.toggle('active', v === 'timeline');
+  document.getElementById('pf-view-list').classList.toggle('active', v === 'list');
+  document.getElementById('portfolio-timeline-section').style.display = v === 'timeline' ? '' : 'none';
+  document.getElementById('portfolio-list-section').style.display     = v === 'list'     ? '' : 'none';
+  renderPortfolio();
+}
+
+function renderPortfolio() {
+  loadProjects();
+  const projs = projectState.projects;
+
+  // ── KPIs ──
+  const kpiWrap = document.getElementById('portfolio-kpis');
+  if (kpiWrap) {
+    const total    = projs.length;
+    const ativos   = projs.filter(p => p.status === 'Em andamento' || p.status === 'Ativo').length;
+    const vencidos = projs.filter(p => p.end && diffDays(p.end) < 0 && p.status !== 'Encerrado' && p.status !== 'Finalizadas').length;
+    const allPct   = projs.map(p => {
+      const linked = state.activities.filter(a => a.project === p.name);
+      return linked.length > 0 ? Math.round(linked.filter(a => a.status === 'Concluído').length / linked.length * 100) : (p.progress || 0);
+    });
+    const avgPct = total ? Math.round(allPct.reduce((s,v)=>s+v,0) / total) : 0;
+    const conflitos = _detectAllResourceConflicts().length;
+    kpiWrap.innerHTML = `
+      <div class="portfolio-kpi"><div class="portfolio-kpi-label">Total de projetos</div><div class="portfolio-kpi-value">${total}</div><div class="portfolio-kpi-sub">${ativos} em andamento</div></div>
+      <div class="portfolio-kpi"><div class="portfolio-kpi-label">Progresso médio</div><div class="portfolio-kpi-value">${avgPct}%</div><div class="portfolio-kpi-sub">média de conclusão</div></div>
+      <div class="portfolio-kpi"><div class="portfolio-kpi-label">Prazo vencido</div><div class="portfolio-kpi-value" style="color:${vencidos>0?'#ef4444':'#059669'}">${vencidos}</div><div class="portfolio-kpi-sub">projeto(s) atrasado(s)</div></div>
+      <div class="portfolio-kpi"><div class="portfolio-kpi-label">Conflitos de recurso</div><div class="portfolio-kpi-value" style="color:${conflitos>0?'#ef4444':'#059669'}">${conflitos}</div><div class="portfolio-kpi-sub">pessoas sobrepostas</div></div>`;
+  }
+
+  if (!projs.length) {
+    document.getElementById('portfolio-timeline-wrap').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Nenhum projeto cadastrado. Crie projetos na aba Projetos.</div>';
+    return;
+  }
+
+  if (_portfolioView === 'timeline') _renderPortfolioTimeline(projs);
+  else _renderPortfolioList(projs);
+}
+
+function _projSemaforo(proj) {
+  const linked  = state.activities.filter(a => a.project === proj.name);
+  const overdue = linked.filter(a => a.status === 'Vencido').length;
+  const pct     = linked.length > 0 ? Math.round(linked.filter(a=>a.status==='Concluído').length/linked.length*100) : (proj.progress||0);
+  if (proj.status === 'Encerrado' || proj.status === 'Finalizadas') return { cls:'sem-cinza', label:'Encerrado', pct };
+  if (overdue > 0 || (proj.end && diffDays(proj.end) < 0)) return { cls:'sem-vermelho', label:'Atrasado', pct };
+  if (proj.end && diffDays(proj.end) <= 14) return { cls:'sem-amarelo', label:'Atenção', pct };
+  return { cls:'sem-verde', label:'No prazo', pct };
+}
+
+function _renderPortfolioTimeline(projs) {
+  const wrap = document.getElementById('portfolio-timeline-wrap');
+  if (!wrap) return;
+
+  // Calcular range de datas
+  const allDates = projs.flatMap(p => [p.start, p.end].filter(Boolean));
+  if (!allDates.length) { wrap.innerHTML = '<div style="padding:24px;color:var(--text-muted)">Projetos sem datas cadastradas.</div>'; return; }
+
+  const minISO = allDates.reduce((a,b) => a < b ? a : b);
+  const maxISO = allDates.reduce((a,b) => a > b ? a : b);
+  const minD   = isoToDays(minISO) - 3;
+  const maxD   = isoToDays(maxISO) + 10;
+  const today  = isoToDays(todayISO());
+  const totalDays = maxD - minD;
+  const PX_PER_DAY = Math.max(3, Math.min(12, 860 / totalDays));
+  const totalW = Math.round(totalDays * PX_PER_DAY);
+
+  // Header meses
+  let monthsHTML = '';
+  let d = minD;
+  while (d < maxD) {
+    const dt = new Date(d * 86400000);
+    const mo = dt.getMonth(), yr = dt.getFullYear();
+    let end = d;
+    while (end < maxD) { const d2 = new Date(end*86400000); if (d2.getMonth()!==mo||d2.getFullYear()!==yr) break; end++; }
+    const w = Math.round((end-d)*PX_PER_DAY);
+    monthsHTML += `<div class="portfolio-tl-month" style="width:${w}px">${dt.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
+    d = end;
+  }
+
+  // Linha de hoje
+  const todayX = Math.round((today - minD) * PX_PER_DAY);
+  const todayLine = todayX >= 0 && todayX <= totalW ? `<div class="portfolio-tl-today" style="left:${todayX}px"></div>` : '';
+
+  const bl = loadBaseline();
+
+  // Rows
+  const rowsHTML = projs.map(proj => {
+    const sem    = _projSemaforo(proj);
+    const pStart = proj.start ? isoToDays(proj.start) : null;
+    const pEnd   = proj.end   ? isoToDays(proj.end)   : null;
+
+    let barHTML = '';
+    if (pStart && pEnd && pEnd >= pStart) {
+      const bL = Math.round((pStart - minD) * PX_PER_DAY);
+      const bW = Math.max(Math.round((pEnd - pStart) * PX_PER_DAY), 6);
+      const color = proj.color || '#1d4ed8';
+      const pct   = sem.pct;
+
+      // Baseline bar (cinza, fina abaixo)
+      let blBar = '';
+      if (bl) {
+        // Pega datas de baseline das atividades do projeto
+        const projActs = state.activities.filter(a => a.project === proj.name);
+        const blEntries = bl.filter(b => projActs.some(a => a.id === b.id));
+        if (blEntries.length) {
+          const blStartD = Math.min(...blEntries.map(b => isoToDays(b.startDate)).filter(Boolean));
+          const blEndD   = Math.max(...blEntries.map(b => isoToDays(b.dueDate)).filter(Boolean));
+          if (blStartD && blEndD) {
+            const blL = Math.round((blStartD - minD) * PX_PER_DAY);
+            const blW = Math.max(Math.round((blEndD - blStartD) * PX_PER_DAY), 6);
+            blBar = `<div class="portfolio-tl-baseline" style="left:${blL}px;width:${blW}px;background:${color}"></div>`;
+          }
+        }
+      }
+
+      barHTML = `
+        <div class="portfolio-tl-bar" style="left:${bL}px;width:${bW}px;background:${color}">
+          <div class="portfolio-tl-progress" style="width:${pct}%;background:#fff;border-radius:4px 0 0 4px;position:absolute;left:0;top:0;bottom:0"></div>
+          <span class="portfolio-tl-bar-label" style="position:relative;z-index:1">${escHtml(proj.name)} ${pct}%</span>
+        </div>
+        ${blBar}`;
+    }
+
+    // Milestones (atividades com duração 0 ou marcadas como marco)
+    const milestones = state.activities.filter(a => a.project === proj.name && a.isMilestone);
+    const milestonesHTML = milestones.map(m => {
+      if (!m.dueDate) return '';
+      const mX = Math.round((isoToDays(m.dueDate) - minD) * PX_PER_DAY);
+      return `<div class="portfolio-tl-milestone" style="left:${mX-9}px;background:${proj.color||'#1d4ed8'}" title="Marco: ${escHtml(m.description)}"></div>`;
+    }).join('');
+
+    return `
+      <div class="portfolio-tl-row">
+        <div class="portfolio-tl-name-cell">
+          <span class="portfolio-tl-proj-name" title="${escHtml(proj.name)}">${escHtml(proj.name)}</span>
+          <span class="semaforo ${sem.cls}" style="font-size:.62rem;padding:1px 7px">${sem.label}</span>
+        </div>
+        <div class="portfolio-tl-bars" style="min-width:${totalW}px">
+          ${todayLine}${barHTML}${milestonesHTML}
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto">
+      <div style="min-width:${totalW+220}px">
+        <div class="portfolio-tl-head">
+          <div class="portfolio-tl-names" style="padding:8px 12px;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">Projeto</div>
+          <div class="portfolio-tl-months" style="width:${totalW}px">${monthsHTML}</div>
+        </div>
+        <div class="portfolio-tl-body">${rowsHTML}</div>
+      </div>
+    </div>`;
+}
+
+function _renderPortfolioList(projs) {
+  const list = document.getElementById('portfolio-list');
+  if (!list) return;
+  const bl = loadBaseline();
+
+  list.innerHTML = projs.map(proj => {
+    const linked  = state.activities.filter(a => a.project === proj.name);
+    const total   = linked.length;
+    const done    = linked.filter(a => a.status === 'Concluído').length;
+    const overdue = linked.filter(a => a.status === 'Vencido').length;
+    const pct     = total > 0 ? Math.round(done/total*100) : (proj.progress||0);
+    const sem     = _projSemaforo(proj);
+
+    // Desvio de baseline
+    let blDesvio = '';
+    if (bl) {
+      const projActs = state.activities.filter(a => a.project === proj.name);
+      const blEntries = bl.filter(b => projActs.some(a => a.id === b.id));
+      if (blEntries.length) {
+        const blEndD  = Math.max(...blEntries.map(b => isoToDays(b.dueDate)).filter(Boolean));
+        const curEndD = proj.end ? isoToDays(proj.end) : null;
+        if (blEndD && curEndD) {
+          const diff = blEndD - curEndD;
+          if (diff > 0) blDesvio = `<span class="baseline-diff-pos">+${diff}d adiantado</span>`;
+          else if (diff < 0) blDesvio = `<span class="baseline-diff-neg">${diff}d atrasado</span>`;
+          else blDesvio = `<span style="font-size:.68rem;color:var(--text-muted)">No prazo</span>`;
+        }
+      }
+    }
+
+    const color = proj.color || '#1d4ed8';
+    return `
+      <div class="portfolio-row" style="border-left:4px solid ${color}">
+        <div>
+          <div class="pf-row-name">${proj.code ? `<span style="font-size:.68rem;color:var(--text-muted);margin-right:6px">${escHtml(proj.code)}</span>` : ''}${escHtml(proj.name)}</div>
+          <div class="pf-row-meta">👤 ${escHtml(proj.manager||'—')} &nbsp;·&nbsp; 📅 ${proj.start?formatDate(proj.start):'?'} → ${proj.end?formatDate(proj.end):'?'}</div>
+        </div>
+        <span class="semaforo ${sem.cls}">${sem.label}</span>
+        <div style="text-align:center">
+          <div style="font-size:.68rem;color:var(--text-muted);margin-bottom:4px">Progresso</div>
+          <div style="font-weight:800;font-size:1.1rem;color:var(--primary)">${pct}%</div>
+          <div class="pf-pbar-wrap" style="margin:4px auto 0">
+            <div class="pf-pbar-real" style="width:${pct}%;background:${color}"></div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:.78rem">
+          <div style="color:var(--text-muted);font-size:.65rem;margin-bottom:3px">Atividades</div>
+          <div>${done}/${total}${overdue>0?` <span style="color:#ef4444">(${overdue} atrasada${overdue>1?'s':''})</span>`:''}</div>
+          ${blDesvio ? `<div style="margin-top:3px">${blDesvio}</div>` : ''}
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="filterAndGo('proj_${escAttr(proj.name)}')">Ver →</button>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFLITO DE RECURSOS — HEATMAP SEMANAL
+══════════════════════════════════════════════════════════════ */
+
+let _recursosPeriod = 4;
+
+function setRecursosPeriod(weeks, btn) {
+  _recursosPeriod = weeks;
+  document.querySelectorAll('.recursos-period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderRecursos();
+}
+
+/** Detecta todos os conflitos de recurso entre projetos */
+function _detectAllResourceConflicts() {
+  const conflicts = [];
+  const acts = state.activities.filter(a => a.status !== 'Concluído' && a.dueDate);
+
+  // Agrupa todas as pessoas com suas atividades
+  const personMap = {};
+  acts.forEach(act => {
+    const start = act.startDate || act.dueDate;
+    const end   = act.dueDate;
+    const people = [...(Array.isArray(act.equipe) ? act.equipe : []), act.projetista, act.responsible, act.lider].filter(Boolean).map(p=>p.trim().toLowerCase());
+    const uniquePeople = [...new Set(people)];
+    uniquePeople.forEach(p => {
+      if (!personMap[p]) personMap[p] = [];
+      personMap[p].push({ ...act, _start: start, _end: end });
+    });
+  });
+
+  // Para cada pessoa, verifica sobreposição entre projetos distintos
+  Object.entries(personMap).forEach(([person, tasks]) => {
+    for (let i = 0; i < tasks.length; i++) {
+      for (let j = i+1; j < tasks.length; j++) {
+        const a = tasks[i], b = tasks[j];
+        if (a.project === b.project) continue;
+        const overlap = a._start <= b._end && a._end >= b._start;
+        if (overlap) {
+          const already = conflicts.find(c => c.person === person && ((c.projA === a.project && c.projB === b.project)||(c.projA === b.project && c.projB === a.project)));
+          if (!already) conflicts.push({ person, projA: a.project, projB: b.project, startA: a._start, endA: a._end, startB: b._start, endB: b._end });
+        }
+      }
+    }
+  });
+  return conflicts;
+}
+
+function renderRecursos() {
+  const heatmap = document.getElementById('recursos-heatmap');
+  const conflictList = document.getElementById('recursos-conflict-list');
+  if (!heatmap) return;
+
+  const weeks = _recursosPeriod;
+  const todayD = isoToDays(todayISO());
+
+  // Gera semanas
+  const weekStarts = [];
+  for (let w = 0; w < weeks; w++) {
+    const start = todayD + w * 7;
+    weekStarts.push(start);
+  }
+
+  // Coleta todas as pessoas únicas
+  const allPeople = new Set();
+  state.activities.forEach(act => {
+    if (act.status === 'Concluído') return;
+    [act.lider, act.projetista, act.responsible, ...(Array.isArray(act.equipe)?act.equipe:[])].filter(Boolean).forEach(p => allPeople.add(p.trim()));
+  });
+
+  if (!allPeople.size) {
+    heatmap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted)">Nenhum recurso com atividades ativas. Adicione atividades com equipe preenchida.</div>';
+    if (conflictList) conflictList.innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:12px">Nenhum conflito detectado.</div>';
+    return;
+  }
+
+  // Header de semanas
+  const weeksHeadHTML = weekStarts.map(ws => {
+    const dt = new Date(ws * 86400000);
+    return `<div class="recursos-week-hd">${dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>`;
+  }).join('');
+
+  // Rows por pessoa
+  const rowsHTML = [...allPeople].sort().map(person => {
+    const personLower = person.toLowerCase();
+
+    const cellsHTML = weekStarts.map(ws => {
+      const we = ws + 6;
+      // Horas alocadas na semana
+      const weekActs = state.activities.filter(act => {
+        if (act.status === 'Concluído') return false;
+        const s = isoToDays(act.startDate || act.dueDate);
+        const e = isoToDays(act.dueDate);
+        const overlap = s <= we && e >= ws;
+        if (!overlap) return false;
+        const people = [act.lider, act.projetista, act.responsible, ...(Array.isArray(act.equipe)?act.equipe:[])].filter(Boolean).map(p=>p.trim().toLowerCase());
+        return people.includes(personLower);
+      });
+
+      const totalH = weekActs.reduce((sum, a) => {
+        const h = a.duration ? parseFloat(a.duration) : calcDurationHours(a.startDate, a.dueDate) || 8;
+        // Distribui proporcionalmente pela semana
+        const actDays = Math.max(1, isoToDays(a.dueDate) - isoToDays(a.startDate||a.dueDate) + 1);
+        const overlapDays = Math.min(we, isoToDays(a.dueDate)) - Math.max(ws, isoToDays(a.startDate||a.dueDate)) + 1;
+        return sum + (h / actDays) * Math.max(0, overlapDays);
+      }, 0);
+
+      const availH = 40; // 40h/semana padrão
+      const pct = Math.round(totalH / availH * 100);
+
+      let cls = 'rc-empty';
+      let label = '';
+      if (totalH > 0) {
+        label = `${Math.round(totalH)}h`;
+        if (pct >= 100)    cls = 'rc-over';
+        else if (pct >= 70) cls = 'rc-warn';
+        else               cls = 'rc-free';
+      }
+
+      const projNames = [...new Set(weekActs.map(a => a.project))].join(', ');
+      return `<div class="recursos-cell ${cls}" title="${projNames ? projNames + ' — ' : ''}${Math.round(totalH)}h (${pct}%)">${label}</div>`;
+    }).join('');
+
+    return `
+      <div class="recursos-heatmap-row">
+        <div class="recursos-person-cell">
+          <span class="recursos-person-name">${escHtml(person)}</span>
+        </div>
+        <div class="recursos-weeks" style="flex:1;display:flex">${cellsHTML}</div>
+      </div>`;
+  }).join('');
+
+  heatmap.innerHTML = `
+    <div class="recursos-heatmap-head">
+      <div class="recursos-name-col">Pessoa</div>
+      <div class="recursos-weeks" style="flex:1;display:flex">${weeksHeadHTML}</div>
+    </div>
+    ${rowsHTML}`;
+
+  // Lista de conflitos
+  const conflicts = _detectAllResourceConflicts();
+  if (conflictList) {
+    if (!conflicts.length) {
+      conflictList.innerHTML = '<div style="color:#059669;font-size:.8rem;padding:12px">✓ Nenhum conflito detectado entre projetos.</div>';
+    } else {
+      conflictList.innerHTML = conflicts.map(c => `
+        <div class="conflict-item">
+          <div class="conflict-item-title">⚠ ${escHtml(c.person)}</div>
+          <div class="conflict-item-detail">
+            Está alocado em <strong>${escHtml(c.projA)}</strong> (${formatDate(c.startA)} → ${formatDate(c.endA)}) 
+            e em <strong>${escHtml(c.projB)}</strong> (${formatDate(c.startB)} → ${formatDate(c.endB)}) simultaneamente.
+          </div>
+        </div>`).join('');
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 2 — GESTÃO DE EQUIPE + CARGA + CUSTOS
+══════════════════════════════════════════════════════════════ */
+
+const COLAB_KEY = 'taskflow_colaboradores';
+const COLAB_COLORS = ['#1d4ed8','#059669','#d97706','#ea580c','#7c3aed','#0891b2','#db2777','#64748b'];
+
+let colabState = { colabs: [], editingId: null };
+
+// ── Persistência ───────────────────────────────────────────────
+function loadColabs() {
+  try { colabState.colabs = JSON.parse(localStorage.getItem(COLAB_KEY) || '[]'); }
+  catch { colabState.colabs = []; }
+}
+
+function persistColabs() {
+  localStorage.setItem(COLAB_KEY, JSON.stringify(colabState.colabs));
+}
+
+function genColabId() {
+  return `col_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+}
+
+// ── CRUD ───────────────────────────────────────────────────────
+function saveColab() {
+  const name     = document.getElementById('colab-name').value.trim();
+  const role     = document.getElementById('colab-role').value.trim();
+  const team     = document.getElementById('colab-team').value;
+  const capacity = parseFloat(document.getElementById('colab-capacity').value) || 8;
+  const costHour = parseFloat(document.getElementById('colab-cost-hour').value) || 0;
+  const color    = document.getElementById('colab-color').value;
+  const obs      = document.getElementById('colab-obs').value.trim();
+
+  if (!name) { showToast('Informe o nome do colaborador', 'error'); return; }
+
+  if (colabState.editingId) {
+    const idx = colabState.colabs.findIndex(c => c.id === colabState.editingId);
+    if (idx !== -1) {
+      colabState.colabs[idx] = { ...colabState.colabs[idx], name, role, team, capacity, costHour, color, obs, updatedAt: Date.now() };
+      showToast('Colaborador atualizado ✓', 'success');
+    }
+  } else {
+    colabState.colabs.push({ id: genColabId(), name, role, team, capacity, costHour, color, obs, createdAt: Date.now() });
+    showToast('Colaborador cadastrado ✓', 'success');
+  }
+
+  persistColabs();
+  closeColabModal();
+  renderEquipe();
+}
+
+function deleteColab(id) {
+  const c = colabState.colabs.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`Remover colaborador "${c.name}"?`)) return;
+  colabState.colabs = colabState.colabs.filter(x => x.id !== id);
+  persistColabs();
+  renderEquipe();
+  showToast('Colaborador removido', 'error');
+}
+
+function editColab(id) {
+  const c = colabState.colabs.find(x => x.id === id);
+  if (!c) return;
+  colabState.editingId = id;
+  document.getElementById('colab-modal-title').textContent = 'Editar Colaborador';
+  document.getElementById('colab-form-id').value     = id;
+  document.getElementById('colab-name').value        = c.name;
+  document.getElementById('colab-role').value        = c.role || '';
+  document.getElementById('colab-team').value        = c.team || 'Equipe 01';
+  document.getElementById('colab-capacity').value   = c.capacity || 8;
+  document.getElementById('colab-cost-hour').value  = c.costHour || '';
+  document.getElementById('colab-color').value      = c.color || '#1d4ed8';
+  document.getElementById('colab-obs').value        = c.obs || '';
+  document.getElementById('colab-modal-overlay').classList.add('open');
+}
+
+// ── Cálculo de carga ───────────────────────────────────────────
+function calcColabLoad(colab, filterProject) {
+  const myTasks = state.activities.filter(a => {
+    if (a.status === 'Concluído') return false;
+    if (filterProject && a.project !== filterProject) return false;
+    const name = (a.responsible || '').toLowerCase().trim();
+    return name === colab.name.toLowerCase().trim();
+  });
+
+  const totalHours = myTasks.reduce((sum, a) => {
+    const h = a.duration
+      ? parseFloat(a.duration)
+      : calcDurationHours(a.startDate, a.dueDate) || 0;
+    return sum + h;
+  }, 0);
+
+  // Dias de trabalho disponíveis (próximos 30 dias úteis)
+  const availHours = (colab.capacity || 8) * 22; // ~1 mês
+  const pct = availHours > 0 ? Math.min((totalHours / availHours) * 100, 200) : 0;
+
+  // Custo total alocado
+  const costTotal = totalHours * (colab.costHour || 0);
+
+  return { totalHours, availHours, pct, myTasks, costTotal };
+}
+
+function loadStatus(pct) {
+  if (pct > 110) return { label: 'Sobrecarregado', css: 'colab-badge-over', color: '#ef4444' };
+  if (pct > 85)  return { label: 'Atenção',        css: 'colab-badge-warn', color: '#d97706' };
+  return               { label: 'Normal',           css: 'colab-badge-ok',  color: '#059669' };
+}
+
+// ── Render ─────────────────────────────────────────────────────
+function renderEquipe() {
+  loadColabs();
+  const grid  = document.getElementById('equipe-grid');
+  const empty = document.getElementById('equipe-empty');
+  const summary = document.getElementById('equipe-summary-grid');
+  const filterProj = document.getElementById('equipe-filter-project')?.value || '';
+
+  // Atualiza filtro de projeto
+  const fpSel = document.getElementById('equipe-filter-project');
+  if (fpSel) {
+    const cur = fpSel.value;
+    const projs = [...new Set(state.activities.map(a => a.project).filter(Boolean))].sort();
+    fpSel.innerHTML = '<option value="">Todos os projetos</option>' +
+      projs.map(p => `<option value="${escAttr(p)}"${p===cur?' selected':''}>${escHtml(p)}</option>`).join('');
+  }
+
+  if (!colabState.colabs.length) {
+    if (grid)  grid.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    if (summary) summary.innerHTML = '';
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  // ── Summary cards ──
+  const allLoads = colabState.colabs.map(c => calcColabLoad(c, filterProj));
+  const totalAloc = allLoads.reduce((s, l) => s + l.totalHours, 0);
+  const totalCost = allLoads.reduce((s, l) => s + l.costTotal, 0);
+  const overCount = allLoads.filter(l => l.pct > 110).length;
+  const warnCount = allLoads.filter(l => l.pct > 85 && l.pct <= 110).length;
+
+  if (summary) {
+    summary.innerHTML = `
+      <div class="load-summary-card">
+        <div class="load-summary-label">Total Alocado</div>
+        <div class="load-summary-value">${totalAloc.toFixed(0)}h</div>
+        <div class="load-summary-sub">${colabState.colabs.length} colaborador(es)</div>
+      </div>
+      <div class="load-summary-card">
+        <div class="load-summary-label">Custo Total Alocado</div>
+        <div class="load-summary-value" style="font-size:1.1rem">R$ ${totalCost.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+        <div class="load-summary-sub">horas × custo/hora</div>
+      </div>
+      <div class="load-summary-card">
+        <div class="load-summary-label">Sobrecarregados</div>
+        <div class="load-summary-value" style="color:${overCount>0?'#ef4444':'#059669'}">${overCount}</div>
+        <div class="load-summary-sub">${warnCount} em atenção</div>
+      </div>
+      <div class="load-summary-card">
+        <div class="load-summary-label">Média de Carga</div>
+        <div class="load-summary-value">${colabState.colabs.length ? Math.round(allLoads.reduce((s,l)=>s+l.pct,0)/colabState.colabs.length) : 0}%</div>
+        <div class="load-summary-sub">do mês disponível</div>
+      </div>`;
+  }
+
+  // ── Colaborador cards ──
+  if (grid) {
+    grid.innerHTML = colabState.colabs.map((c, i) => {
+      const load   = allLoads[i];
+      const status = loadStatus(load.pct);
+      const initials = c.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const barColor = load.pct > 110 ? '#ef4444' : load.pct > 85 ? '#d97706' : '#059669';
+      const taskItems = load.myTasks.slice(0,4).map(a =>
+        `<div class="colab-task-item">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${escHtml(a.description)}</span>
+          <span style="flex-shrink:0;margin-left:6px;color:${diffDays(a.dueDate)<0?'#ef4444':'var(--text-muted)'}">${formatDate(a.dueDate)}</span>
+        </div>`
+      ).join('');
+      const moreTasks = load.myTasks.length > 4
+        ? `<div style="font-size:.62rem;color:var(--text-muted);padding-top:3px">+${load.myTasks.length-4} tarefa(s)</div>` : '';
+
+      return `
+        <div class="colab-card">
+          <div class="colab-card-header">
+            <div class="colab-avatar" style="background:${c.color||'#1d4ed8'}">${initials}</div>
+            <div style="flex:1">
+              <div class="colab-name">${escHtml(c.name)}</div>
+              <div class="colab-role">${escHtml(c.role||'—')} · ${escHtml(c.team||'—')}</div>
+            </div>
+            <span class="colab-badge ${status.css}">${status.label}</span>
+          </div>
+
+          <div class="colab-load-wrap">
+            <div class="colab-load-label">
+              <span>Carga alocada</span>
+              <span style="font-weight:700;color:${barColor}">${load.totalHours.toFixed(0)}h / ${load.availHours}h (${Math.round(load.pct)}%)</span>
+            </div>
+            <div class="colab-load-bar">
+              <div class="colab-load-fill" style="width:${Math.min(load.pct,100)}%;background:${barColor}"></div>
+            </div>
+          </div>
+
+          <div class="colab-meta-row">
+            <div class="colab-meta-item">⏱ ${c.capacity||8}h/dia</div>
+            ${c.costHour ? `<div class="colab-meta-item">💰 R$ ${parseFloat(c.costHour).toFixed(2)}/h</div>` : ''}
+            ${load.costTotal > 0 ? `<div class="colab-meta-item" style="color:var(--primary)">Total: R$ ${load.costTotal.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div>` : ''}
+            <div class="colab-meta-item">📋 ${load.myTasks.length} tarefa(s)</div>
+          </div>
+
+          ${load.myTasks.length ? `
+            <div class="colab-tasks-list">${taskItems}${moreTasks}</div>
+          ` : '<div style="font-size:.65rem;color:var(--text-muted);margin-top:8px">Nenhuma tarefa ativa alocada</div>'}
+
+          <div class="colab-actions">
+            <button class="btn-action btn-edit" onclick="editColab('${c.id}')">✎ Editar</button>
+            <button class="btn-action btn-delete" onclick="deleteColab('${c.id}')">✕ Remover</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+// ── Modal Colab ────────────────────────────────────────────────
+function openColabModal() {
+  colabState.editingId = null;
+  document.getElementById('colab-modal-title').textContent = 'Novo Colaborador';
+  document.getElementById('colab-form-id').value    = '';
+  document.getElementById('colab-name').value       = '';
+  document.getElementById('colab-role').value       = '';
+  document.getElementById('colab-team').value       = 'Equipe 01';
+  document.getElementById('colab-capacity').value  = 8;
+  document.getElementById('colab-cost-hour').value = '';
+  document.getElementById('colab-color').value     = COLAB_COLORS[colabState.colabs.length % COLAB_COLORS.length];
+  document.getElementById('colab-obs').value       = '';
+  document.getElementById('colab-modal-overlay').classList.add('open');
+}
+
+function closeColabModal() {
+  document.getElementById('colab-modal-overlay').classList.remove('open');
+  colabState.editingId = null;
+}
+
+function closeColabModalOutside(e) {
+  if (e.target === document.getElementById('colab-modal-overlay')) closeColabModal();
+}
+
+// ── Patch switchView para Equipe ───────────────────────────────
+const _tf2_switchView = window.switchView;
+window.switchView = function(viewName, navEl) {
+  const r = _tf2_switchView ? _tf2_switchView(viewName, navEl) : null;
+  if (viewName === 'equipe') {
+    const t = document.getElementById('page-title');
+    if (t) t.textContent = 'Equipe';
+    loadColabs();
+    renderEquipe();
+  }
+  return r;
+};
+
+// ── KPI Equipe no Dashboard ────────────────────────────────────
+function renderKPIsEquipe() {
+  loadColabs();
+  if (!colabState.colabs.length) return;
+  const loads = colabState.colabs.map(c => calcColabLoad(c, ''));
+  const over  = loads.filter(l => l.pct > 110).length;
+  // Adiciona badge no nav item de Equipe se houver sobrecarga
+  const navEl = document.querySelector('[data-view="equipe"]');
+  if (navEl) {
+    let badge = navEl.querySelector('.equipe-alert-badge');
+    if (over > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'equipe-alert-badge';
+        badge.style.cssText = 'background:#ef4444;color:#fff;font-size:.55rem;font-weight:800;padding:1px 5px;border-radius:100px;margin-left:auto';
+        navEl.appendChild(badge);
+      }
+      badge.textContent = over;
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadColabs();
+  setTimeout(renderKPIsEquipe, 500);
+});
+
+// ── Patch renderAll para atualizar badge de equipe ─────────────
+const _tf2_renderAll = renderAll;
+renderAll = function() {
+  _tf2_renderAll();
+  renderKPIsEquipe();
+};
