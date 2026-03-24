@@ -1243,8 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   WHATSAPP — CALLMEBOT INTEGRATION
-   Documentação: https://www.callmebot.com/blog/free-api-whatsapp-messages/
+   TELEGRAM INTEGRATION
 ══════════════════════════════════════════════════════════════ */
 
 const WA_CONFIG_KEY = 'taskflow_wa_config';
@@ -1256,98 +1255,99 @@ function loadWAConfig() {
   } catch { return { phone: '', apikey: '', auto: '1' }; }
 }
 
-function saveWAConfig() {
-  const phone  = document.getElementById('wa-phone').value.trim().replace(/\D/g, '');
-  const apikey = document.getElementById('wa-apikey').value.trim();
+window.saveWAConfig = function saveWAConfig() {
+  const token  = document.getElementById('wa-apikey').value.trim();
+  const chatId = document.getElementById('wa-phone').value.trim();
   const auto   = document.getElementById('wa-auto').value;
-
-  if (!phone)  { showToast('Informe seu número', 'error'); return; }
-  if (!apikey) { showToast('Informe a API Key do CallMeBot', 'error'); return; }
-
-  const cfg = { phone, apikey, auto };
+  if (!token)  return showToast('⚠ Cole o Token do bot', 'warning');
+  if (!chatId) return showToast('⚠ Detecte ou informe o Chat ID', 'warning');
+  const cfg = { phone: chatId, apikey: token, auto };
   localStorage.setItem(WA_CONFIG_KEY, JSON.stringify(cfg));
-
-  // Marca o botão como configurado
-  document.getElementById('wa-dot').classList.remove('hidden');
-
-  showToast('WhatsApp configurado ✓', 'success');
   closeWAConfig();
+  showToast('✅ Telegram configurado!', 'success');
+}
 
-  // Reagenda intervalo se auto ativado
-  scheduleWAChecks(cfg);
+function _waConfig() {
+  try { return JSON.parse(localStorage.getItem(WA_CONFIG_KEY) || '{}'); } catch(_) { return {}; }
 }
 
 /**
- * Envia mensagem via CallMeBot
- * Tenta 3 proxies CORS em sequência; se todos falharem, abre aba direta.
- * @param {string} text - Mensagem
- * @param {object} cfg  - { phone, apikey }
+ * Detecta o Chat ID automaticamente via getUpdates
  */
-async function sendWAMessage(text, cfg) {
-  const phone  = (cfg && cfg.phone)  || _waConfig().phone;
-  const apikey = (cfg && cfg.apikey) || _waConfig().apikey;
-  if (!phone || !apikey) return false;
+window.detectTelegramChatId = async function detectTelegramChatId() {
+  const token = document.getElementById('wa-apikey').value.trim();
+  if (!token) { showToast('Cole o Token primeiro', 'warning'); return; }
 
-  const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${apikey}`;
+  const statusEl = document.getElementById('wa-status-msg');
+  statusEl.style.display = 'block';
+  statusEl.style.color   = 'var(--text-muted)';
+  statusEl.innerHTML     = '⏳ Buscando Chat ID...';
 
-  // Extrai o texto real da resposta (suporta allorigins wrapper e resposta direta)
-  function extractBody(raw) {
-    try {
-      const j = JSON.parse(raw);
-      // allorigins.win encapsula em { contents: "...", status: {...} }
-      if (typeof j.contents === 'string') return j.contents.toLowerCase();
-    } catch(_) {}
-    return raw.toLowerCase();
-  }
+  try {
+    const res  = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+    const data = await res.json();
 
-  function isSuccess(body) {
-    return body.includes('message queued') || body.includes('queued');
-  }
-
-  function isAuthError(body) {
-    return body.includes('error') || body.includes('invalid') ||
-           body.includes('incorrect') || body.includes('not enabled') ||
-           body.includes('not found');
-  }
-
-  const PROXIES = [
-    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    u => `https://thingproxy.freeboard.io/fetch/${u}`,
-  ];
-
-  for (const makeProxy of PROXIES) {
-    try {
-      const res  = await fetch(makeProxy(targetUrl), { signal: AbortSignal.timeout(12000) });
-      if (!res.ok) { console.warn('Proxy HTTP error:', res.status); continue; }
-      const raw  = await res.text();
-      const body = extractBody(raw);
-      console.log('[CallMeBot] resposta proxy:', body.slice(0, 120));
-
-      if (isSuccess(body)) {
-        console.log('✅ CallMeBot: mensagem enfileirada');
-        return true;
-      }
-      if (isAuthError(body)) {
-        // Credenciais erradas — não adianta tentar outros proxies
-        console.warn('CallMeBot: erro de autenticação —', body.slice(0, 100));
-        return false;
-      }
-      // Resposta ambígua — tenta próximo proxy
-    } catch (e) {
-      console.warn('Proxy falhou:', e.message);
+    if (!data.ok) {
+      statusEl.style.color = '#dc2626';
+      statusEl.innerHTML   = '✗ Token inválido. Verifique e tente novamente.';
+      return;
     }
-  }
 
-  // Último recurso: abre URL diretamente numa aba
-  console.warn('Proxies indisponíveis — abrindo aba direta');
-  window.open(targetUrl, '_blank', 'width=600,height=400,noopener');
-  return false;
+    if (!data.result || data.result.length === 0) {
+      statusEl.style.color = '#d97706';
+      statusEl.innerHTML   = '⚠ Nenhuma mensagem encontrada. Abra o Telegram, mande <strong>/start</strong> para <strong>@TaskeFlowbot</strong> e clique Detectar novamente.';
+      return;
+    }
+
+    // Pega o chat ID da mensagem mais recente
+    const msg    = data.result[data.result.length - 1];
+    const chatId = msg.message?.chat?.id || msg.channel_post?.chat?.id;
+
+    if (!chatId) {
+      statusEl.style.color = '#dc2626';
+      statusEl.innerHTML   = '✗ Não foi possível extrair o Chat ID. Mande uma mensagem ao bot e tente de novo.';
+      return;
+    }
+
+    document.getElementById('wa-phone').value = chatId;
+    statusEl.style.color = '#059669';
+    statusEl.innerHTML   = `✅ Chat ID detectado: <strong>${chatId}</strong> — clique Salvar!`;
+
+  } catch(e) {
+    statusEl.style.color = '#dc2626';
+    statusEl.innerHTML   = '✗ Erro: ' + e.message;
+  }
 }
 
-/** Lê configuração salva do localStorage */
-function _waConfig() {
-  try { return JSON.parse(localStorage.getItem('taskflow_wa_cfg') || '{}'); } catch(_) { return {}; }
+/**
+ * Envia mensagem via Telegram Bot API
+ */
+async function sendWAMessage(text, cfg) {
+  const token  = (cfg && cfg.apikey) || _waConfig().apikey;
+  const chatId = (cfg && cfg.phone)  || _waConfig().phone;
+  if (!token || !chatId) return false;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id:    chatId,
+        text:       text,
+        parse_mode: 'Markdown'
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      console.log('✅ Telegram: mensagem enviada');
+      return true;
+    }
+    console.warn('Telegram recusou:', data.description);
+    return false;
+  } catch(e) {
+    console.error('Telegram erro:', e.message);
+    return false;
+  }
 }
 
 /**
@@ -1360,151 +1360,95 @@ async function sendOverdueAlerts(cfg, triggeredBy = 'auto') {
     a.status !== 'Concluído' && diffDays(a.dueDate) < 0
   ).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-  if (!overdue.length) return;
+  const today = state.activities.filter(a =>
+    a.status !== 'Concluído' && diffDays(a.dueDate) === 0
+  );
 
-  // Agrupa por severidade
-  const critical = overdue.filter(a => diffDays(a.dueDate) <= -5);
-  const medium   = overdue.filter(a => diffDays(a.dueDate) > -5 && diffDays(a.dueDate) <= -2);
-  const light    = overdue.filter(a => diffDays(a.dueDate) > -2);
+  if (overdue.length === 0 && today.length === 0) return;
 
-  let lines = [];
-  lines.push(`🚨 *TaskFlow — Atividades Atrasadas*`);
-  lines.push(`📅 ${new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' })}`);
-  lines.push(`Total: *${overdue.length} atividade(s) vencida(s)*`);
-  lines.push('');
+  let msg = `⚠️ *TaskFlow PRO — Alertas*
+`;
+  msg += `📅 ${new Date().toLocaleDateString('pt-BR')}
 
-  if (critical.length) {
-    lines.push(`🔥 *CRÍTICAS (5+ dias de atraso)*`);
-    critical.slice(0, 5).forEach(a => {
-      const d = Math.abs(diffDays(a.dueDate));
-      lines.push(`  • [${a.project}] ${a.description} — ${a.responsible} (${d}d atraso)`);
+`;
+
+  if (overdue.length > 0) {
+    msg += `🔴 *Atrasadas (${overdue.length}):*
+`;
+    overdue.slice(0, 5).forEach(a => {
+      const dias = Math.abs(diffDays(a.dueDate));
+      msg += `• ${a.description} — ${a.project} (${dias}d atraso)\n`;
     });
-    lines.push('');
+    if (overdue.length > 5) msg += `_...e mais ${overdue.length - 5}_\n`;
+    msg += '\n';
   }
 
-  if (medium.length) {
-    lines.push(`⚡ *MÉDIAS (2-4 dias)*`);
-    medium.slice(0, 3).forEach(a => {
-      const d = Math.abs(diffDays(a.dueDate));
-      lines.push(`  • [${a.project}] ${a.description} — ${d}d atraso`);
+  if (today.length > 0) {
+    msg += `🟡 *Vencem hoje (${today.length}):*\n`;
+    today.forEach(a => {
+      msg += `• ${a.description} — ${a.project}\n`;
     });
-    lines.push('');
   }
 
-  if (light.length) {
-    lines.push(`⚠ *LEVES (até 1 dia)*`);
-    light.slice(0, 3).forEach(a => {
-      lines.push(`  • [${a.project}] ${a.description}`);
-    });
-    lines.push('');
-  }
-
-  if (overdue.length > 11) {
-    lines.push(`_... e mais ${overdue.length - 11} atividade(s). Acesse o TaskFlow._`);
-  }
-
-  const msg = lines.join('\n');
-  const ok  = await sendWAMessage(msg, cfg);
-
-  if (ok) {
-    showToast(`📱 Alerta enviado para WhatsApp (${overdue.length} vencidas)`, 'success');
-    // Registra último envio
-    localStorage.setItem('taskflow_wa_last_sent', Date.now().toString());
-  }
+  await sendWAMessage(msg, cfg);
 }
 
-/**
- * Envia alerta de UMA atividade específica (botão manual na tabela)
- */
-async function sendSingleActivityAlert(id) {
+function scheduleAutoAlerts() {
   const cfg = loadWAConfig();
-  if (!cfg.phone || !cfg.apikey) {
-    openWAConfig();
-    showToast('Configure o WhatsApp primeiro', 'warning');
-    return;
-  }
-
-  const a = state.activities.find(x => x.id === id);
-  if (!a) return;
-
-  const d    = Math.abs(diffDays(a.dueDate));
-  const icon = d >= 5 ? '🔥' : d >= 2 ? '⚡' : '⚠';
-  const msg  = `${icon} *TaskFlow — Alerta de Atraso*\n\nProjeto: *${a.project}*\nAtividade: ${a.description}\nResponsável: ${a.responsible}\nPrazo: ${formatDate(a.dueDate)} (${d} dia(s) de atraso)\nStatus: ${a.status}`;
-
-  const ok = await sendWAMessage(msg, cfg);
-  if (ok) showToast('📱 Alerta enviado!', 'success');
-  else    showToast('Erro ao enviar. Verifique a configuração.', 'error');
-}
-
-/* ── Agendamento automático ── */
-let _waInterval = null;
-
-function scheduleWAChecks(cfg) {
-  if (_waInterval) clearInterval(_waInterval);
-  if (!cfg || cfg.auto !== '1') return;
-
-  // Verifica a cada hora (3600000ms)
-  _waInterval = setInterval(() => {
+  if (cfg.auto === '1') sendOverdueAlerts(cfg, 'startup');
+  setInterval(() => {
     const c = loadWAConfig();
     if (c.auto === '1') sendOverdueAlerts(c, 'hourly');
   }, 60 * 60 * 1000);
 }
 
-/* ── Modal WA ── */
-function openWAConfig() {
+window.openWAConfig = function openWAConfig() {
   const cfg = loadWAConfig();
-  document.getElementById('wa-phone').value  = cfg.phone  || '';
   document.getElementById('wa-apikey').value = cfg.apikey || '';
+  document.getElementById('wa-phone').value  = cfg.phone  || '';
   document.getElementById('wa-auto').value   = cfg.auto   || '1';
   document.getElementById('wa-status-msg').style.display = 'none';
   document.getElementById('wa-config-overlay').classList.add('open');
 }
 
-function closeWAConfig() {
+window.closeWAConfig = function closeWAConfig() {
   document.getElementById('wa-config-overlay').classList.remove('open');
 }
 
-function closeWAConfigOutside(e) {
+window.closeWAConfigOutside = function closeWAConfigOutside(e) {
   if (e.target === document.getElementById('wa-config-overlay')) closeWAConfig();
 }
 
-async function testWAMessage() {
-  const phone  = document.getElementById('wa-phone').value.trim().replace(/\D/g, '');
-  const apikey = document.getElementById('wa-apikey').value.trim();
-  if (!phone || !apikey) { showToast('Preencha número e API Key primeiro', 'error'); return; }
-
-  if (phone.length < 10 || phone.length > 15) {
-    showToast('Número inválido. Use o formato: 5585999991234 (DDI + DDD + número)', 'error');
+window.testWAMessage = async function testWAMessage() {
+  const token  = document.getElementById('wa-apikey').value.trim();
+  const chatId = document.getElementById('wa-phone').value.trim();
+  if (!token || !chatId) {
+    showToast('Preencha Token e Chat ID (use o botão Detectar)', 'warning');
     return;
   }
 
-  const msg = '✅ *TaskFlow PRO* — Teste de conexão confirmado! As notificações estão ativas.';
   const statusEl = document.getElementById('wa-status-msg');
   statusEl.style.display = 'block';
   statusEl.style.color   = 'var(--text-muted)';
-  statusEl.innerHTML     = '⏳ Tentando enviar via CallMeBot... aguarde até 15s.';
+  statusEl.innerHTML     = '⏳ Enviando mensagem de teste...';
 
-  try {
-    const ok = await sendWAMessage(msg, { phone, apikey });
-    if (ok) {
-      statusEl.style.color = '#059669';
-      statusEl.innerHTML   = '✅ Mensagem enfileirada pelo CallMeBot! Deve chegar em até 1 minuto.<br/>' +
-        '<small>Se não chegar: refaça o Passo 2 (enviar <strong>"I allow callmebot to send me messages"</strong> para o contato CallMeBot no WhatsApp).</small>';
-    } else {
-      const directUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=Teste+TaskFlow&apikey=${apikey}`;
-      statusEl.style.color = '#dc2626';
-      statusEl.innerHTML   = '✗ CallMeBot não aceitou. Verifique:<br/>' +
-        '<small style="line-height:1.8">' +
-        '① Número: DDI+DDD+número sem espaços — ex: <strong>5585998268803</strong><br/>' +
-        '② API Key: só os dígitos que o CallMeBot enviou — ex: <strong>3340330</strong><br/>' +
-        '③ Passo 2: você enviou <strong>"I allow callmebot to send me messages"</strong> ao contato <strong>+34 644 44 21 48</strong>?<br/>' +
-        '④ <a href="' + directUrl + '" target="_blank" style="color:#2563eb;font-weight:700">👉 Clique aqui para testar diretamente</a> — deve mostrar "Message Queued" na página</small>';
-    }
-  } catch(e) {
+  const msg = '✅ *TaskFlow PRO* — Conexão confirmada\! Alertas de atividades ativados.';
+  const ok  = await sendWAMessage(msg, { phone: chatId, apikey: token });
+
+  if (ok) {
+    statusEl.style.color = '#059669';
+    statusEl.innerHTML   = '✅ Mensagem enviada! Verifique o Telegram.';
+  } else {
     statusEl.style.color = '#dc2626';
-    statusEl.innerHTML   = '✗ Erro: ' + e.message;
+    statusEl.innerHTML   = '✗ Falhou. Verifique o Token e o Chat ID.';
   }
 }
+
+window.closeWAConfig         = closeWAConfig;
+window.closeWAConfigOutside  = closeWAConfigOutside;
+window.testWAMessage         = testWAMessage;
+window.sendWAMessage         = sendWAMessage;
+window.scheduleAutoAlerts    = scheduleAutoAlerts;
 
 /* ══════════════════════════════════════════════════════════════
    PROJETOS — CRUD
