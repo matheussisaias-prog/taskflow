@@ -1290,6 +1290,26 @@ async function sendWAMessage(text, cfg) {
 
   const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${apikey}`;
 
+  // Extrai o texto real da resposta (suporta allorigins wrapper e resposta direta)
+  function extractBody(raw) {
+    try {
+      const j = JSON.parse(raw);
+      // allorigins.win encapsula em { contents: "...", status: {...} }
+      if (typeof j.contents === 'string') return j.contents.toLowerCase();
+    } catch(_) {}
+    return raw.toLowerCase();
+  }
+
+  function isSuccess(body) {
+    return body.includes('message queued') || body.includes('queued');
+  }
+
+  function isAuthError(body) {
+    return body.includes('error') || body.includes('invalid') ||
+           body.includes('incorrect') || body.includes('not enabled') ||
+           body.includes('not found');
+  }
+
   const PROXIES = [
     u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
@@ -1298,31 +1318,29 @@ async function sendWAMessage(text, cfg) {
 
   for (const makeProxy of PROXIES) {
     try {
-      const res  = await fetch(makeProxy(targetUrl), { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
+      const res  = await fetch(makeProxy(targetUrl), { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) { console.warn('Proxy HTTP error:', res.status); continue; }
       const raw  = await res.text();
-      const body = raw.toLowerCase();
-      if (body.includes('message queued') || body.includes('queued') || body.includes('"contents"')) {
-        console.log('✅ CallMeBot: mensagem enfileirada via proxy');
+      const body = extractBody(raw);
+      console.log('[CallMeBot] resposta proxy:', body.slice(0, 120));
+
+      if (isSuccess(body)) {
+        console.log('✅ CallMeBot: mensagem enfileirada');
         return true;
       }
-      // allorigins encapsula em JSON — verifica contents
-      try {
-        const j = JSON.parse(raw);
-        const inner = (j.contents || '').toLowerCase();
-        if (inner.includes('message queued') || inner.includes('queued')) return true;
-        if (inner.includes('error') || inner.includes('invalid')) {
-          console.warn('CallMeBot recusou:', j.contents);
-          return false; // API key/número errado — não adianta tentar outros proxies
-        }
-      } catch(_) {}
+      if (isAuthError(body)) {
+        // Credenciais erradas — não adianta tentar outros proxies
+        console.warn('CallMeBot: erro de autenticação —', body.slice(0, 100));
+        return false;
+      }
+      // Resposta ambígua — tenta próximo proxy
     } catch (e) {
       console.warn('Proxy falhou:', e.message);
     }
   }
 
-  // Último recurso: abre aba (funciona sempre, mas requer interação)
-  console.warn('Todos os proxies falharam — abrindo aba direta');
+  // Último recurso: abre URL diretamente numa aba
+  console.warn('Proxies indisponíveis — abrindo aba direta');
   window.open(targetUrl, '_blank', 'width=600,height=400,noopener');
   return false;
 }
@@ -1470,19 +1488,21 @@ async function testWAMessage() {
     const ok = await sendWAMessage(msg, { phone, apikey });
     if (ok) {
       statusEl.style.color = '#059669';
-      statusEl.innerHTML   = '✅ Mensagem enviada! Verifique seu WhatsApp em instantes.<br/><small>Se não chegar em 2 minutos, refaça o Passo 2 (enviar "I allow callmebot..." para o contato).</small>';
+      statusEl.innerHTML   = '✅ Mensagem enfileirada pelo CallMeBot! Deve chegar em até 1 minuto.<br/>' +
+        '<small>Se não chegar: refaça o Passo 2 (enviar <strong>"I allow callmebot to send me messages"</strong> para o contato CallMeBot no WhatsApp).</small>';
     } else {
+      const directUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=Teste+TaskFlow&apikey=${apikey}`;
       statusEl.style.color = '#dc2626';
-      statusEl.innerHTML   = '✗ CallMeBot recusou ou proxy falhou.<br/>' +
-        '<small>Verifique:<br/>' +
-        '• Número correto (DDI+DDD+número, sem espaços): ex. 5585998268803<br/>' +
-        '• API Key correta (apenas os números que o CallMeBot enviou)<br/>' +
-        '• Passo 2 concluído (enviar "I allow callmebot to send me messages")<br/>' +
-        '• <a href="https://api.callmebot.com/whatsapp.php?phone=' + phone + '&text=Teste+TaskFlow&apikey=' + apikey + '" target="_blank" style="color:#2563eb">Clique aqui para testar diretamente no navegador</a></small>';
+      statusEl.innerHTML   = '✗ CallMeBot não aceitou. Verifique:<br/>' +
+        '<small style="line-height:1.8">' +
+        '① Número: DDI+DDD+número sem espaços — ex: <strong>5585998268803</strong><br/>' +
+        '② API Key: só os dígitos que o CallMeBot enviou — ex: <strong>3340330</strong><br/>' +
+        '③ Passo 2: você enviou <strong>"I allow callmebot to send me messages"</strong> ao contato <strong>+34 644 44 21 48</strong>?<br/>' +
+        '④ <a href="' + directUrl + '" target="_blank" style="color:#2563eb;font-weight:700">👉 Clique aqui para testar diretamente</a> — deve mostrar "Message Queued" na página</small>';
     }
   } catch(e) {
     statusEl.style.color = '#dc2626';
-    statusEl.innerHTML   = '✗ Erro inesperado: ' + e.message;
+    statusEl.innerHTML   = '✗ Erro: ' + e.message;
   }
 }
 
