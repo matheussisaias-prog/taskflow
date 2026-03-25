@@ -1738,7 +1738,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const waCfg = loadWAConfig();
   if (waCfg.phone && waCfg.apikey) {
     document.getElementById('wa-dot').classList.remove('hidden');
-    scheduleWAChecks(waCfg);
+    scheduleAutoAlerts();
 
     // Alerta ao abrir o sistema
     if (waCfg.auto === '1') {
