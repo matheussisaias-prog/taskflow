@@ -482,8 +482,13 @@ function buildTaskRow(a) {
   const delayBadge = diff < 0 && a.status !== 'Concluído'
     ? `<span class="delay-badge">${Math.abs(diff)}d</span>` : '';
 
+  // Ordem: WBS | Projeto | Título | Início | Término | Responsável | Duração | % | Status | Ações
+  const durDisplay = a.duration ? `${a.duration}h` : (durDays ? `${durDays}d` : '—');
+
   return `
     <tr class="${a.isCritical ? 'row-critical' : ''} ${a.status === 'Concluído' ? 'row-done' : ''}">
+      <td class="wbs-cell"><span style="color:var(--text-muted);font-size:.75rem">${escHtml(a._wbs || '—')}</span></td>
+      <td><span class="project-tag">${escHtml(a.project)}</span></td>
       <td>
         <div class="cell-desc">
           ${a.isCritical ? '<span class="crit-dot" title="Caminho crítico">●</span>' : ''}
@@ -491,19 +496,23 @@ function buildTaskRow(a) {
           <span>${escHtml(a.description)}</span>
         </div>
       </td>
-      <td><span class="project-tag">${escHtml(a.project)}</span></td>
+      <td style="white-space:nowrap">${formatDate(a.startDate)}</td>
+      <td class="${diff < 0 && a.status !== 'Concluído' ? 'date-overdue' : ''}" style="white-space:nowrap">${formatDate(a.dueDate)} ${delayBadge}</td>
       <td>${escHtml(a.responsible)}</td>
-      <td>${formatDate(a.startDate)}</td>
-      <td class="${diff < 0 && a.status !== 'Concluído' ? 'date-overdue' : ''}">${formatDate(a.dueDate)} ${delayBadge}</td>
-      <td><span class="team-tag">${escHtml(a.team)}</span></td>
-      <td><span class="prio-badge ${prio.css}">${prio.label}</span></td>
+      <td class="dur-auto">${durDisplay}</td>
+      <td>
+        <div class="progress-cell" style="min-width:70px">
+          <div class="progress-mini-bar"><div class="progress-mini-fill" style="width:${a.progress||0}%"></div></div>
+          <span style="font-size:.68rem;font-weight:700;color:var(--text-muted)">${a.progress||0}%</span>
+        </div>
+      </td>
       <td><span class="status-badge ${statusCss}">${escHtml(a.status)}</span></td>
       <td>
         <div class="action-btns">
           ${a.status !== 'Concluído' ? `<button class="btn-action btn-complete" onclick="quickComplete('${a.id}')" title="Concluir">✓</button>` : ''}
-          <button class="btn-action btn-edit"     onclick="openModal('${a.id}')"       title="Editar">✎</button>
-          <button class="btn-action btn-reschedule" onclick="openReschedule('${a.id}')" title="Reprogramar">📅</button>
-          <button class="btn-action btn-delete"   onclick="deleteTask('${a.id}')"      title="Excluir">✕</button>
+          <button class="btn-action btn-edit"       onclick="openModal('${a.id}')"        title="Editar">✎</button>
+          <button class="btn-action btn-reschedule" onclick="openReschedule('${a.id}')"   title="Reprogramar">⟳</button>
+          <button class="btn-action btn-delete"     onclick="deleteTask('${a.id}')"       title="Excluir">✕</button>
         </div>
       </td>
     </tr>`;
