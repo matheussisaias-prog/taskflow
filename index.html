@@ -1,1234 +1,2588 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TaskFlow — Gestão de Atividades</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><text x='50%' y='54%' font-size='18' text-anchor='middle' dominant-baseline='middle' fill='white'>⬡</text></svg>"/>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <style>
-    /* ── Hierarquia WBS ── */
-    .wbs-cell { white-space:nowrap; width:82px; }
-    .wbs-num  { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--text-muted); font-weight:600; }
-    .btn-expand { background:none; border:none; cursor:pointer; color:var(--text-muted);
-                  font-size:.65rem; padding:0 2px; line-height:1; transition:color .15s; }
-    .btn-expand:hover { color:var(--primary); }
-    .expand-placeholder { display:inline-block; width:16px; }
-    .sub-arrow  { color:var(--text-muted); margin-right:4px; font-size:.72rem; }
-    .btn-add-sub { color:var(--primary) !important; font-size:.65rem !important; opacity:.7; }
-    .btn-add-sub:hover { opacity:1; }
-    tr.level-1 td { background:rgba(79,139,255,.03); }
-    tr.level-2 td { background:rgba(79,139,255,.055); }
-    tr.level-3 td { background:rgba(79,139,255,.08); }
-    tr.level-0 .desc-cell { font-weight:600; }
-    .dur-auto { font-variant-numeric:tabular-nums; color:var(--text-muted); font-size:.8rem; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TaskFlow PRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
+:root {
+  --navy:       #0f1629;
+  --navy2:      #1a2744;
+  --navy3:      #243356;
+  --blue:       #2563eb;
+  --blue-light: #3b82f6;
+  --blue-dim:   rgba(37,99,235,.08);
+  --green:      #059669;
+  --green-dim:  rgba(5,150,105,.1);
+  --red:        #dc2626;
+  --red-dim:    rgba(220,38,38,.08);
+  --amber:      #d97706;
+  --amber-dim:  rgba(217,119,6,.1);
+  --purple:     #7c3aed;
+  --purple-dim: rgba(124,58,237,.1);
 
-    /* ── KPI Pro ── */
-    .kpi-pro-section { margin-top:20px; }
-    .kpi-pro-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:10px; }
-    .kpi-pro-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
-    .kpi-pro-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
-    .kpi-pro-label { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:4px; }
-    .kpi-pro-value { font-size:1.5rem; font-weight:800; color:var(--text-primary); line-height:1; }
-    .kpi-pro-sub { font-size:.68rem; color:var(--text-muted); margin-top:3px; }
-    .kpi-pro-pbar-wrap { height:5px; background:var(--bg-input); border-radius:99px; overflow:hidden; margin-top:8px; }
-    .kpi-pro-pbar { height:100%; background:var(--primary); border-radius:99px; transition:width .6s; }
-    .kpi-crit-val { color:#ef4444 !important; }
+  --bg:         #f1f4f9;
+  --surface:    #ffffff;
+  --surface2:   #f8fafc;
+  --border:     #e2e8f0;
+  --border2:    #cbd5e1;
 
-    /* ── Gantt ── */
-    .gantt-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
-    .gantt-zoom-btns { display:flex; gap:4px; }
-    .gantt-zoom-btns button { width:28px; height:28px; border:1px solid var(--border); border-radius:6px; background:var(--surface); cursor:pointer; font-size:.85rem; color:var(--text-primary); display:flex; align-items:center; justify-content:center; }
-    .gantt-zoom-btns button:hover { background:var(--bg-hover); }
-    .gantt-inner { display:flex; height:calc(100vh - 200px); min-height:360px; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-    .gantt-left-panel { width:290px; min-width:290px; flex-shrink:0; border-right:2px solid var(--border); display:flex; flex-direction:column; background:var(--surface); }
-    .gantt-left-header { height:56px; display:flex; align-items:center; padding:0 10px; gap:8px; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); border-bottom:2px solid var(--border); background:var(--bg-panel); flex-shrink:0; }
-    .gantt-left-rows { flex:1; overflow-y:scroll; scrollbar-width:none; }
-    .gantt-left-rows::-webkit-scrollbar { display:none; }
-    .gantt-left-row { display:flex; align-items:center; padding:0 8px; gap:5px; border-bottom:1px solid var(--border); font-size:.72rem; transition:background .1s; cursor:default; }
-    .gantt-left-row:hover { background:var(--bg-hover); }
-    .gantt-crit-row { background:rgba(239,68,68,.06) !important; }
-    .gantt-wbs { font-size:.6rem; color:var(--text-muted); font-weight:700; font-family:monospace; min-width:26px; flex-shrink:0; }
-    .gantt-task-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .gantt-crit-dot { color:#ef4444; font-size:.55rem; flex-shrink:0; }
-    .gantt-right-panel { flex:1; overflow:auto; position:relative; }
-    .gantt-header-sticky { position:sticky; top:0; z-index:4; background:var(--bg-panel); }
-    .gantt-months-row { display:flex; border-bottom:1px solid var(--border); height:28px; }
-    .gantt-month { border-right:1px solid var(--border); font-size:.6rem; font-weight:700; display:flex; align-items:center; padding:0 6px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; flex-shrink:0; overflow:hidden; }
-    .gantt-days-row { display:flex; border-bottom:2px solid var(--border); height:28px; background:var(--surface); }
-    .gantt-day { border-right:1px solid rgba(148,163,184,.12); font-size:.58rem; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
-    .gantt-day-weekend { background:rgba(148,163,184,.1); }
-    .gantt-day-today { background:rgba(79,139,255,.18); color:var(--primary); font-weight:800; }
-    .gantt-bars-area { position:relative; }
-    .gantt-row-bg { position:absolute; left:0; right:0; }
-    .gantt-row-bg:nth-child(even) { background:rgba(148,163,184,.03); }
-    .gantt-row-sep { position:absolute; height:1px; left:0; background:rgba(148,163,184,.12); }
-    .gantt-vline { position:absolute; top:0; width:1px; background:rgba(148,163,184,.1); }
-    .gantt-vline-weekend { background:rgba(148,163,184,.16); }
-    .gantt-today-line { position:absolute; top:0; width:2px; background:rgba(79,139,255,.55); z-index:2; pointer-events:none; }
-    .gantt-bar-row { position:absolute; left:0; }
-    .gantt-bar { position:absolute; height:24px; top:8px; border-radius:4px; cursor:grab; display:flex; align-items:center; padding:0 6px; transition:filter .12s,box-shadow .12s; box-shadow:0 1px 3px rgba(0,0,0,.2); user-select:none; z-index:1; }
-    .gantt-bar:hover { filter:brightness(1.12); box-shadow:0 2px 8px rgba(0,0,0,.25); }
-    .gantt-bar:active { cursor:grabbing; }
-    .gantt-bar-critical { box-shadow:0 0 0 2px #ef4444, 0 2px 6px rgba(239,68,68,.35) !important; }
-    .gantt-bar-done { opacity:.65; }
-    .gantt-bar-label { font-size:.58rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; font-weight:600; flex:1; }
-    .gantt-bar-resize { position:absolute; right:0; top:0; bottom:0; width:7px; cursor:ew-resize; flex-shrink:0; }
-    .gantt-arrows-svg { position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
-    tr.row-critical > td:first-child { border-left:3px solid #ef4444; }
+  --text-1:     #0f172a;
+  --text-2:     #334155;
+  --text-3:     #64748b;
+  --text-4:     #94a3b8;
 
-    /* ── Portfólio ── */
-    .portfolio-header { display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap; }
-    .portfolio-kpi-strip { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:22px; }
-    .portfolio-kpi { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px; }
-    .portfolio-kpi-label { font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px; }
-    .portfolio-kpi-value { font-size:1.6rem;font-weight:800;color:var(--text-primary);line-height:1; }
-    .portfolio-kpi-sub { font-size:.68rem;color:var(--text-muted);margin-top:2px; }
-    .portfolio-timeline-wrap { background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px; }
-    .portfolio-tl-head { display:flex;border-bottom:2px solid var(--border);background:var(--bg-panel); }
-    .portfolio-tl-names { width:220px;min-width:220px;border-right:2px solid var(--border);flex-shrink:0; }
-    .portfolio-tl-months { flex:1;overflow:hidden;display:flex; }
-    .portfolio-tl-month { flex-shrink:0;border-right:1px solid var(--border);font-size:.6rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;padding:0 6px;height:34px; }
-    .portfolio-tl-body { display:flex;flex-direction:column; }
-    .portfolio-tl-row { display:flex;border-bottom:1px solid var(--border);min-height:52px;align-items:center; }
-    .portfolio-tl-row:last-child { border-bottom:none; }
-    .portfolio-tl-name-cell { width:220px;min-width:220px;border-right:2px solid var(--border);padding:8px 12px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:3px; }
-    .portfolio-tl-proj-name { font-size:.78rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .portfolio-tl-proj-meta { font-size:.65rem;color:var(--text-muted); }
-    .portfolio-tl-bars { flex:1;position:relative;height:52px;overflow:hidden; }
-    .portfolio-tl-bar { position:absolute;height:22px;top:8px;border-radius:4px;display:flex;align-items:center;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,.15); }
-    .portfolio-tl-bar-label { font-size:.6rem;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .portfolio-tl-baseline { position:absolute;height:4px;top:36px;border-radius:2px;opacity:.45; }
-    .portfolio-tl-progress { position:absolute;height:22px;top:8px;border-radius:4px 0 0 4px;opacity:.35; }
-    .portfolio-tl-today { position:absolute;top:0;bottom:0;width:2px;background:rgba(79,139,255,.6);pointer-events:none;z-index:2; }
-    .portfolio-tl-milestone { position:absolute;top:10px;width:18px;height:18px;transform:rotate(45deg);border-radius:2px;z-index:3; }
-    .semaforo { display:inline-flex;align-items:center;gap:5px;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:100px; }
-    .sem-verde  { background:rgba(5,150,105,.12);color:#059669; }
-    .sem-amarelo{ background:rgba(245,158,11,.12);color:#d97706; }
-    .sem-vermelho{ background:rgba(239,68,68,.12);color:#ef4444; }
-    .sem-cinza  { background:rgba(148,163,184,.12);color:#64748b; }
-    .portfolio-list { display:flex;flex-direction:column;gap:10px; }
-    .portfolio-row { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto auto auto auto;align-items:center;gap:16px; }
-    .pf-row-name { font-weight:700;font-size:.85rem;color:var(--text-primary); }
-    .pf-row-meta { font-size:.7rem;color:var(--text-muted); }
-    .pf-pbar-wrap { width:120px;height:6px;background:var(--bg-input);border-radius:99px;overflow:hidden;position:relative; }
-    .pf-pbar-baseline { position:absolute;height:100%;background:rgba(148,163,184,.45);border-radius:99px; }
-    .pf-pbar-real { position:absolute;height:100%;border-radius:99px;transition:width .5s; }
+  --sidebar-w:  240px;
+  --header-h:   60px;
+  --radius:     12px;
+  --radius-sm:  8px;
+  --shadow:     0 1px 3px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,.12);
 
-    /* ── % progresso tarefa (Gantt e tabela) ── */
-    .gantt-bar-progress { position:absolute;left:0;top:0;bottom:0;border-radius:4px 0 0 4px;background:rgba(255,255,255,.3);pointer-events:none; }
-    .progress-cell { display:flex;align-items:center;gap:6px; }
-    .progress-mini-bar { flex:1;height:5px;background:var(--bg-input);border-radius:99px;overflow:hidden;min-width:40px; }
-    .progress-mini-fill { height:100%;background:var(--primary);border-radius:99px;transition:width .4s; }
+  --font-sans:  'DM Sans', sans-serif;
+  --font-head:  'Outfit', sans-serif;
+  --font-mono:  'DM Mono', monospace;
 
-    /* ── Baseline badge no Gantt ── */
-    .baseline-diff-pos { color:#059669;font-size:.65rem;font-weight:700; }
-    .baseline-diff-neg { color:#ef4444;font-size:.65rem;font-weight:700; }
+  --trans:      .18s cubic-bezier(.4,0,.2,1);
+}
 
-    /* ── Conflito de Recursos ── */
-    .recursos-toolbar { display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap; }
-    .recursos-period-btn { padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:.75rem;color:var(--text-primary);transition:all .15s; }
-    .recursos-period-btn.active,.recursos-period-btn:hover { background:var(--primary);color:#fff;border-color:var(--primary); }
-    .recursos-heatmap { display:flex;flex-direction:column;gap:0; background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px; }
-    .recursos-heatmap-head { display:flex;border-bottom:2px solid var(--border);background:var(--bg-panel); }
-    .recursos-name-col { width:160px;min-width:160px;flex-shrink:0;border-right:2px solid var(--border);padding:8px 12px;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted); }
-    .recursos-weeks { flex:1;display:flex; }
-    .recursos-week-hd { flex:1;text-align:center;font-size:.6rem;font-weight:700;color:var(--text-muted);padding:8px 2px;border-right:1px solid var(--border); }
-    .recursos-heatmap-row { display:flex;border-bottom:1px solid var(--border);min-height:44px;align-items:center; }
-    .recursos-heatmap-row:last-child { border-bottom:none; }
-    .recursos-person-cell { width:160px;min-width:160px;flex-shrink:0;border-right:2px solid var(--border);padding:6px 12px;display:flex;flex-direction:column;gap:2px; }
-    .recursos-person-name { font-size:.78rem;font-weight:700;color:var(--text-primary); }
-    .recursos-person-role { font-size:.65rem;color:var(--text-muted); }
-    .recursos-cell { flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);font-size:.7rem;font-weight:700;cursor:default;transition:filter .1s;position:relative; }
-    .recursos-cell:last-child { border-right:none; }
-    .recursos-cell:hover { filter:brightness(.9); }
-    .rc-free   { background:rgba(5,150,105,.08);color:#059669; }
-    .rc-warn   { background:rgba(245,158,11,.18);color:#92400e; }
-    .rc-over   { background:rgba(239,68,68,.18);color:#991b1b; }
-    .rc-empty  { background:transparent;color:var(--text-muted); }
-    .recursos-legend { display:flex;gap:14px;font-size:.7rem;margin-bottom:14px; }
-    .recursos-legend-item { display:flex;align-items:center;gap:5px; }
-    .recursos-legend-dot { width:10px;height:10px;border-radius:2px; }
-    .recursos-conflict-list { display:flex;flex-direction:column;gap:8px;margin-top:4px; }
-    .conflict-item { background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:.78rem; }
-    .conflict-item-title { font-weight:700;color:#dc2626;margin-bottom:4px; }
-    .conflict-item-detail { color:var(--text-secondary);line-height:1.6; }
+[data-theme="dark"] {
+  --bg:       #080d1a;
+  --surface:  #0f1629;
+  --surface2: #1a2744;
+  --border:   #1e2d4a;
+  --border2:  #2d3f60;
+  --text-1:   #f1f5f9;
+  --text-2:   #cbd5e1;
+  --text-3:   #94a3b8;
+  --text-4:   #64748b;
+  --shadow:   0 1px 3px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,.35);
+  --blue-dim: rgba(59,130,246,.12);
+  --green-dim:rgba(5,150,105,.12);
+  --red-dim:  rgba(220,38,38,.12);
+}
 
-    /* ── Gestão de Custos ── */
-    .custos-kpi-strip { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:22px; }
-    .custos-kpi { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px; }
-    .custos-kpi-label { font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px; }
-    .custos-kpi-value { font-size:1.5rem;font-weight:800;color:var(--text-primary);line-height:1.1; }
-    .custos-kpi-sub { font-size:.68rem;color:var(--text-muted);margin-top:3px; }
-    .custos-kpi.kpi-good .custos-kpi-value { color:#059669; }
-    .custos-kpi.kpi-bad  .custos-kpi-value { color:#dc2626; }
-    .custos-kpi.kpi-warn .custos-kpi-value { color:#d97706; }
-    .custos-chart-wrap { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:22px; }
-    .custos-chart-title { font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px; }
-    .custos-bar-group { display:flex;flex-direction:column;gap:14px; }
-    .custos-bar-row { display:grid;grid-template-columns:140px 1fr auto;align-items:center;gap:12px; }
-    .custos-bar-label { font-size:.75rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .custos-bar-track { position:relative;height:24px;background:var(--border);border-radius:6px;overflow:visible; }
-    .custos-bar-budget { position:absolute;left:0;top:0;height:100%;border-radius:6px;opacity:.3; }
-    .custos-bar-real { position:absolute;left:0;top:4px;height:16px;border-radius:4px; }
-    .custos-bar-pct { font-size:.7rem;font-weight:700;color:var(--text-secondary);min-width:50px;text-align:right; }
-    .custos-table { width:100%;border-collapse:collapse;font-size:.78rem; }
-    .custos-table th { background:var(--bg-panel);color:var(--text-muted);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap; }
-    .custos-table td { padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle; }
-    .custos-table tr:last-child td { border-bottom:none; }
-    .custos-table tr:hover td { background:rgba(99,102,241,.04); }
-    .custos-var-pos { color:#059669;font-weight:700; }
-    .custos-var-neg { color:#dc2626;font-weight:700; }
-    .custos-var-neut { color:var(--text-muted);font-weight:600; }
-    .custos-badge { display:inline-block;padding:2px 8px;border-radius:99px;font-size:.65rem;font-weight:700; }
-    .custos-badge-ok   { background:rgba(5,150,105,.12);color:#059669; }
-    .custos-badge-warn { background:rgba(245,158,11,.12);color:#d97706; }
-    .custos-badge-over { background:rgba(239,68,68,.12);color:#dc2626; }
-    .custos-proj-dot { width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0; }
-    .custos-detail-btn { background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:2px 6px;border-radius:4px;transition:all .15s; }
-    .custos-detail-btn:hover { background:var(--border);color:var(--text-primary); }
-    .custos-detail-panel { display:none;background:var(--bg-panel);border-top:1px solid var(--border); }
-    .custos-detail-panel.open { display:table-row; }
-    .custos-detail-inner { padding:12px 16px; }
-    .custos-act-table { width:100%;border-collapse:collapse;font-size:.72rem; }
-    .custos-act-table th { color:var(--text-muted);font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;padding:4px 8px;border-bottom:1px solid var(--border); }
-    .custos-act-table td { padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.1); }
-    .custos-act-table tr:last-child td { border-bottom:none; }
+/* ═══════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Gestão de Equipe ── */
-    .equipe-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
-    .equipe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-bottom:28px; }
-    .colab-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; position:relative; transition:box-shadow .15s; }
-    .colab-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
-    .colab-card-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
-    .colab-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.85rem; color:#fff; flex-shrink:0; }
-    .colab-name { font-weight:700; font-size:.88rem; color:var(--text-primary); }
-    .colab-role { font-size:.7rem; color:var(--text-muted); margin-top:1px; }
-    .colab-badge { display:inline-block; font-size:.6rem; font-weight:700; padding:2px 7px; border-radius:100px; text-transform:uppercase; letter-spacing:.04em; }
-    .colab-badge-ok { background:rgba(5,150,105,.12); color:#059669; }
-    .colab-badge-warn { background:rgba(245,158,11,.12); color:#d97706; }
-    .colab-badge-over { background:rgba(239,68,68,.12); color:#ef4444; }
-    .colab-load-wrap { margin-top:10px; }
-    .colab-load-label { display:flex; justify-content:space-between; font-size:.68rem; color:var(--text-muted); margin-bottom:4px; }
-    .colab-load-bar { height:6px; background:var(--bg-input); border-radius:99px; overflow:hidden; }
-    .colab-load-fill { height:100%; border-radius:99px; transition:width .5s; }
-    .colab-meta-row { display:flex; gap:12px; margin-top:8px; font-size:.68rem; color:var(--text-muted); flex-wrap:wrap; }
-    .colab-meta-item { display:flex; align-items:center; gap:4px; }
-    .colab-actions { display:flex; gap:6px; margin-top:10px; }
-    .colab-tasks-list { margin-top:8px; max-height:100px; overflow-y:auto; }
-    .colab-task-item { font-size:.65rem; color:var(--text-secondary); padding:2px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
-    .equipe-section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin:20px 0 10px; }
-    .load-summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:20px; }
-    .load-summary-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px; }
-    .load-summary-label { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); }
-    .load-summary-value { font-size:1.4rem; font-weight:800; color:var(--text-primary); margin-top:2px; }
-    .load-summary-sub { font-size:.65rem; color:var(--text-muted); margin-top:2px; }
-  </style>
+html { font-size: 15px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text-1);
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  transition: width var(--trans);
+  overflow: hidden;
+}
+
+.sidebar-logo {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 30px; height: 30px;
+  background: var(--blue);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: .82rem;
+  color: #fff;
+  letter-spacing: -.5px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.3);
+}
+
+.logo-name {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: .95rem;
+  color: #fff;
+  letter-spacing: -.3px;
+}
+
+.logo-version {
+  font-size: .6rem;
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,.1);
+  color: rgba(255,255,255,.5);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-section {
+  padding: 10px 10px 4px;
+}
+
+.sidebar-section-label {
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.25);
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: rgba(255,255,255,.55);
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+  text-decoration: none;
+  position: relative;
+  margin-bottom: 1px;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.85);
+}
+
+.nav-item.active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37,99,235,.4);
+}
+
+.nav-item .nav-icon {
+  width: 18px;
+  text-align: center;
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: rgba(220,38,38,.8);
+  color: #fff;
+  font-size: .58rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+}
+
+.sidebar-spacer { flex: 1; }
+
+.sidebar-bottom {
+  padding: 10px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--trans);
+}
+
+.user-card:hover { background: rgba(255,255,255,.07); }
+
+.user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+}
+
+.user-role {
+  font-size: .65rem;
+  color: rgba(255,255,255,.35);
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN LAYOUT
+═══════════════════════════════════════════════ */
+.main-wrap {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════ */
+.header {
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 14px;
+  position: sticky; top: 0;
+  z-index: 50;
+}
+
+.header-title {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -.3px;
+}
+
+.header-breadcrumb {
+  font-size: .72rem;
+  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.header-spacer { flex: 1; }
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  width: 220px;
+  transition: all var(--trans);
+}
+
+.header-search:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-dim);
+}
+
+.header-search i { color: var(--text-4); font-size: .78rem; }
+
+.header-search input {
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: .8rem;
+  color: var(--text-1);
+  width: 100%;
+}
+
+.header-search input::placeholder { color: var(--text-4); }
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all var(--trans);
+  position: relative;
+  font-size: .82rem;
+}
+
+.header-btn:hover {
+  background: var(--surface2);
+  color: var(--text-1);
+  border-color: var(--border2);
+}
+
+.notif-dot {
+  width: 7px; height: 7px;
+  background: var(--red);
+  border-radius: 50%;
+  position: absolute;
+  top: 6px; right: 6px;
+  border: 1.5px solid var(--surface);
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 16px;
+  height: 34px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(37,99,235,.3);
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37,99,235,.4);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  height: 34px;
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: .8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.btn-secondary:hover {
+  background: var(--surface2);
+  border-color: var(--border2);
+  color: var(--text-1);
+}
+
+/* ═══════════════════════════════════════════════
+   PAGE CONTENT
+═══════════════════════════════════════════════ */
+.page-content {
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.view { display: none; flex-direction: column; gap: 20px; }
+.view.active { display: flex; }
+
+/* ═══════════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: box-shadow var(--trans);
+}
+
+.card:hover { box-shadow: var(--shadow-md); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-family: var(--font-head);
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -.2px;
+}
+
+.card-subtitle {
+  font-size: .72rem;
+  color: var(--text-4);
+  margin-left: auto;
+}
+
+.card-body { padding: 20px; }
+
+/* ═══════════════════════════════════════════════
+   KPI STRIP
+═══════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: all var(--trans);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.kpi-card.kpi-red::before   { background: var(--red); }
+.kpi-card.kpi-blue::before  { background: var(--blue); }
+.kpi-card.kpi-green::before { background: var(--green); }
+.kpi-card.kpi-amber::before { background: var(--amber); }
+
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.kpi-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+}
+
+.kpi-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .82rem;
+}
+
+.kpi-card.kpi-red   .kpi-icon { background: var(--red-dim);   color: var(--red);   }
+.kpi-card.kpi-blue  .kpi-icon { background: var(--blue-dim);  color: var(--blue);  }
+.kpi-card.kpi-green .kpi-icon { background: var(--green-dim); color: var(--green); }
+.kpi-card.kpi-amber .kpi-icon { background: var(--amber-dim); color: var(--amber); }
+
+.kpi-value {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-1);
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -.5px;
+}
+
+.kpi-delta {
+  font-size: .7rem;
+  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.kpi-delta.up   { color: var(--red); }
+.kpi-delta.down { color: var(--green); }
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD GRID
+═══════════════════════════════════════════════ */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 14px;
+}
+
+.dash-grid-left  { display: flex; flex-direction: column; gap: 14px; }
+.dash-grid-right { display: flex; flex-direction: column; gap: 14px; }
+
+/* ═══════════════════════════════════════════════
+   ATIVIDADES TABLE
+═══════════════════════════════════════════════ */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+table.tf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+
+.tf-table thead tr {
+  background: var(--surface2);
+}
+
+.tf-table th {
+  padding: 9px 14px;
+  text-align: left;
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--trans);
+}
+
+.tf-table th:hover { color: var(--text-1); }
+
+.tf-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-2);
+}
+
+.tf-table tbody tr {
+  transition: background var(--trans);
+}
+
+.tf-table tbody tr:hover td {
+  background: var(--surface2);
+}
+
+.tf-table tbody tr:last-child td { border-bottom: none; }
+
+.tf-table tbody tr.row-overdue td:first-child {
+  border-left: 3px solid var(--red);
+}
+
+.tf-table tbody tr.row-today td:first-child {
+  border-left: 3px solid var(--amber);
+}
+
+.tf-table tbody tr.row-done {
+  opacity: .55;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: .65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-red    { background: var(--red-dim);    color: var(--red);    }
+.badge-green  { background: var(--green-dim);  color: var(--green);  }
+.badge-blue   { background: var(--blue-dim);   color: var(--blue);   }
+.badge-amber  { background: var(--amber-dim);  color: var(--amber);  }
+.badge-purple { background: var(--purple-dim); color: var(--purple); }
+.badge-gray   { background: rgba(100,116,139,.1); color: var(--text-3); }
+
+.project-chip {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.project-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.progress-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--blue);
+  transition: width .6s ease;
+}
+
+.progress-bar-fill.fill-green { background: var(--green); }
+.progress-bar-fill.fill-red   { background: var(--red); }
+
+.progress-val {
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* Action buttons */
+.action-btns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity var(--trans);
+}
+
+.tf-table tbody tr:hover .action-btns { opacity: 1; }
+
+.action-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-4);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem;
+  transition: all var(--trans);
+}
+
+.action-btn:hover {
+  background: var(--surface2);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+}
+
+.action-btn.danger:hover { background: var(--red-dim); color: var(--red); border-color: transparent; }
+.action-btn.success:hover { background: var(--green-dim); color: var(--green); border-color: transparent; }
+
+/* ═══════════════════════════════════════════════
+   ALERTS / RECOMMENDATIONS
+═══════════════════════════════════════════════ */
+.alert-list { display: flex; flex-direction: column; gap: 6px; }
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: .78rem;
+  transition: all var(--trans);
+  cursor: default;
+}
+
+.alert-item:hover { transform: translateX(2px); }
+
+.alert-item.alert-red    { background: var(--red-dim);    border-color: rgba(220,38,38,.15);  }
+.alert-item.alert-amber  { background: var(--amber-dim);  border-color: rgba(217,119,6,.15);  }
+.alert-item.alert-blue   { background: var(--blue-dim);   border-color: rgba(37,99,235,.15);  }
+.alert-item.alert-green  { background: var(--green-dim);  border-color: rgba(5,150,105,.15);  }
+
+.alert-icon { font-size: .85rem; flex-shrink: 0; margin-top: 1px; }
+.alert-item.alert-red   .alert-icon { color: var(--red); }
+.alert-item.alert-amber .alert-icon { color: var(--amber); }
+.alert-item.alert-blue  .alert-icon { color: var(--blue); }
+.alert-item.alert-green .alert-icon { color: var(--green); }
+
+.alert-text { color: var(--text-2); line-height: 1.45; flex: 1; }
+.alert-text strong { color: var(--text-1); }
+
+.alert-time {
+  font-size: .62rem;
+  color: var(--text-4);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   PRIORITY LIST
+═══════════════════════════════════════════════ */
+.priority-list { display: flex; flex-direction: column; gap: 0; }
+
+.priority-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--trans);
+  cursor: pointer;
+}
+
+.priority-item:last-child { border-bottom: none; }
+.priority-item:hover { background: var(--surface2); }
+
+.priority-rank {
+  font-family: var(--font-mono);
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--text-4);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.priority-info { flex: 1; min-width: 0; }
+
+.priority-name {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.priority-meta {
+  font-size: .65rem;
+  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.priority-urgency {
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   KANBAN
+═══════════════════════════════════════════════ */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.kanban-col {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.kanban-col-header {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kanban-col-title {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  flex: 1;
+}
+
+.kanban-col-count {
+  font-size: .65rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: var(--border);
+  color: var(--text-3);
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+
+.kanban-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kanban-cards {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 13px;
+  cursor: pointer;
+  transition: all var(--trans);
+  box-shadow: var(--shadow);
+}
+
+.kanban-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  border-color: var(--border2);
+}
+
+.kanban-card-title {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 7px;
+  line-height: 1.35;
+}
+
+.kanban-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.kanban-card-proj {
+  font-size: .65rem;
+  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.kanban-card-avatar {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: .55rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,22,41,.5);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.open { display: flex; animation: fadeIn .15s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp .18s cubic-bezier(.4,0,.2,1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  flex: 1;
+}
+
+.modal-close {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-4);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem;
+  transition: all var(--trans);
+}
+
+.modal-close:hover { background: var(--surface2); color: var(--text-1); }
+
+.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+.modal-footer {
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Form */
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.form-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: .01em;
+}
+
+.form-label .req { color: var(--red); }
+
+.form-control {
+  padding: 8px 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: .82rem;
+  color: var(--text-1);
+  outline: none;
+  transition: all var(--trans);
+  width: 100%;
+}
+
+.form-control:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-dim);
+  background: var(--surface);
+}
+
+.form-control::placeholder { color: var(--text-4); }
+
+select.form-control { cursor: pointer; }
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+.toast-wrap {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--navy);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: .78rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  animation: toastIn .25s cubic-bezier(.4,0,.2,1);
+  pointer-events: all;
+}
+
+.toast.toast-success { background: var(--green); }
+.toast.toast-error   { background: var(--red); }
+.toast.toast-warning { background: var(--amber); }
+
+@keyframes toastIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════
+   LOADER
+═══════════════════════════════════════════════ */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  background: var(--navy);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity .3s;
+}
+
+.page-loader.hidden { opacity: 0; pointer-events: none; }
+
+.loader-logo {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: #fff;
+  letter-spacing: -.5px;
+}
+
+.loader-bar {
+  width: 120px;
+  height: 3px;
+  background: rgba(255,255,255,.1);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.loader-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 99px;
+  animation: loaderAnim 1.2s ease-in-out;
+}
+
+@keyframes loaderAnim {
+  0%  { width: 0%; }
+  100%{ width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════════════ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  color: var(--text-4);
+}
+
+.empty-state i { font-size: 2rem; opacity: .4; }
+.empty-state p { font-size: .8rem; }
+
+/* ═══════════════════════════════════════════════
+   TOOLTIPS
+═══════════════════════════════════════════════ */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--navy);
+  color: #fff;
+  font-size: .65rem;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--trans);
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after { opacity: 1; }
+
+/* ═══════════════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════════════ */
+.theme-toggle {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .82rem;
+  transition: all var(--trans);
+}
+
+.theme-toggle:hover { background: var(--surface2); color: var(--text-1); }
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+/* ═══════════════════════════════════════════════
+   SECTION HEADER
+═══════════════════════════════════════════════ */
+.section-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.section-hd-title {
+  font-family: var(--font-head);
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text-1);
+  flex: 1;
+}
+
+.section-hd-hint {
+  font-size: .72rem;
+  color: var(--text-4);
+}
+
+/* ═══════════════════════════════════════════════
+   FILTER BAR
+═══════════════════════════════════════════════ */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.filter-select {
+  padding: 5px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: .78rem;
+  color: var(--text-2);
+  outline: none;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.filter-select:focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-dim); }
+
+/* ═══════════════════════════════════════════════
+   STATS CHIP
+═══════════════════════════════════════════════ */
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  background: var(--surface2);
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
+  .kanban-board { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  :root { --sidebar-w: 56px; }
+  .logo-name, .logo-version, .sidebar-section-label,
+  .nav-item span:not(.nav-icon), .user-name, .user-role { display: none; }
+  .sidebar-logo { padding: 0 13px; justify-content: center; }
+  .nav-item { justify-content: center; padding: 10px; }
+  .header-search { width: 160px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
 </head>
 <body>
 
-  <!-- ============================================================ SIDEBAR ============================================================ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon">⬡</div>
-      <span class="logo-text">TaskFlow</span>
-      <span class="version-tag">v3.0</span>
-    </div>
+<!-- LOADER -->
+<div class="page-loader" id="loader">
+  <div class="loader-logo">⬡ TaskFlow PRO</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
 
-    <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-view="dashboard"   onclick="switchView('dashboard',this);return false;"><span class="nav-icon">◈</span><span>Dashboard</span></a>
-      <a href="#" class="nav-item"         data-view="charts"     onclick="switchView('charts',this);return false;"><span class="nav-icon">◬</span><span>Gráficos</span></a>
-      <a href="#" class="nav-item"         data-view="kanban"     onclick="switchView('kanban',this);return false;"><span class="nav-icon">▦</span><span>Kanban</span></a>
-      <a href="#" class="nav-item"         data-view="gantt"      onclick="switchView('gantt',this);return false;"><span class="nav-icon">▬</span><span>Gantt</span></a>
-      <a href="#" class="nav-item"         data-view="activities" onclick="switchView('activities',this);return false;"><span class="nav-icon">◉</span><span>Atividades</span></a>
-      <a href="#" class="nav-item"         data-view="portfolio"  onclick="switchView('portfolio',this);return false;"><span class="nav-icon">⬡</span><span>Portfólio</span></a>
-      <a href="#" class="nav-item"         data-view="custos"    onclick="switchView('custos',this);return false;"><span class="nav-icon">💰</span><span>Custos</span></a>
-      <a href="#" class="nav-item"         data-view="projects"   onclick="switchView('projects',this);return false;"><span class="nav-icon">◧</span><span>Projetos</span></a>
-      <a href="#" class="nav-item"         data-view="recursos"   onclick="switchView('recursos',this);return false;"><span class="nav-icon">👥</span><span>Recursos</span></a>
-      <a href="#" class="nav-item"         data-view="equipe"     onclick="switchView('equipe',this);return false;"><span class="nav-icon">◑</span><span>Equipe</span></a>
-      <a href="#" class="nav-item"         data-view="import"     onclick="switchView('import',this);return false;"><span class="nav-icon">⇪</span><span>Importar</span></a>
-      <a href="#" class="nav-item"         data-view="history"    onclick="switchView('history',this);return false;"><span class="nav-icon">◎</span><span>Histórico</span></a>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">TF</div>
+    <span class="logo-name">TaskFlow</span>
+    <span class="logo-version">v3.1</span>
+  </div>
 
-      <!-- Divisor -->
-      <div style="height:1px;background:rgba(255,255,255,0.07);margin:8px 4px;"></div>
-      <div style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4ade80;padding:2px 12px 4px;">Calendários</div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Principal</div>
+    <a class="nav-item active" onclick="switchView('dashboard', this)" data-tooltip="Dashboard">
+      <span class="nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+      <span>Dashboard</span>
+    </a>
+    <a class="nav-item" onclick="switchView('atividades', this)" data-tooltip="Atividades">
+      <span class="nav-icon"><i class="fa-solid fa-list-check"></i></span>
+      <span>Atividades</span>
+      <span class="nav-badge" id="badge-overdue">0</span>
+    </a>
+    <a class="nav-item" onclick="switchView('kanban', this)" data-tooltip="Kanban">
+      <span class="nav-icon"><i class="fa-solid fa-table-columns"></i></span>
+      <span>Kanban</span>
+    </a>
+    <a class="nav-item" onclick="switchView('projetos', this)" data-tooltip="Projetos">
+      <span class="nav-icon"><i class="fa-solid fa-folder-open"></i></span>
+      <span>Projetos</span>
+    </a>
+  </div>
 
-      <a href="calendario-taskflow.html" class="nav-item" title="Calendário de Atividades (atalho: C)" style="position:relative;">
-        <span class="nav-icon">📅</span>
-        <span>Cal. Atividades</span>
-        <span id="cal-overdue-badge" class="hidden" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#ef4444;color:#fff;font-size:.6rem;font-weight:800;padding:1px 5px;border-radius:100px;min-width:16px;text-align:center;"></span>
-      </a>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Analytics</div>
+    <a class="nav-item" onclick="switchView('equipe', this)" data-tooltip="Equipe">
+      <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
+      <span>Equipe</span>
+    </a>
+    <a class="nav-item" onclick="switchView('graficos', this)" data-tooltip="Gráficos">
+      <span class="nav-icon"><i class="fa-solid fa-chart-bar"></i></span>
+      <span>Gráficos</span>
+    </a>
+  </div>
 
-      <a href="calendario-equipe.html" class="nav-item" title="Calendário de Equipe — onde está cada funcionário">
-        <span class="nav-icon">👥</span>
-        <span>Cal. Equipe</span>
-      </a>
-    </nav>
+  <div class="sidebar-spacer"></div>
 
-    <div class="sidebar-shortcuts">
-      <div class="shortcut-title">Atalhos <span class="shortcut-hint" onclick="openShortcutsOverlay()">ver todos ?</span></div>
-      <div class="shortcut-row"><kbd>N</kbd> Nova atividade</div>
-      <div class="shortcut-row"><kbd>T</kbd> Tema claro/escuro</div>
-      <div class="shortcut-row"><kbd>F</kbd> Focar filtro</div>
-      <div class="shortcut-row"><kbd>C</kbd> Cal. Atividades</div>
-      <div class="shortcut-row"><kbd>E</kbd> Cal. Equipe</div>
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="sidebar-time" id="sidebar-clock">--:--</div>
-      <div class="sidebar-date" id="sidebar-date">--/--/----</div>
-    </div>
-  </aside>
-
-  <!-- ============================================================ MAIN ============================================================ -->
-  <main class="main-content">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
-        <h1 class="page-title" id="page-title">Dashboard</h1>
-      </div>
-      <div class="topbar-right">
-        <button class="topbar-icon-btn" onclick="openWhatsAppConfig()" title="Configurar WhatsApp" id="wa-btn">
-          <span>📱</span><span class="notif-dot hidden" id="wa-dot" style="background:#25d366"></span>
-        </button>
-        <button class="topbar-icon-btn" id="notif-btn" onclick="toggleNotifPanel()" title="Notificações push">
-          <span>🔔</span><span class="notif-dot hidden" id="notif-dot"></span>
-        </button>
-        <button class="topbar-icon-btn" onclick="toggleTheme()" title="Alternar tema (T)" id="theme-btn">
-          <span id="theme-icon">☾</span>
-        </button>
-        <div class="topbar-divider"></div>
-        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">⬇ Excel</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportPDF()">⬇ PDF</button>
-        <button class="btn btn-primary" onclick="openModal()">＋ Nova Atividade</button>
-      </div>
-    </header>
-
-    <!-- NOTIFICATION PANEL -->
-    <div class="notif-panel hidden" id="notif-panel">
-      <div class="notif-panel-header">
-        <span>🔔 Notificações Push</span>
-        <button class="btn-action" onclick="toggleNotifPanel()">✕</button>
-      </div>
-      <div class="notif-panel-body" id="notif-panel-body">
-        <p class="notif-desc">Receba alertas no navegador quando atividades estiverem vencendo ou críticas.</p>
-        <button class="btn btn-primary btn-sm" id="notif-enable-btn" onclick="requestNotifPermission()">Ativar Notificações</button>
+  <div class="sidebar-bottom">
+    <div class="user-card">
+      <div class="user-avatar">M</div>
+      <div>
+        <div class="user-name">Matheus</div>
+        <div class="user-role">Gerente de Projetos</div>
       </div>
     </div>
+  </div>
+</aside>
 
-    <!-- ============ VIEW: DASHBOARD ============ -->
-    <section class="view" id="view-dashboard">
+<!-- MAIN -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div>
+      <div class="header-title" id="page-title">Dashboard</div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" placeholder="Buscar atividade..."/>
+    </div>
+    <button class="header-btn" id="notif-btn" onclick="toggleNotif()" data-tooltip="Notificações">
+      <i class="fa-solid fa-bell"></i>
+      <span class="notif-dot" id="notif-dot"></span>
+    </button>
+    <button class="theme-toggle" onclick="toggleTheme()" data-tooltip="Alternar tema">
+      <i class="fa-solid fa-moon" id="theme-icon"></i>
+    </button>
+    <button class="btn-secondary" onclick="openModal('activity')">
+      <i class="fa-solid fa-plus"></i> Nova Atividade
+    </button>
+    <button class="btn-primary" onclick="openModal('project')">
+      <i class="fa-solid fa-plus"></i> Novo Projeto
+    </button>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <div class="page-content">
+
+    <!-- ══════════════════ DASHBOARD ══════════════════ -->
+    <div class="view active" id="view-dashboard">
+
+      <!-- KPIs -->
       <div class="kpi-grid">
-        <div class="kpi-card kpi-overdue" onclick="filterAndGo('Vencido')">
-          <div class="kpi-icon-wrap"><div class="kpi-icon">🔴</div></div>
-          <div class="kpi-body"><div class="kpi-value" id="kpi-overdue">0</div><div class="kpi-label">Vencidas</div></div>
-          <div class="kpi-badge hidden" id="kpi-critical-badge">!</div>
-        </div>
-        <div class="kpi-card kpi-today" onclick="filterAndGo('today')">
-          <div class="kpi-icon-wrap"><div class="kpi-icon">🟡</div></div>
-          <div class="kpi-body"><div class="kpi-value" id="kpi-today">0</div><div class="kpi-label">Para Hoje</div></div>
-        </div>
-        <div class="kpi-card kpi-ok" onclick="filterAndGo('ok')">
-          <div class="kpi-icon-wrap"><div class="kpi-icon">🟢</div></div>
-          <div class="kpi-body"><div class="kpi-value" id="kpi-ok">0</div><div class="kpi-label">Em Dia</div></div>
-        </div>
-        <div class="kpi-card kpi-done" onclick="filterAndGo('Concluído')">
-          <div class="kpi-icon-wrap"><div class="kpi-icon">✅</div></div>
-          <div class="kpi-body"><div class="kpi-value" id="kpi-done">0</div><div class="kpi-label">Concluídas</div></div>
-        </div>
-      </div>
-
-      <!-- KPI Pro -->
-      <div class="kpi-pro-section">
-        <div class="kpi-pro-title">Indicadores de Performance</div>
-        <div class="kpi-pro-grid">
-          <div class="kpi-pro-card">
-            <div class="kpi-pro-label">Progresso Geral</div>
-            <div class="kpi-pro-value" id="kpi-pro-pct">0%</div>
-            <div class="kpi-pro-pbar-wrap"><div class="kpi-pro-pbar" id="kpi-pro-pbar" style="width:0%"></div></div>
-            <div class="kpi-pro-sub" id="kpi-pro-done-sub">0 de 0 concluídas</div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-top">
+            <span class="kpi-label">Atrasadas</span>
+            <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
           </div>
-          <div class="kpi-pro-card">
-            <div class="kpi-pro-label">SPI — Desempenho de Prazo</div>
-            <div class="kpi-pro-value" id="kpi-pro-spi">—</div>
-            <div class="kpi-pro-sub">≥ 1.0 = dentro do prazo</div>
+          <div class="kpi-value" id="kpi-overdue">0</div>
+          <div class="kpi-delta up" id="kpi-overdue-delta"><i class="fa-solid fa-arrow-up"></i> Atenção imediata</div>
+        </div>
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-top">
+            <span class="kpi-label">Em Andamento</span>
+            <div class="kpi-icon"><i class="fa-solid fa-spinner"></i></div>
           </div>
-          <div class="kpi-pro-card">
-            <div class="kpi-pro-label">Caminho Crítico</div>
-            <div class="kpi-pro-value kpi-crit-val" id="kpi-pro-critical">0</div>
-            <div class="kpi-pro-sub">tarefas sem folga</div>
+          <div class="kpi-value" id="kpi-ongoing">0</div>
+          <div class="kpi-delta" id="kpi-ongoing-delta"><i class="fa-solid fa-clock"></i> Ativas agora</div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kpi-top">
+            <span class="kpi-label">Concluídas</span>
+            <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
           </div>
-          <div class="kpi-pro-card">
-            <div class="kpi-pro-label">Em Andamento</div>
-            <div class="kpi-pro-value" id="kpi-pro-inprogress">0</div>
-            <div class="kpi-pro-sub">dentro do prazo</div>
+          <div class="kpi-value" id="kpi-done">0</div>
+          <div class="kpi-delta down" id="kpi-done-delta"><i class="fa-solid fa-arrow-up"></i> Este mês</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-top">
+            <span class="kpi-label">Críticas</span>
+            <div class="kpi-icon"><i class="fa-solid fa-fire"></i></div>
           </div>
-          <div class="kpi-pro-card">
-            <div class="kpi-pro-label">Total de Tarefas</div>
-            <div class="kpi-pro-value" id="kpi-pro-total">0</div>
-            <div class="kpi-pro-sub" id="kpi-pro-overdue-sub">0 vencidas</div>
-          </div>
+          <div class="kpi-value" id="kpi-critical">0</div>
+          <div class="kpi-delta" id="kpi-critical-delta"><i class="fa-solid fa-route"></i> Caminho crítico</div>
         </div>
       </div>
 
-      <!-- Mini charts -->      <div class="mini-charts-row">
-        <div class="mini-chart-card">
-          <div class="mini-chart-label">Status geral</div>
-          <canvas id="chart-donut-dash"></canvas>
-        </div>
-        <div class="mini-chart-card">
-          <div class="mini-chart-label">Por projeto</div>
-          <canvas id="chart-bar-dash"></canvas>
-        </div>
-      </div>
+      <!-- Grid -->
+      <div class="dash-grid">
+        <div class="dash-grid-left">
 
-      <div class="section-header">
-        <h2 class="section-title">Atividades Críticas</h2>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="section-hint">Ordenadas por urgência</span>
-          <button class="btn btn-ghost btn-sm" id="btn-load-seed" onclick="loadSeedData()" title="Carregar dados do Gantt PDF">⇪ Carregar dados do Gantt</button>
-        </div>
-      </div>
-      <div class="activity-table-wrap">
-        <table class="activity-table">
-          <thead><tr><th class="wbs-cell">WBS</th><th>Projeto</th><th>Título</th><th>Início</th><th>Término</th><th>Responsável</th><th>Duração</th><th>%</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="critical-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="critical-empty"><span>✦</span><p>Nenhuma atividade crítica</p></div>
-      </div>
-
-      <!-- Próximas a Vencer -->
-      <div class="section-header" style="margin-top:28px">
-        <h2 class="section-title">🗓 Próximas a Vencer</h2>
-        <span class="section-hint">5 atividades mais próximas do prazo</span>
-      </div>
-      <div class="upcoming-cards" id="upcoming-cards">
-        <div class="empty-state" id="upcoming-empty" style="display:none"><span>✦</span><p>Nenhuma atividade pendente</p></div>
-      </div>
-
-    </section>
-
-    <!-- ============ VIEW: GRÁFICOS ============ -->
-    <section class="view hidden" id="view-charts">
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-card-header"><span class="chart-card-title">Status Geral</span></div>
-          <div class="chart-canvas-wrap"><canvas id="chart-status-donut"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-header"><span class="chart-card-title">Por Equipe</span></div>
-          <div class="chart-canvas-wrap"><canvas id="chart-team-bar"></canvas></div>
-        </div>
-        <div class="chart-card chart-card-full">
-          <div class="chart-card-header">
-            <span class="chart-card-title">Por Projeto — Concluídas vs Pendentes</span>
-          </div>
-          <div class="chart-canvas-wrap chart-canvas-tall"><canvas id="chart-project-stacked"></canvas></div>
-        </div>
-        <div class="chart-card chart-card-full">
-          <div class="chart-card-header">
-            <span class="chart-card-title">Linha do Tempo — Prazos por Mês</span>
-          </div>
-          <div class="chart-canvas-wrap chart-canvas-tall"><canvas id="chart-timeline"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ VIEW: KANBAN ============ -->
-    <section class="view hidden" id="view-kanban">
-      <div class="kanban-toolbar">
-        <div class="filter-group">
-          <label>Projeto</label>
-          <select id="kanban-filter-project" onchange="renderKanban()"><option value="">Todos os projetos</option></select>
-        </div>
-        <div class="filter-group">
-          <label>Equipe</label>
-          <select id="kanban-filter-team" onchange="renderKanban()"><option value="">Todas as equipes</option></select>
-        </div>
-        <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end">
-          <button class="btn btn-ghost btn-sm" onclick="renderKanban()">↻ Atualizar</button>
-          <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Nova Atividade</button>
-        </div>
-      </div>
-      <div class="kanban-phases-legend">
-        <span class="kanban-legend-title">Fases:</span>
-        <span class="kanban-legend-item" style="--c:#8b5cf6">Planejamento</span>
-        <span class="kanban-legend-item" style="--c:#1d4ed8">Projetos</span>
-        <span class="kanban-legend-item" style="--c:#d97706">Aquisições</span>
-        <span class="kanban-legend-item" style="--c:#ea580c">Fabricação</span>
-        <span class="kanban-legend-item" style="--c:#0891b2">Mobilização</span>
-        <span class="kanban-legend-item" style="--c:#059669">Instalação</span>
-        <span class="kanban-legend-item" style="--c:#64748b">Documentação</span>
-      </div>
-      <div class="kanban-board kanban-board-phases" id="kanban-board"></div>
-    </section>
-
-    <!-- ============ VIEW: GANTT ============ -->
-    <section class="view hidden" id="view-gantt">
-      <div class="gantt-toolbar">
-        <div class="filter-group">
-          <label>Projeto</label>
-          <select id="gantt-filter-project" onchange="ganttSetProject(this.value)">
-            <option value="">Todos os projetos</option>
-          </select>
-        </div>
-        <div class="gantt-zoom-btns">
-          <button onclick="ganttZoom(-1)" title="Diminuir zoom">−</button>
-          <button onclick="ganttZoom(0)" title="Resetar zoom">↺</button>
-          <button onclick="ganttZoom(1)" title="Aumentar zoom">+</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
-          <span style="font-size:.7rem;color:var(--text-muted)">
-            <span style="display:inline-block;width:10px;height:10px;border:2px solid #ef4444;border-radius:2px;margin-right:4px"></span>Caminho crítico
-          </span>
-          <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px">
-            <span style="display:inline-block;width:24px;height:4px;background:rgba(100,116,139,.45);border-radius:2px"></span>Baseline
-          </span>
-          <button class="btn btn-ghost btn-sm" onclick="saveBaseline()" title="Salvar datas atuais como planejado original">📌 Salvar Baseline</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearBaseline()" title="Remover baseline">✕ Baseline</button>
-          <button class="btn btn-ghost btn-sm" onclick="renderGantt()">↻ Atualizar</button>
-          <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Nova Tarefa</button>
-        </div>
-      </div>
-      <div id="gantt-wrap"></div>
-    </section>
-
-    <!-- ============ VIEW: ATIVIDADES ============ -->
-    <section class="view hidden" id="view-activities">
-      <div class="filters-bar">
-        <div class="filter-group">
-          <label>Projeto</label>
-          <select id="filter-project" onchange="applyFilters()"><option value="">Todos</option></select>
-        </div>
-        <div class="filter-group">
-          <label>Equipe</label>
-          <select id="filter-team" onchange="applyFilters()"><option value="">Todas</option></select>
-        </div>
-        <div class="filter-group">
-          <label>Status</label>
-          <select id="filter-status" onchange="applyFilters()">
-            <option value="">Todos</option><option>Pendente</option>
-            <option>Concluído</option><option>Vencido</option><option>Reprogramado</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Data De</label>
-          <input type="date" id="filter-date-from" onchange="applyFilters()"/>
-        </div>
-        <div class="filter-group">
-          <label>Data Até</label>
-          <input type="date" id="filter-date-to" onchange="applyFilters()"/>
-        </div>
-        <button class="btn btn-ghost" onclick="clearFilters()">Limpar</button>
-      </div>
-      <div class="activity-table-wrap">
-        <table class="activity-table">
-          <thead><tr>
-            <th class="wbs-cell">WBS</th>
-            <th class="sortable" onclick="sortBy('project')">Projeto <span class="sort-arrow" id="sort-project">↕</span></th>
-            <th class="sortable" onclick="sortBy('description')">Título <span class="sort-arrow" id="sort-description">↕</span></th>
-            <th class="sortable" onclick="sortBy('startDate')">Início <span class="sort-arrow" id="sort-startDate">↕</span></th>
-            <th class="sortable" onclick="sortBy('dueDate')">Término <span class="sort-arrow" id="sort-dueDate">↕</span></th>
-            <th class="sortable" onclick="sortBy('responsible')">Responsável <span class="sort-arrow" id="sort-responsible">↕</span></th>
-            <th>Duração</th>
-            <th class="sortable" onclick="sortBy('progress')">% <span class="sort-arrow" id="sort-progress">↕</span></th>
-            <th class="sortable" onclick="sortBy('status')">Status <span class="sort-arrow" id="sort-status">↕</span></th>
-            <th>Ações</th>
-          </tr></thead>
-          <tbody id="main-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="main-empty"><span>✦</span><p>Nenhuma atividade encontrada</p></div>
-      </div>
-    </section>
-
-    <!-- ============ VIEW: PROJETOS ============ -->
-    <!-- ============ VIEW: CUSTOS ============ -->
-    <section class="view hidden" id="view-custos">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
-        <h2 class="section-title" style="margin:0">Gestão de Custos</h2>
-        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-          <label style="font-size:.75rem;color:var(--text-muted)">Projeto:</label>
-          <select id="custos-filter-proj" class="filter-select" onchange="renderCustos()" style="font-size:.75rem;padding:4px 8px">
-            <option value="">Todos</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="openEditBudgetModal()">✎ Editar Orçamentos</button>
-        </div>
-      </div>
-      <!-- KPIs -->
-      <div class="custos-kpi-strip" id="custos-kpis"></div>
-      <!-- Gráfico -->
-      <div class="custos-chart-wrap">
-        <div class="custos-chart-title">Orçado vs Realizado por Projeto</div>
-        <div class="custos-bar-group" id="custos-bar-group"></div>
-      </div>
-      <!-- Tabela detalhada -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-        <table class="custos-table" id="custos-table">
-          <thead>
-            <tr>
-              <th>Projeto</th>
-              <th>Orçado</th>
-              <th>Realizado</th>
-              <th>Variação R$</th>
-              <th>Variação %</th>
-              <th>CPI</th>
-              <th>Status</th>
-              <th style="width:40px"></th>
-            </tr>
-          </thead>
-          <tbody id="custos-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- MODAL: Editar Orçamentos -->
-    <div class="modal-overlay hidden" id="budget-modal-overlay" onclick="closeBudgetModalOutside(event)">
-      <div class="modal" style="max-width:480px">
-        <div class="modal-header">
-          <h3 class="modal-title">💰 Editar Orçamentos</h3>
-          <button class="modal-close" onclick="closeBudgetModal()">✕</button>
-        </div>
-        <div class="modal-body" id="budget-modal-body"></div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" onclick="closeBudgetModal()">Cancelar</button>
-          <button class="btn btn-primary" onclick="saveBudgets()">💾 Salvar</button>
-        </div>
-      </div>
-    </div>
-
-
-    <section class="view hidden" id="view-projects">
-      <div class="section-header" style="margin-bottom:18px">
-        <h2 class="section-title">Projetos</h2>
-        <button class="btn btn-primary" onclick="openProjectModal()">＋ Novo Projeto</button>
-      </div>
-      <div class="projects-grid" id="projects-grid"></div>
-      <div class="empty-state hidden" id="projects-empty"><span>◧</span><p>Nenhum projeto cadastrado</p></div>
-    </section>
-
-    <!-- ============ VIEW: PORTFÓLIO ============ -->
-    <section class="view hidden" id="view-portfolio">
-      <div class="portfolio-header">
-        <h2 class="section-title" style="margin:0">Portfólio de Projetos</h2>
-        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-          <label style="font-size:.75rem;color:var(--text-muted)">Visualização:</label>
-          <button class="recursos-period-btn active" id="pf-view-timeline" onclick="setPortfolioView('timeline')">Timeline</button>
-          <button class="recursos-period-btn" id="pf-view-list" onclick="setPortfolioView('list')">Lista</button>
-        </div>
-      </div>
-      <!-- KPIs -->
-      <div class="portfolio-kpi-strip" id="portfolio-kpis"></div>
-      <!-- Timeline -->
-      <div id="portfolio-timeline-section">
-        <div class="portfolio-timeline-wrap" id="portfolio-timeline-wrap">
-          <div style="padding:32px;text-align:center;color:var(--text-muted)">Carregando portfólio…</div>
-        </div>
-      </div>
-      <!-- Lista -->
-      <div id="portfolio-list-section" style="display:none">
-        <div class="portfolio-list" id="portfolio-list"></div>
-      </div>
-    </section>
-
-    <!-- ============ VIEW: RECURSOS ============ -->
-    <section class="view hidden" id="view-recursos">
-      <div class="recursos-toolbar">
-        <h2 class="section-title" style="margin:0">Conflito de Recursos</h2>
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <span style="font-size:.72rem;color:var(--text-muted)">Período:</span>
-          <button class="recursos-period-btn active" id="rec-btn-4" onclick="setRecursosPeriod(4,this)">4 semanas</button>
-          <button class="recursos-period-btn" id="rec-btn-8" onclick="setRecursosPeriod(8,this)">8 semanas</button>
-          <button class="recursos-period-btn" id="rec-btn-12" onclick="setRecursosPeriod(12,this)">12 semanas</button>
-        </div>
-      </div>
-      <div class="recursos-legend">
-        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(5,150,105,.35)"></div> Livre (&lt;70%)</div>
-        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(245,158,11,.45)"></div> Atenção (70–99%)</div>
-        <div class="recursos-legend-item"><div class="recursos-legend-dot" style="background:rgba(239,68,68,.45)"></div> Sobrecarregado (≥100%)</div>
-      </div>
-      <div class="recursos-heatmap" id="recursos-heatmap"></div>
-      <div style="margin-top:18px">
-        <div class="kpi-pro-title">Conflitos detectados</div>
-        <div class="recursos-conflict-list" id="recursos-conflict-list">
-          <div style="color:var(--text-muted);font-size:.8rem;padding:12px">Nenhum conflito detectado.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ VIEW: EQUIPE ============ -->
-    <section class="view hidden" id="view-equipe">
-      <div class="equipe-toolbar">
-        <h2 class="section-title" style="margin:0">Gestão de Equipe</h2>
-        <button class="btn btn-primary" onclick="openColabModal()">＋ Novo Colaborador</button>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <select id="equipe-filter-project" onchange="renderEquipe()" style="font-size:.78rem;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary)">
-            <option value="">Todos os projetos</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Resumo de carga -->
-      <div class="equipe-section-title">Resumo de Carga</div>
-      <div class="load-summary-grid" id="equipe-summary-grid"></div>
-
-      <!-- Cards de colaboradores -->
-      <div class="equipe-section-title">Colaboradores</div>
-      <div class="equipe-grid" id="equipe-grid"></div>
-      <div class="empty-state hidden" id="equipe-empty"><span>👥</span><p>Nenhum colaborador cadastrado</p></div>
-    </section>
-
-    <!-- ============ VIEW: IMPORTAR ============ -->
-    <section class="view hidden" id="view-import">
-      <div class="section-header" style="margin-bottom:24px">
-        <h2 class="section-title">Importar Atividades</h2>
-        <span class="section-hint">Suporta PDF, Excel (.xlsx/.csv) e MS Project XML (.xml)</span>
-      </div>
-
-      <!-- Upload zone -->
-      <div class="import-upload-zone" id="import-drop-zone"
-           ondragover="importDragOver(event)" ondragleave="importDragLeave(event)" ondrop="importDrop(event)">
-        <div class="import-upload-icon">⇪</div>
-        <div class="import-upload-title">Arraste o arquivo aqui</div>
-        <div class="import-upload-sub">ou clique para selecionar</div>
-        <div class="import-upload-types">PDF · XLSX · CSV · XML (MS Project)</div>
-        <input type="file" id="import-file-input" accept=".pdf,.xlsx,.xls,.csv,.xml"
-               style="position:absolute;inset:0;opacity:0;cursor:pointer"
-               onchange="importFileSelected(event)"/>
-      </div>
-
-      <!-- Progress / status -->
-      <div class="import-status hidden" id="import-status">
-        <div class="import-status-icon" id="import-status-icon">⏳</div>
-        <div class="import-status-text" id="import-status-text">Lendo arquivo...</div>
-      </div>
-
-      <!-- Preview table -->
-      <div class="import-preview hidden" id="import-preview">
-        <div class="import-preview-header">
-          <div>
-            <div class="import-preview-title" id="import-preview-title">0 atividades encontradas</div>
-            <div class="import-preview-sub" id="import-preview-sub">Revise antes de importar</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer">
-              <input type="checkbox" id="import-skip-done" checked style="width:auto"/> Ignorar 100% concluídas
-            </label>
-            <button class="btn btn-ghost btn-sm" onclick="importClear()">✕ Cancelar</button>
-            <button class="btn btn-primary" onclick="importConfirm()" id="import-confirm-btn">✓ Importar tudo</button>
-          </div>
-        </div>
-
-        <!-- Mapeamento de colunas -->
-        <div class="import-map-row" id="import-map-row" style="display:none">
-          <span class="import-map-label">Mapear colunas:</span>
-          <div class="import-map-fields">
-            <div class="import-map-field">
-              <label>Título/Descrição</label>
-              <select id="map-description"></select>
+          <!-- Próximas a vencer -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fa-solid fa-calendar-day" style="color:var(--blue);font-size:.85rem"></i>
+              <span class="card-title">Próximas a Vencer</span>
+              <span class="card-subtitle">5 mais urgentes</span>
             </div>
-            <div class="import-map-field">
-              <label>Data Início</label>
-              <select id="map-start"></select>
-            </div>
-            <div class="import-map-field">
-              <label>Data Fim / Prazo</label>
-              <select id="map-end"></select>
-            </div>
-            <div class="import-map-field">
-              <label>Responsável</label>
-              <select id="map-responsible"></select>
-            </div>
-            <div class="import-map-field">
-              <label>Projeto</label>
-              <select id="map-project"></select>
-            </div>
-            <div class="import-map-field">
-              <label>Status</label>
-              <select id="map-status"></select>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="importRemap()" style="align-self:flex-end">↻ Aplicar</button>
-          </div>
-        </div>
-
-        <div class="activity-table-wrap" style="margin-top:0">
-          <table class="activity-table">
-            <thead>
-              <tr>
-                <th style="width:36px"><input type="checkbox" id="import-check-all" onchange="importToggleAll(this)" style="width:auto"/></th>
-                <th>Descrição</th>
-                <th>Projeto</th>
-                <th>Responsável</th>
-                <th>Data Início</th>
-                <th>Prazo</th>
-                <th>Status</th>
-                <th>Ação</th>
-              </tr>
-            </thead>
-            <tbody id="import-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ VIEW: HISTÓRICO ============ -->
-    <section class="view hidden" id="view-history">
-      <div class="section-header">
-        <h2 class="section-title">Histórico de Alterações</h2>
-        <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Limpar histórico</button>
-      </div>
-      <div class="history-list" id="history-list">
-        <div class="empty-state" id="history-empty"><span>◎</span><p>Nenhuma alteração registrada</p></div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ============================================================ MODAIS ============================================================ -->
-
-  <!-- Nova / Editar atividade -->
-  <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
-    <div class="modal" style="max-width:720px">
-      <div class="modal-header">
-        <h2 id="modal-title">Nova Atividade</h2>
-        <button class="modal-close" onclick="closeModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="form-id"/><input type="hidden" id="form-original-date"/>
-        <div class="form-grid">
-
-          <!-- ── Linha 1: Data Início / Data Fim ── -->
-          <div class="form-group"><label>Data de Início</label>
-            <input type="date" id="form-start-date" oninput="autoCalcDuration(); checkConflicts()"/></div>
-          <div class="form-group"><label>Término (Prazo) <span class="req">*</span></label>
-            <input type="date" id="form-date" oninput="autoCalcDuration(); checkConflicts()"/></div>
-
-          <!-- ── Linha 2: Local ── -->
-          <div class="form-group form-full"><label>Local (empresa) <span class="req">*</span></label>
-            <input type="text" id="form-local" placeholder="Digite para sugerir (ex.: Coca-Cola)" list="locals-list"/>
-            <datalist id="locals-list"></datalist>
-            <span style="font-size:.7rem;color:var(--text-muted);margin-top:3px;display:block">
-              Dica: se o local não existir, cadastre em <strong>Cadastro de empresa/local</strong>.
-            </span></div>
-
-          <!-- ── Linha 3: Serviço / Linha ── -->
-          <div class="form-group"><label>Serviço <span class="req">*</span></label>
-            <input type="text" id="form-servico" placeholder="Ex.: Instalação / Passagem"/></div>
-          <div class="form-group"><label>Linha</label>
-            <input type="text" id="form-linha" placeholder="Ex.: ETA / ETE / Utilidades..."/></div>
-
-          <!-- ── Linha 4: Projeto / Descrição ── -->
-          <div class="form-group"><label>Projeto <span class="req">*</span></label>
-            <input type="text" id="form-project" placeholder="Ex: Portal Cliente" list="projects-list"/>
-            <datalist id="projects-list"></datalist></div>
-          <div class="form-group"><label>Descrição da Atividade <span class="req">*</span></label>
-            <input type="text" id="form-description" placeholder="Descreva a atividade"/></div>
-
-          <!-- ── Linha 5: Líder / Projetista ── -->
-          <div class="form-group"><label>Líder do Projeto <span class="req">*</span></label>
-            <input type="text" id="form-lider" placeholder="Nome do líder" list="members-list-lider"
-                   oninput="updateMembersDatalist('members-list-lider', this.value)"/>
-            <datalist id="members-list-lider"></datalist>
-            <span style="font-size:.68rem;color:var(--text-muted);margin-top:3px;display:block">
-              ⚡ Líder está <strong>isento</strong> de verificação de conflito.
-            </span></div>
-          <div class="form-group"><label>Projetista Responsável <span class="req">*</span></label>
-            <input type="text" id="form-projetista" placeholder="Nome do projetista (pode ser o mesmo líder)"
-                   list="members-list-proj" oninput="updateMembersDatalist('members-list-proj', this.value); checkConflicts()"/>
-            <datalist id="members-list-proj"></datalist></div>
-
-          <!-- ── Linha 6: Equipe (múltipla seleção) ── -->
-          <div class="form-group form-full">
-            <label>Equipe / Responsável <span style="font-size:.7rem;color:var(--text-muted)">(múltipla seleção)</span></label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" id="form-equipe-input" placeholder="Digite o nome e pressione Enter"
-                     list="members-list-equipe" style="flex:1"
-                     oninput="updateMembersDatalist('members-list-equipe', this.value)"
-                     onkeydown="handleEquipeKeydown(event)"/>
-              <datalist id="members-list-equipe"></datalist>
-              <button type="button" class="btn btn-primary btn-sm" onclick="addEquipeMember()" style="white-space:nowrap">Adicionar</button>
-            </div>
-            <span style="font-size:.68rem;color:var(--text-muted);margin-top:3px;display:block">
-              Dica: cadastre funcionários em <strong>Cadastro de funcionário</strong> para aparecerem aqui.
-            </span>
-            <div id="form-equipe-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
-          </div>
-
-          <!-- ── Alerta de Conflito ── -->
-          <div class="form-full" id="conflict-alert" style="display:none">
-            <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:8px;padding:12px 14px;">
-              <div style="font-weight:700;font-size:.82rem;color:#d97706;margin-bottom:6px">⚠ Conflito de Agenda Detectado</div>
-              <div id="conflict-list" style="font-size:.78rem;color:var(--text-primary);line-height:1.7"></div>
-              <div style="margin-top:8px;font-size:.74rem;color:var(--text-muted)">
-                Você pode continuar mesmo assim — o conflito ficará registrado.
-              </div>
-            </div>
-          </div>
-
-          <!-- ── Linha 7: Duração / Status / % conclusão ── -->
-          <div class="form-group"><label>Duração (horas) <span style="font-size:.7rem;color:var(--text-muted)">auto-calculada</span></label>
-            <input type="number" id="form-duration" placeholder="Calculada pelas datas" min="0" step="0.5"
-                   oninput="this.dataset.manualOverride='1'" style="background:var(--bg-input)"/></div>
-          <div class="form-group"><label>Status</label>
-            <select id="form-status"><option value="Pendente">Pendente</option>
-              <option value="Concluído">Concluído</option><option value="Reprogramado">Reprogramado</option></select></div>
-          <div class="form-group"><label>% Conclusão <span style="font-size:.7rem;color:var(--text-muted)">0–100</span></label>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input type="range" id="form-progress" min="0" max="100" value="0" style="flex:1"
-                     oninput="document.getElementById('form-progress-val').textContent=this.value+'%'"/>
-              <span id="form-progress-val" style="min-width:36px;font-size:.82rem;font-weight:700;color:var(--primary)">0%</span>
-            </div></div>
-
-          <!-- ── Linha 8: Atividade Pai / Predecessora ── -->
-          <div class="form-group"><label>Atividade Pai <span style="font-size:.7rem;color:var(--text-muted)">(opcional)</span></label>
-            <select id="form-parent"><option value="">— Nenhuma (atividade raiz) —</option></select></div>
-          <div class="form-group"><label>Predecessora <span style="font-size:.7rem;color:var(--text-muted)">(dependência)</span></label>
-            <select id="form-predecessor"><option value="">— Sem dependência —</option></select></div>
-
-          <!-- ── Linha 9: Observações ── -->
-          <div class="form-group form-full"><label>Observações</label>
-            <textarea id="form-obs" rows="3" placeholder="Observações gerais, PT, horários, pendências..."></textarea></div>
-
-        </div>
-        <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">
-          Regras: <strong>Local</strong> e <strong>Serviço</strong> são obrigatórios.
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveActivity()">Adicionar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Reprogramar -->
-  <div class="modal-overlay" id="reschedule-overlay" onclick="closeRescheduleOutside(event)">
-    <div class="modal modal-sm">
-      <div class="modal-header"><h2>Reprogramar Atividade</h2>
-        <button class="modal-close" onclick="closeReschedule()">✕</button></div>
-      <div class="modal-body">
-        <div class="form-group"><label>Nova Data <span class="req">*</span></label>
-          <input type="date" id="reschedule-date"/></div>
-        <div class="form-group" style="margin-top:12px"><label>Motivo</label>
-          <input type="text" id="reschedule-reason" placeholder="Motivo da reprogramação"/></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeReschedule()">Cancelar</button>
-        <button class="btn btn-warning" onclick="confirmReschedule()">Reprogramar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Atalhos de teclado -->
-  <div class="modal-overlay" id="shortcuts-overlay" onclick="closeShortcutsOutside(event)">
-    <div class="modal modal-sm">
-      <div class="modal-header"><h2>⌨ Atalhos de Teclado</h2>
-        <button class="modal-close" onclick="closeShortcutsOverlay()">✕</button></div>
-      <div class="modal-body">
-        <table class="shortcuts-table">
-          <tbody>
-            <tr><td><kbd>N</kbd></td><td>Nova atividade</td></tr>
-            <tr><td><kbd>D</kbd></td><td>Dashboard</td></tr>
-            <tr><td><kbd>G</kbd></td><td>Gráficos</td></tr>
-            <tr><td><kbd>K</kbd></td><td>Kanban</td></tr>
-            <tr><td><kbd>A</kbd></td><td>Atividades</td></tr>
-            <tr><td><kbd>H</kbd></td><td>Histórico</td></tr>
-            <tr><td><kbd>T</kbd></td><td>Alternar tema</td></tr>
-            <tr><td><kbd>F</kbd></td><td>Focar filtro</td></tr>
-            <tr><td><kbd>?</kbd></td><td>Esta ajuda</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>Fechar modal</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal WhatsApp Config -->
-  <div class="modal-overlay" id="wa-config-overlay" onclick="closeWAConfigOutside(event)">
-    <div class="modal modal-sm">
-      <div class="modal-header">
-        <h2>✈️ Configurar Telegram</h2>
-        <button class="modal-close" onclick="closeWAConfig()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="wa-steps">
-          <div class="wa-step"><span class="wa-step-num">1</span>
-            <span>No Telegram, abra o bot <strong>@TaskeFlowbot</strong> e mande <strong>/start</strong></span>
-          </div>
-          <div class="wa-step"><span class="wa-step-num">2</span>
-            <span>Cole o Token abaixo e clique <strong>🔍 Detectar Chat ID</strong> — preenchimento automático!</span>
-          </div>
-          <div class="wa-step"><span class="wa-step-num">3</span>
-            <span>Clique <strong>🧪 Testar</strong> para confirmar que está recebendo as mensagens.</span>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:16px">
-          <label>🏢 Nome da Empresa <small style="color:var(--text-muted)">(aparece nas mensagens)</small></label>
-          <input type="text" id="wa-company" placeholder="Ex: RAWTECH, Terra System..."/>
-        </div>
-        <div class="form-group" style="margin-top:10px">
-          <label>Token do Bot</label>
-          <input type="text" id="wa-apikey" placeholder="Ex: 8657218565:AAG4uND..." style="font-family:monospace;font-size:.78rem"/>
-        </div>
-        <div class="form-group" style="margin-top:10px">
-          <label>Chat ID <small style="color:var(--text-muted)">(detectado automaticamente)</small></label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="wa-phone" placeholder="Clique em Detectar →" style="font-family:monospace"/>
-            <button class="btn btn-ghost btn-sm" onclick="detectTelegramChatId()" style="white-space:nowrap;flex-shrink:0">🔍 Detectar</button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:10px">
-          <label>Alertas automáticos</label>
-          <select id="wa-auto">
-            <option value="1">Ativado — alerta ao abrir e a cada hora</option>
-            <option value="0">Desativado — apenas manual</option>
-          </select>
-        </div>
-        <div id="wa-status-msg" style="margin-top:10px;font-size:0.8rem;display:none"></div>
-      </div>
-      <div class="modal-footer" style="justify-content:space-between">
-        <button class="btn btn-ghost btn-sm" onclick="testWAMessage()">🧪 Testar</button>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="closeWAConfig()">Cancelar</button>
-          <button class="btn btn-primary" onclick="saveWAConfig()" style="background:#2ca5e0;box-shadow:0 2px 10px rgba(44,165,224,0.3)">💾 Salvar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Colaborador -->
-  <div class="modal-overlay" id="colab-modal-overlay" onclick="closeColabModalOutside(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="colab-modal-title">Novo Colaborador</h2>
-        <button class="modal-close" onclick="closeColabModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="colab-form-id"/>
-        <div class="form-grid">
-          <div class="form-group"><label>Nome <span class="req">*</span></label>
-            <input type="text" id="colab-name" placeholder="Nome completo"/></div>
-          <div class="form-group"><label>Função / Cargo</label>
-            <input type="text" id="colab-role" placeholder="Ex: Engenheiro Mecânico"/></div>
-          <div class="form-group"><label>Equipe</label>
-            <select id="colab-team">
-              <option value="Equipe 01">Equipe 01</option>
-              <option value="Equipe 02">Equipe 02</option>
-              <option value="Equipe 03">Equipe 03</option>
-              <option value="Equipe 04">Equipe 04</option>
-              <option value="Equipe 05">Equipe 05</option>
-            </select></div>
-          <div class="form-group"><label>Capacidade (horas/dia)</label>
-            <input type="number" id="colab-capacity" value="8" min="1" max="24" step="0.5"/></div>
-          <div class="form-group"><label>Custo por Hora (R$)</label>
-            <input type="number" id="colab-cost-hour" placeholder="Ex: 75.00" min="0" step="0.01"/></div>
-          <div class="form-group"><label>Cor de identificação</label>
-            <input type="color" id="colab-color" value="#1d4ed8" style="height:36px;width:100%;border:1px solid var(--border);border-radius:6px;padding:2px 4px;background:var(--surface);cursor:pointer"/></div>
-          <div class="form-group form-full"><label>Observações</label>
-            <input type="text" id="colab-obs" placeholder="Observações adicionais"/></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeColabModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveColab()">Salvar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Projeto -->
-  <div class="modal-overlay" id="project-modal-overlay" onclick="closeProjectModalOutside(event)">
-    <div class="modal modal-lg">
-      <div class="modal-header">
-        <h2 id="project-modal-title">Novo Projeto</h2>
-        <button class="modal-close" onclick="closeProjectModal()">✕</button>
-      </div>
-
-      <!-- Tabs -->
-      <div class="modal-tabs">
-        <button class="modal-tab active" id="proj-tab-info"   onclick="switchProjTab('info')">◈ Dados do Projeto</button>
-        <button class="modal-tab"        id="proj-tab-import" onclick="switchProjTab('import')">⇪ Importar Atividades</button>
-      </div>
-
-      <!-- Tab: Dados -->
-      <div class="modal-body" id="proj-panel-info">
-        <input type="hidden" id="proj-form-id"/>
-        <div class="form-grid">
-          <div class="form-group"><label>Código do Projeto</label>
-            <input type="text" id="proj-code" placeholder="Ex: CRG-04-260219-01"/></div>
-          <div class="form-group"><label>Nome do Projeto <span class="req">*</span></label>
-            <input type="text" id="proj-name" placeholder="Ex: Portal Cliente"/></div>
-          <div class="form-group form-full"><label>Descrição</label>
-            <textarea id="proj-desc" rows="2" placeholder="Descreva o objetivo do projeto..."></textarea></div>
-          <div class="form-group"><label>Responsável / Gestor <span class="req">*</span></label>
-            <input type="text" id="proj-manager" placeholder="Nome do gestor"/></div>
-          <div class="form-group"><label>Status</label>
-            <select id="proj-status">
-              <option value="Em andamento">● Em andamento</option>
-              <option value="Novas">✦ Novas</option>
-              <option value="Finalizadas">✓ Finalizadas</option>
-              <option value="Ativo">Ativo</option>
-              <option value="Pausado">⏸ Pausado</option>
-              <option value="Encerrado">Encerrado</option>
-            </select></div>
-          <div class="form-group"><label>Data de Início <span class="req">*</span></label>
-            <input type="date" id="proj-start"/></div>
-          <div class="form-group"><label>Data de Fim (prevista)</label>
-            <input type="date" id="proj-end"/></div>
-          <div class="form-group"><label>Duração Total (horas)</label>
-            <input type="number" id="proj-duration" placeholder="Ex: 870" min="0" step="0.5"/></div>
-          <div class="form-group"><label>💰 Orçamento Total (R$)</label>
-            <input type="number" id="proj-budget" placeholder="Ex: 85000.00" min="0" step="0.01" style="font-weight:600"/>
-            <small style="color:var(--text-muted);font-size:.68rem;margin-top:3px;display:block">Custo total previsto para o projeto. O realizado é calculado automaticamente pelas atividades.</small>
-          </div>
-          <div class="form-group"><label>Progresso (%)</label>
-            <div style="display:flex;align-items:center;gap:10px">
-              <input type="range" id="proj-progress" min="0" max="100" step="1" value="0"
-                     style="flex:1" oninput="document.getElementById('proj-progress-val').textContent=this.value+'%'"/>
-              <span id="proj-progress-val" style="font-weight:600;min-width:38px;color:var(--primary)">0%</span>
-            </div>
-          </div>
-          <div class="form-group form-full"><label>Cor de identificação</label>
-            <div class="color-picker-row" id="proj-color-picker"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Importar -->
-      <div class="modal-body hidden" id="proj-panel-import">
-
-        <!-- Aviso: precisa salvar primeiro -->
-        <div class="proj-import-warning" id="proj-import-warning">
-          <span>⚠</span>
-          <span>Salve o projeto primeiro na aba <strong>Dados do Projeto</strong> para habilitar a importação.</span>
-        </div>
-
-        <!-- Upload zone (só aparece quando projeto tem nome) -->
-        <div id="proj-import-body" class="hidden">
-
-          <!-- Banner do projeto destino -->
-          <div class="proj-import-banner">
-            <div class="proj-import-banner-left">
-              <div class="proj-import-banner-icon" id="proj-import-banner-icon">◧</div>
-              <div>
-                <div class="proj-import-banner-label">Atividades serão vinculadas a:</div>
-                <div class="proj-import-banner-name" id="proj-import-name-label">—</div>
-              </div>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="switchProjTab('info')" title="Voltar e editar dados do projeto">✎ Editar projeto</button>
-          </div>
-
-          <!-- Seletor de equipe padrão -->
-          <div class="proj-import-team-row">
-            <label>Equipe padrão para as atividades importadas</label>
-            <select id="proj-import-team">
-              <option value="Equipe 01">Equipe 01</option>
-              <option value="Equipe 02">Equipe 02</option>
-              <option value="Equipe 03">Equipe 03</option>
-              <option value="Equipe 04">Equipe 04</option>
-              <option value="Equipe 05">Equipe 05</option>
-            </select>
-          </div>
-
-          <div class="import-upload-zone" id="proj-import-drop-zone" style="padding:32px 24px;margin-bottom:16px"
-               ondragover="importDragOver2(event)" ondragleave="importDragLeave2(event)" ondrop="importDrop2(event)">
-            <div class="import-upload-icon" style="font-size:2rem">⇪</div>
-            <div class="import-upload-title" style="font-size:0.9rem">Arraste o arquivo aqui</div>
-            <div class="import-upload-sub">PDF · XLSX · CSV · XML (MS Project)</div>
-            <input type="file" id="proj-import-file" accept=".pdf,.xlsx,.xls,.csv,.xml"
-                   style="position:absolute;inset:0;opacity:0;cursor:pointer"
-                   onchange="projImportFileSelected(event)"/>
-          </div>
-
-          <!-- Status -->
-          <div class="import-status hidden" id="proj-import-status">
-            <div class="import-status-icon" id="proj-import-status-icon">⏳</div>
-            <div class="import-status-text" id="proj-import-status-text">Lendo arquivo...</div>
-          </div>
-
-          <!-- Preview compacto -->
-          <div id="proj-import-preview" class="hidden">
-            <div class="proj-import-preview-header">
-              <div>
-                <span class="proj-import-count" id="proj-import-count">0 atividades</span>
-                <span class="proj-import-sub" id="proj-import-sub"></span>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center">
-                <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:var(--text-secondary);cursor:pointer">
-                  <input type="checkbox" id="proj-import-skip-done" checked style="width:auto"/> Ignorar concluídas
-                </label>
-                <button class="btn btn-ghost btn-sm" onclick="projImportClear()">✕</button>
-              </div>
-            </div>
-
-            <div class="activity-table-wrap" style="max-height:280px;overflow-y:auto">
-              <table class="activity-table">
+            <div class="table-wrap">
+              <table class="tf-table">
                 <thead>
                   <tr>
-                    <th style="width:32px"><input type="checkbox" id="proj-import-check-all" onchange="projImportToggleAll(this)" style="width:auto"/></th>
-                    <th>Descrição</th>
+                    <th>Atividade</th>
+                    <th>Projeto</th>
                     <th>Responsável</th>
-                    <th>Início</th>
                     <th>Prazo</th>
                     <th>Status</th>
+                    <th></th>
                   </tr>
                 </thead>
-                <tbody id="proj-import-tbody"></tbody>
+                <tbody id="upcoming-tbody">
+                  <tr><td colspan="6"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Nenhuma atividade</p></div></td></tr>
+                </tbody>
               </table>
             </div>
           </div>
+
+          <!-- Gráfico -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fa-solid fa-chart-bar" style="color:var(--purple);font-size:.85rem"></i>
+              <span class="card-title">Status por Projeto</span>
+            </div>
+            <div class="card-body" style="padding:16px 20px">
+              <canvas id="chart-proj" height="120"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-grid-right">
+
+          <!-- Alertas -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fa-solid fa-robot" style="color:var(--amber);font-size:.85rem"></i>
+              <span class="card-title">Recomendações IA</span>
+            </div>
+            <div class="card-body" style="padding:12px 14px">
+              <div class="alert-list" id="alert-list">
+                <div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia!</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prioridades -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fa-solid fa-ranking-star" style="color:var(--red);font-size:.85rem"></i>
+              <span class="card-title">Fila de Prioridades</span>
+            </div>
+            <div class="priority-list" id="priority-list">
+              <div class="empty-state" style="padding:20px"><i class="fa-solid fa-inbox"></i><p>Nenhuma pendência</p></div>
+            </div>
+          </div>
+
+          <!-- Donut -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fa-solid fa-circle-half-stroke" style="color:var(--green);font-size:.85rem"></i>
+              <span class="card-title">Status Geral</span>
+            </div>
+            <div class="card-body" style="display:flex;align-items:center;gap:16px;padding:14px 18px">
+              <canvas id="chart-donut" width="100" height="100" style="flex-shrink:0"></canvas>
+              <div id="donut-legend" style="display:flex;flex-direction:column;gap:6px;font-size:.72rem;"></div>
+            </div>
+          </div>
+
         </div>
       </div>
+    </div>
 
-      <div class="modal-footer" id="proj-modal-footer">
-        <button class="btn btn-ghost" onclick="closeProjectModal()">Cancelar</button>
-        <button class="btn btn-primary" id="proj-save-btn" onclick="saveProject()">Salvar Projeto</button>
+    <!-- ══════════════════ ATIVIDADES ══════════════════ -->
+    <div class="view" id="view-atividades">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-list-check" style="color:var(--blue);font-size:.85rem"></i>
+          <span class="card-title">Todas as Atividades</span>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn-secondary" onclick="openModal('activity')"><i class="fa-solid fa-plus"></i> Nova Atividade</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <span class="filter-label">Filtrar:</span>
+          <select class="filter-select" id="f-projeto" onchange="renderAtividades()">
+            <option value="">Todos os projetos</option>
+          </select>
+          <select class="filter-select" id="f-status" onchange="renderAtividades()">
+            <option value="">Todos os status</option>
+            <option>Pendente</option>
+            <option>Em Andamento</option>
+            <option>Concluído</option>
+            <option>Reprogramado</option>
+            <option>Vencido</option>
+          </select>
+          <button class="btn-secondary" onclick="clearFilters()" style="margin-left:auto">
+            <i class="fa-solid fa-xmark"></i> Limpar
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="tf-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th onclick="sortActs('project')">Projeto <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th onclick="sortActs('description')">Título <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th onclick="sortActs('startDate')">Início <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th onclick="sortActs('dueDate')">Término <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th onclick="sortActs('responsible')">Responsável <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th>Duração</th>
+                <th onclick="sortActs('progress')">% <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th onclick="sortActs('status')">Status <i class="fa-solid fa-sort" style="opacity:.4;font-size:.6rem"></i></th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="acts-tbody">
+              <tr><td colspan="10"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Nenhuma atividade</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+
+    <!-- ══════════════════ KANBAN ══════════════════ -->
+    <div class="view" id="view-kanban">
+      <div class="section-hd">
+        <span class="section-hd-title">Quadro Kanban</span>
+        <button class="btn-primary" onclick="openModal('activity')"><i class="fa-solid fa-plus"></i> Nova Atividade</button>
+      </div>
+      <div class="kanban-board" id="kanban-board"></div>
+    </div>
+
+    <!-- ══════════════════ PROJETOS ══════════════════ -->
+    <div class="view" id="view-projetos">
+      <div class="section-hd">
+        <span class="section-hd-title">Projetos</span>
+        <button class="btn-primary" onclick="openModal('project')"><i class="fa-solid fa-plus"></i> Novo Projeto</button>
+      </div>
+      <div id="projetos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══════════════════ EQUIPE ══════════════════ -->
+    <div class="view" id="view-equipe">
+      <div class="section-hd"><span class="section-hd-title">Equipe</span></div>
+      <div id="equipe-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══════════════════ GRÁFICOS ══════════════════ -->
+    <div class="view" id="view-graficos">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-header"><span class="card-title">Atividades por Status</span></div><div class="card-body"><canvas id="chart-status-full"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Carga por Responsável</span></div><div class="card-body"><canvas id="chart-team-full"></canvas></div></div>
+        <div class="card" style="grid-column:1/-1"><div class="card-header"><span class="card-title">Progresso por Projeto</span></div><div class="card-body"><canvas id="chart-proj-full"></canvas></div></div>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main-wrap -->
+
+<!-- MODALS -->
+<!-- Modal Nova Atividade -->
+<div class="modal-overlay" id="modal-activity" onclick="closeModalOutside(event,'modal-activity')">
+  <div class="modal">
+    <div class="modal-header">
+      <i class="fa-solid fa-list-check" style="color:var(--blue)"></i>
+      <span class="modal-title" id="modal-act-title">Nova Atividade</span>
+      <button class="modal-close" onclick="closeModal('modal-activity')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="act-id"/>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Projeto <span class="req">*</span></label>
+          <input class="form-control" id="act-project" list="projects-datalist" placeholder="Nome do projeto"/>
+          <datalist id="projects-datalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável <span class="req">*</span></label>
+          <input class="form-control" id="act-responsible" placeholder="Nome do responsável"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Título / Descrição <span class="req">*</span></label>
+        <input class="form-control" id="act-description" placeholder="Ex: Compra de materiais, Montagem da estrutura..."/>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Data de Início</label>
+          <input class="form-control" type="date" id="act-start"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de Término <span class="req">*</span></label>
+          <input class="form-control" type="date" id="act-due"/>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="act-status">
+            <option>Pendente</option>
+            <option>Em Andamento</option>
+            <option>Concluído</option>
+            <option>Reprogramado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Progresso (%)</label>
+          <input class="form-control" type="number" id="act-progress" min="0" max="100" value="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <input class="form-control" id="act-obs" placeholder="Notas adicionais..."/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-activity')">Cancelar</button>
+      <button class="btn-primary" onclick="saveActivity()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+    </div>
   </div>
+</div>
 
-  <div class="toast" id="toast"></div>
-  <script src="script.js"></script>
+<!-- Modal Novo Projeto -->
+<div class="modal-overlay" id="modal-project" onclick="closeModalOutside(event,'modal-project')">
+  <div class="modal">
+    <div class="modal-header">
+      <i class="fa-solid fa-folder-open" style="color:var(--amber)"></i>
+      <span class="modal-title" id="modal-proj-title">Novo Projeto</span>
+      <button class="modal-close" onclick="closeModal('modal-project')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="proj-id"/>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nome do Projeto <span class="req">*</span></label>
+          <input class="form-control" id="proj-name" placeholder="Ex: RETIFICA 01"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input class="form-control" id="proj-code" placeholder="Ex: RET-001"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <input class="form-control" id="proj-desc" placeholder="Descrição do projeto..."/>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Gestor <span class="req">*</span></label>
+          <input class="form-control" id="proj-manager" placeholder="Nome do gestor"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="proj-status">
+            <option>Em andamento</option>
+            <option>Planejamento</option>
+            <option>Pausado</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Início</label>
+          <input class="form-control" type="date" id="proj-start"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Término Previsto</label>
+          <input class="form-control" type="date" id="proj-end"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cor do Projeto</label>
+        <div id="color-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-project')">Cancelar</button>
+      <button class="btn-primary" onclick="saveProject()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+    </div>
+  </div>
+</div>
 
-  <!-- Calendários: badge de vencidas + atalhos C e E -->
-  <script>
-    (function() {
-      function updateCalBadge() {
-        try {
-          const raw = localStorage.getItem('taskflow_activities');
-          const acts = raw ? JSON.parse(raw) : [];
-          const today = new Date().toISOString().slice(0, 10);
-          const overdue = acts.filter(a => a.status !== 'Concluído' && a.dueDate < today).length;
-          const badge = document.getElementById('cal-overdue-badge');
-          if (!badge) return;
-          if (overdue > 0) {
-            badge.textContent = overdue > 99 ? '99+' : overdue;
-            badge.classList.remove('hidden');
-          } else {
-            badge.classList.add('hidden');
-          }
-        } catch(e) {}
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════ */
+const STORAGE_ACTS  = 'tf_activities';
+const STORAGE_PROJ  = 'tf_projects';
+
+let activities = [];
+let projects   = [];
+let sortField  = 'dueDate';
+let sortDir    = 1;
+let editingActId  = null;
+let editingProjId = null;
+let chartProj = null, chartDonut = null, chartStatusFull = null, chartTeamFull = null, chartProjFull = null;
+
+const COLORS = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0ea5e9','#f97316','#ec4899'];
+const PROJECT_COLORS_MAP = {};
+
+/* ══════════════════════════════════════════════════
+   SEED DATA
+══════════════════════════════════════════════════ */
+function iso(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0,10);
+}
+
+const SEED_PROJECTS = [
+  { id:'p1', name:'Manipuladores',  code:'MAN-001', desc:'Manipuladores 1 e 2',               manager:'Enagio',     status:'Em andamento', startDate:iso(-30), endDate:iso(40),  color:'#2563eb', progress:35 },
+  { id:'p2', name:'RETIFICA 01',    code:'RET-001', desc:'Cronograma de entrega Retífica 01', manager:'João Paulo', status:'Em andamento', startDate:iso(-20), endDate:iso(50),  color:'#059669', progress:28 },
+  { id:'p3', name:'RETIFICA 02',    code:'RET-002', desc:'Cronograma de entrega Retífica 02', manager:'João Paulo', status:'Em andamento', startDate:iso(-10), endDate:iso(60),  color:'#d97706', progress:15 },
+];
+
+const SEED_ACTS = [
+  { id:'a1',  project:'Manipuladores', description:'Compra de material',           responsible:'JOÃO PAULO', startDate:iso(-14), dueDate:iso(5),   status:'Pendente',    progress:50, duration:'152h', isCritical:false, obs:'' },
+  { id:'a2',  project:'Manipuladores', description:'Fabricação das peças',         responsible:'JOÃO PAULO', startDate:iso(-5),  dueDate:iso(25),  status:'Pendente',    progress:0,  duration:'200h', isCritical:true,  obs:'' },
+  { id:'a3',  project:'Manipuladores', description:'Pintura geral',                responsible:'JOÃO PAULO', startDate:iso(22),  dueDate:iso(34),  status:'Pendente',    progress:0,  duration:'24h',  isCritical:false, obs:'' },
+  { id:'a4',  project:'Manipuladores', description:'Mobilização do material',      responsible:'JOÃO PAULO', startDate:iso(30),  dueDate:iso(37),  status:'Pendente',    progress:0,  duration:'8h',   isCritical:false, obs:'' },
+  { id:'a5',  project:'Manipuladores', description:'Instalação da máquina',        responsible:'JOÃO PAULO', startDate:iso(35),  dueDate:iso(42),  status:'Pendente',    progress:0,  duration:'32h',  isCritical:true,  obs:'' },
+  { id:'a6',  project:'RETIFICA 01',   description:'Compra de material',           responsible:'JOÃO PAULO', startDate:iso(-9),  dueDate:iso(0),   status:'Pendente',    progress:0,  duration:'24h',  isCritical:true,  obs:'' },
+  { id:'a7',  project:'RETIFICA 01',   description:'Fabricação',                   responsible:'JOÃO PAULO', startDate:iso(6),   dueDate:iso(24),  status:'Pendente',    progress:0,  duration:'112h', isCritical:false, obs:'' },
+  { id:'a8',  project:'RETIFICA 01',   description:'Pintura',                      responsible:'JOÃO PAULO', startDate:iso(20),  dueDate:iso(31),  status:'Pendente',    progress:0,  duration:'8h',   isCritical:false, obs:'' },
+  { id:'a9',  project:'RETIFICA 01',   description:'Mobilização',                  responsible:'JOÃO PAULO', startDate:iso(28),  dueDate:iso(37),  status:'Pendente',    progress:0,  duration:'8h',   isCritical:false, obs:'' },
+  { id:'a10', project:'RETIFICA 01',   description:'Instalação',                   responsible:'JOÃO PAULO', startDate:iso(35),  dueDate:iso(44),  status:'Reprogramado',progress:0,  duration:'32h',  isCritical:true,  obs:'' },
+  { id:'a11', project:'RETIFICA 02',   description:'Aquisição dos materiais',      responsible:'JOÃO PAULO', startDate:iso(-9),  dueDate:iso(18),  status:'Pendente',    progress:0,  duration:'144h', isCritical:false, obs:'' },
+  { id:'a12', project:'RETIFICA 02',   description:'Fabricação de partes mecânicas', responsible:'JOÃO PAULO', startDate:iso(18), dueDate:iso(40),  status:'Pendente',    progress:0,  duration:'72h',  isCritical:false, obs:'' },
+  { id:'a13', project:'RETIFICA 02',   description:'Montagem de quadro elétrico',  responsible:'DAVID',      startDate:iso(36),  dueDate:iso(52),  status:'Pendente',    progress:0,  duration:'56h',  isCritical:false, obs:'' },
+  { id:'a14', project:'RETIFICA 02',   description:'Pintura',                      responsible:'JOÃO PAULO', startDate:iso(44),  dueDate:iso(55),  status:'Pendente',    progress:0,  duration:'16h',  isCritical:false, obs:'' },
+  { id:'a15', project:'RETIFICA 02',   description:'Fabricação Mecânica',          responsible:'Joao Paulo', startDate:iso(28),  dueDate:iso(59),  status:'Pendente',    progress:0,  duration:'304h', isCritical:false, obs:'' },
+];
+
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  // Loader
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+  }, 1200);
+
+  load();
+  renderAll();
+
+  // Color picker
+  buildColorPicker();
+});
+
+function load() {
+  try {
+    const ra = localStorage.getItem(STORAGE_ACTS);
+    const rp = localStorage.getItem(STORAGE_PROJ);
+    activities = ra ? JSON.parse(ra) : SEED_ACTS;
+    projects   = rp ? JSON.parse(rp) : SEED_PROJECTS;
+  } catch(e) {
+    activities = [...SEED_ACTS];
+    projects   = [...SEED_PROJECTS];
+  }
+  // Mapa de cores
+  projects.forEach((p,i) => { PROJECT_COLORS_MAP[p.name] = p.color || COLORS[i % COLORS.length]; });
+}
+
+function save() {
+  localStorage.setItem(STORAGE_ACTS, JSON.stringify(activities));
+  localStorage.setItem(STORAGE_PROJ, JSON.stringify(projects));
+}
+
+function renderAll() {
+  autoUpdateStatus();
+  renderKPIs();
+  renderUpcoming();
+  renderAlerts();
+  renderPriority();
+  renderCharts();
+  renderAtividades();
+  renderKanban();
+  renderProjetos();
+  renderEquipe();
+  updateBadge();
+  updateProjectsDatalist();
+}
+
+/* ══════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════ */
+function todayISO() { return new Date().toISOString().slice(0,10); }
+
+function diffDays(iso) {
+  if (!iso) return 999;
+  const t = new Date(); t.setHours(0,0,0,0);
+  const d = new Date(iso + 'T00:00:00');
+  return Math.round((d - t) / 86400000);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function uid() { return '_' + Math.random().toString(36).slice(2,9); }
+
+function projColor(name) { return PROJECT_COLORS_MAP[name] || '#64748b'; }
+
+function autoUpdateStatus() {
+  activities.forEach(a => {
+    if (a.status === 'Concluído' || a.status === 'Reprogramado') return;
+    if (a.dueDate && diffDays(a.dueDate) < 0) a.status = 'Vencido';
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   KPIs
+══════════════════════════════════════════════════ */
+function renderKPIs() {
+  const overdue  = activities.filter(a => a.status === 'Vencido' || (a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) < 0)).length;
+  const ongoing  = activities.filter(a => a.status !== 'Concluído' && a.status !== 'Vencido').length;
+  const done     = activities.filter(a => a.status === 'Concluído').length;
+  const critical = activities.filter(a => a.isCritical && a.status !== 'Concluído').length;
+
+  document.getElementById('kpi-overdue').textContent  = overdue;
+  document.getElementById('kpi-ongoing').textContent  = ongoing;
+  document.getElementById('kpi-done').textContent     = done;
+  document.getElementById('kpi-critical').textContent = critical;
+}
+
+function updateBadge() {
+  const n = activities.filter(a => a.status === 'Vencido').length;
+  const b = document.getElementById('badge-overdue');
+  b.textContent = n;
+  b.style.display = n > 0 ? '' : 'none';
+  document.getElementById('notif-dot').style.display = n > 0 ? '' : 'none';
+}
+
+/* ══════════════════════════════════════════════════
+   UPCOMING TABLE
+══════════════════════════════════════════════════ */
+function renderUpcoming() {
+  const tbody = document.getElementById('upcoming-tbody');
+  const list = [...activities]
+    .filter(a => a.status !== 'Concluído')
+    .sort((a,b) => (a.dueDate||'9999').localeCompare(b.dueDate||'9999'))
+    .slice(0,5);
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Nenhuma atividade pendente</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(a => {
+    const diff = diffDays(a.dueDate);
+    let rowCls = '', statusBadge = '';
+
+    if (diff < 0) rowCls = 'row-overdue';
+    else if (diff === 0) rowCls = 'row-today';
+
+    if (a.status === 'Vencido')       statusBadge = `<span class="badge badge-red"><i class="fa-solid fa-circle-exclamation"></i>${esc(a.status)}</span>`;
+    else if (a.status === 'Concluído') statusBadge = `<span class="badge badge-green"><i class="fa-solid fa-check"></i>${esc(a.status)}</span>`;
+    else if (a.status === 'Reprogramado') statusBadge = `<span class="badge badge-purple">${esc(a.status)}</span>`;
+    else if (diff === 0)               statusBadge = `<span class="badge badge-amber"><i class="fa-solid fa-clock"></i>Hoje</span>`;
+    else if (diff <= 3 && diff > 0)    statusBadge = `<span class="badge badge-amber">Em ${diff}d</span>`;
+    else                               statusBadge = `<span class="badge badge-blue">${esc(a.status)}</span>`;
+
+    const pct = a.progress || 0;
+    const fillCls = pct === 100 ? 'fill-green' : diff < 0 ? 'fill-red' : '';
+
+    return `<tr class="${rowCls}">
+      <td><span style="font-weight:600;color:var(--text-1)">${esc(a.description)}</span></td>
+      <td><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td>
+      <td><span style="font-size:.75rem">${esc(a.responsible||'—')}</span></td>
+      <td><span style="font-size:.75rem;font-family:var(--font-mono);color:${diff<0?'var(--red)':diff===0?'var(--amber)':'var(--text-3)'}">${fmtDate(a.dueDate)}</span></td>
+      <td>${statusBadge}</td>
+      <td><div class="action-btns">
+        <button class="action-btn success" onclick="completeAct('${a.id}')" data-tooltip="Concluir"><i class="fa-solid fa-check"></i></button>
+        <button class="action-btn" onclick="editAct('${a.id}')" data-tooltip="Editar"><i class="fa-solid fa-pen"></i></button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   ALERTS / RECOMENDAÇÕES
+══════════════════════════════════════════════════ */
+function renderAlerts() {
+  const el = document.getElementById('alert-list');
+  const alerts = [];
+
+  const overdue = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) < 0);
+  if (overdue.length > 0) {
+    alerts.push({ type:'red', icon:'fa-triangle-exclamation', text:`<strong>${overdue.length} atividade(s) vencida(s)</strong> precisam de ação imediata.` });
+  }
+
+  const today = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) === 0);
+  if (today.length > 0) {
+    alerts.push({ type:'amber', icon:'fa-clock', text:`<strong>${today.length} atividade(s) vencem hoje</strong> — ${today.map(a=>a.description).join(', ')}.` });
+  }
+
+  const critical = activities.filter(a => a.isCritical && a.status !== 'Concluído');
+  if (critical.length > 0) {
+    alerts.push({ type:'blue', icon:'fa-route', text:`<strong>${critical.length} atividade(s) no caminho crítico</strong> precisam de acompanhamento.` });
+  }
+
+  const soon = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) > 0 && diffDays(a.dueDate) <= 3);
+  if (soon.length > 0) {
+    alerts.push({ type:'amber', icon:'fa-calendar-day', text:`<strong>${soon.length} atividade(s)</strong> vencem em até 3 dias.` });
+  }
+
+  if (!alerts.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia! Nenhum alerta.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = alerts.map(a => `
+    <div class="alert-item alert-${a.type}">
+      <i class="fa-solid ${a.icon} alert-icon"></i>
+      <span class="alert-text">${a.text}</span>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   PRIORITY LIST
+══════════════════════════════════════════════════ */
+function renderPriority() {
+  const el = document.getElementById('priority-list');
+  const list = [...activities]
+    .filter(a => a.status !== 'Concluído')
+    .map(a => {
+      const d = diffDays(a.dueDate);
+      let score = 0;
+      if (a.isCritical) score += 100;
+      if (d < 0) score += 80 + Math.abs(d);
+      else if (d === 0) score += 60;
+      else if (d <= 3) score += 40;
+      return { ...a, _score: score, _diff: d };
+    })
+    .filter(a => a._score > 0)
+    .sort((a,b) => b._score - a._score)
+    .slice(0, 7);
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-inbox"></i><p>Nenhuma pendência urgente</p></div>`;
+    return;
+  }
+
+  el.innerHTML = list.map((a, i) => {
+    let urgBadge = '';
+    if (a._diff < 0) urgBadge = `<span class="badge badge-red">${Math.abs(a._diff)}d atraso</span>`;
+    else if (a._diff === 0) urgBadge = `<span class="badge badge-amber">Hoje</span>`;
+    else if (a._diff <= 3) urgBadge = `<span class="badge badge-amber">Em ${a._diff}d</span>`;
+    else if (a.isCritical) urgBadge = `<span class="badge badge-purple">Crítico</span>`;
+
+    return `<div class="priority-item" onclick="editAct('${a.id}')">
+      <span class="priority-rank">${i+1}</span>
+      <div class="priority-info">
+        <div class="priority-name">${esc(a.description)}</div>
+        <div class="priority-meta">
+          <span class="project-dot" style="background:${projColor(a.project)};width:5px;height:5px;border-radius:50%;display:inline-block"></span>
+          ${esc(a.project)} · ${esc(a.responsible||'—')}
+        </div>
+      </div>
+      <div class="priority-urgency">${urgBadge}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════ */
+function renderCharts() {
+  renderChartProj();
+  renderChartDonut();
+  if (document.getElementById('view-graficos').classList.contains('active')) {
+    renderFullCharts();
+  }
+}
+
+function renderChartProj() {
+  const ctx = document.getElementById('chart-proj');
+  if (!ctx) return;
+  const labels = projects.map(p => p.name);
+  const done   = labels.map(n => activities.filter(a => a.project===n && a.status==='Concluído').length);
+  const pend   = labels.map(n => activities.filter(a => a.project===n && a.status!=='Concluído').length);
+
+  if (chartProj) chartProj.destroy();
+  chartProj = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Concluídas', data:done, backgroundColor:'rgba(5,150,105,.7)', borderRadius:4, borderSkipped:false },
+        { label:'Pendentes',  data:pend, backgroundColor:'rgba(37,99,235,.5)', borderRadius:4, borderSkipped:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ labels:{ font:{family:'DM Sans',size:11}, color:'#64748b' } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{family:'DM Sans',size:10},color:'#94a3b8'} },
+        y:{ grid:{color:'rgba(100,116,139,.08)'}, ticks:{font:{family:'DM Sans',size:10},color:'#94a3b8'} }
       }
+    }
+  });
+}
 
-      document.addEventListener('keydown', function(e) {
-        const tag = document.activeElement ? document.activeElement.tagName : '';
-        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-        if (typing) return;
-        if (e.key === 'c' || e.key === 'C') window.location.href = 'calendario-taskflow.html';
-        if (e.key === 'e' || e.key === 'E') window.location.href = 'calendario-equipe.html';
-      });
+function renderChartDonut() {
+  const ctx = document.getElementById('chart-donut');
+  if (!ctx) return;
 
-      document.addEventListener('DOMContentLoaded', function() {
-        updateCalBadge();
-        setInterval(updateCalBadge, 60000);
-        window.addEventListener('storage', updateCalBadge);
-      });
-    })();
-  </script>
+  const statuses = ['Pendente','Em Andamento','Concluído','Vencido','Reprogramado'];
+  const colors   = ['#3b82f6','#d97706','#059669','#dc2626','#7c3aed'];
+  const counts   = statuses.map(s => activities.filter(a => a.status===s).length).filter((_,i) => {
+    return activities.filter(a => a.status===statuses[i]).length > 0;
+  });
+  const lbls   = statuses.filter((_,i) => activities.filter(a => a.status===statuses[i]).length > 0);
+  const clrs   = colors.filter((_,i) => activities.filter(a => a.status===statuses[i]).length > 0);
+
+  if (chartDonut) chartDonut.destroy();
+  chartDonut = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels:lbls, datasets:[{ data:counts, backgroundColor:clrs, borderWidth:0, hoverOffset:4 }] },
+    options:{
+      responsive:false, cutout:'72%',
+      plugins:{legend:{display:false}, tooltip:{callbacks:{ label: c => ` ${c.label}: ${c.parsed}` }}}
+    }
+  });
+
+  const legend = document.getElementById('donut-legend');
+  if (legend) {
+    legend.innerHTML = lbls.map((l,i) => `
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:8px;height:8px;border-radius:2px;background:${clrs[i]};flex-shrink:0"></div>
+        <span style="color:var(--text-2)">${l}</span>
+        <span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-4);margin-left:auto">${counts[i]}</span>
+      </div>`).join('');
+  }
+}
+
+function renderFullCharts() {
+  const c1 = document.getElementById('chart-status-full');
+  const c2 = document.getElementById('chart-team-full');
+  const c3 = document.getElementById('chart-proj-full');
+
+  if (c1 && !chartStatusFull) {
+    const statuses = ['Pendente','Em Andamento','Concluído','Vencido','Reprogramado'];
+    const colors   = ['#3b82f6','#d97706','#059669','#dc2626','#7c3aed'];
+    chartStatusFull = new Chart(c1, {
+      type:'doughnut',
+      data:{ labels:statuses, datasets:[{ data:statuses.map(s=>activities.filter(a=>a.status===s).length), backgroundColor:colors, borderWidth:0 }] },
+      options:{ responsive:true, plugins:{ legend:{ position:'right', labels:{ font:{family:'DM Sans',size:11}, color:'#64748b' } } } }
+    });
+  }
+
+  if (c2 && !chartTeamFull) {
+    const people = [...new Set(activities.map(a=>a.responsible))].slice(0,8);
+    chartTeamFull = new Chart(c2, {
+      type:'bar',
+      data:{
+        labels:people,
+        datasets:[
+          { label:'Total', data:people.map(p=>activities.filter(a=>a.responsible===p).length), backgroundColor:'rgba(37,99,235,.6)', borderRadius:5, borderSkipped:false },
+          { label:'Vencidas', data:people.map(p=>activities.filter(a=>a.responsible===p && a.status==='Vencido').length), backgroundColor:'rgba(220,38,38,.6)', borderRadius:5, borderSkipped:false },
+        ]
+      },
+      options:{ responsive:true, plugins:{legend:{labels:{font:{family:'DM Sans',size:11},color:'#64748b'}}}, scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',font:{family:'DM Sans',size:10}}},y:{grid:{color:'rgba(100,116,139,.08)'},ticks:{color:'#94a3b8',font:{family:'DM Sans',size:10}}}} }
+    });
+  }
+
+  if (c3 && !chartProjFull) {
+    chartProjFull = new Chart(c3, {
+      type:'bar',
+      data:{
+        labels:projects.map(p=>p.name),
+        datasets:[
+          { label:'Concluídas', data:projects.map(p=>activities.filter(a=>a.project===p.name&&a.status==='Concluído').length), backgroundColor:'rgba(5,150,105,.7)', borderRadius:4 },
+          { label:'Em dia',     data:projects.map(p=>activities.filter(a=>a.project===p.name&&a.status!=='Concluído'&&a.status!=='Vencido').length), backgroundColor:'rgba(37,99,235,.5)', borderRadius:4 },
+          { label:'Vencidas',   data:projects.map(p=>activities.filter(a=>a.project===p.name&&a.status==='Vencido').length), backgroundColor:'rgba(220,38,38,.6)', borderRadius:4 },
+        ]
+      },
+      options:{ responsive:true, plugins:{legend:{labels:{font:{family:'DM Sans',size:11},color:'#64748b'}}}, scales:{x:{grid:{display:false},ticks:{color:'#94a3b8',font:{family:'DM Sans',size:10}}},y:{grid:{color:'rgba(100,116,139,.08)'},ticks:{color:'#94a3b8',font:{family:'DM Sans',size:10}}}} }
+    });
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   ATIVIDADES TABLE
+══════════════════════════════════════════════════ */
+function renderAtividades() {
+  const tbody = document.getElementById('acts-tbody');
+  const fp = document.getElementById('f-projeto')?.value || '';
+  const fs = document.getElementById('f-status')?.value || '';
+
+  let list = [...activities];
+  if (fp) list = list.filter(a => a.project === fp);
+  if (fs) list = list.filter(a => a.status === fs);
+  list.sort((a,b) => {
+    let va = a[sortField]||'', vb = b[sortField]||'';
+    if (typeof va === 'number') return sortDir * (va - vb);
+    return sortDir * String(va).localeCompare(String(vb));
+  });
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Nenhuma atividade encontrada</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((a, i) => {
+    const diff = diffDays(a.dueDate);
+    let rowCls = '';
+    if (a.status === 'Concluído') rowCls = 'row-done';
+    else if (diff < 0) rowCls = 'row-overdue';
+    else if (diff === 0) rowCls = 'row-today';
+
+    const pct = a.progress || 0;
+    const fillCls = pct===100?'fill-green':diff<0?'fill-red':'';
+
+    let stBadge = '';
+    if (a.status==='Vencido')       stBadge = `<span class="badge badge-red">${esc(a.status)}</span>`;
+    else if (a.status==='Concluído') stBadge = `<span class="badge badge-green">${esc(a.status)}</span>`;
+    else if (a.status==='Reprogramado') stBadge = `<span class="badge badge-purple">${esc(a.status)}</span>`;
+    else if (a.status==='Em Andamento') stBadge = `<span class="badge badge-amber">${esc(a.status)}</span>`;
+    else                             stBadge = `<span class="badge badge-blue">${esc(a.status)}</span>`;
+
+    return `<tr class="${rowCls}">
+      <td><span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-4)">${i+1}</span></td>
+      <td><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td>
+      <td style="max-width:200px">
+        <span style="font-weight:600;color:var(--text-1);font-size:.8rem">${esc(a.description)}</span>
+        ${a.isCritical ? '<span class="badge badge-red" style="margin-left:4px;font-size:.55rem">CRÍTICO</span>' : ''}
+      </td>
+      <td><span style="font-size:.75rem;font-family:var(--font-mono);color:var(--text-3)">${fmtDate(a.startDate)}</span></td>
+      <td><span style="font-size:.75rem;font-family:var(--font-mono);color:${diff<0?'var(--red)':diff===0?'var(--amber)':'var(--text-3)'}">${fmtDate(a.dueDate)}</span></td>
+      <td><span style="font-size:.78rem">${esc(a.responsible||'—')}</span></td>
+      <td><span style="font-size:.72rem;font-family:var(--font-mono);color:var(--text-4)">${esc(a.duration||'—')}</span></td>
+      <td>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-track"><div class="progress-bar-fill ${fillCls}" style="width:${pct}%"></div></div>
+          <span class="progress-val">${pct}%</span>
+        </div>
+      </td>
+      <td>${stBadge}</td>
+      <td>
+        <div class="action-btns">
+          ${a.status!=='Concluído'?`<button class="action-btn success" onclick="completeAct('${a.id}')" data-tooltip="Concluir"><i class="fa-solid fa-check"></i></button>`:''}
+          <button class="action-btn" onclick="editAct('${a.id}')" data-tooltip="Editar"><i class="fa-solid fa-pen"></i></button>
+          <button class="action-btn danger" onclick="deleteAct('${a.id}')" data-tooltip="Excluir"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Atualiza filtro de projeto
+  const fp_el = document.getElementById('f-projeto');
+  if (fp_el && fp_el.options.length <= 1) {
+    projects.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.name; o.textContent = p.name;
+      fp_el.appendChild(o);
+    });
+  }
+}
+
+function sortActs(field) {
+  if (sortField === field) sortDir *= -1;
+  else { sortField = field; sortDir = 1; }
+  renderAtividades();
+}
+
+function clearFilters() {
+  document.getElementById('f-projeto').value = '';
+  document.getElementById('f-status').value  = '';
+  renderAtividades();
+}
+
+/* ══════════════════════════════════════════════════
+   KANBAN
+══════════════════════════════════════════════════ */
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+
+  const cols = [
+    { key:'Pendente',    label:'Pendente',    color:'#64748b', dot:'#3b82f6' },
+    { key:'Em Andamento',label:'Em Andamento',color:'#d97706', dot:'#d97706' },
+    { key:'Reprogramado',label:'Reprogramado',color:'#7c3aed', dot:'#7c3aed' },
+    { key:'Concluído',   label:'Concluído',   color:'#059669', dot:'#059669' },
+  ];
+
+  board.innerHTML = cols.map(col => {
+    const cards = activities.filter(a => a.status === col.key);
+    return `<div class="kanban-col">
+      <div class="kanban-col-header">
+        <div class="kanban-dot" style="background:${col.dot}"></div>
+        <span class="kanban-col-title">${col.label}</span>
+        <span class="kanban-col-count">${cards.length}</span>
+      </div>
+      <div class="kanban-cards">
+        ${cards.length ? cards.map(a => `
+          <div class="kanban-card" onclick="editAct('${a.id}')">
+            <div class="kanban-card-title">${esc(a.description)}</div>
+            <div class="kanban-card-meta">
+              <span class="kanban-card-proj">
+                <span class="project-dot" style="background:${projColor(a.project)}"></span>
+                ${esc(a.project)}
+              </span>
+              <div class="kanban-card-avatar" title="${esc(a.responsible)}">${(a.responsible||'?')[0].toUpperCase()}</div>
+            </div>
+          </div>`).join('') : `<div style="padding:8px;text-align:center;font-size:.72rem;color:var(--text-4)">Vazio</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   PROJETOS GRID
+══════════════════════════════════════════════════ */
+function renderProjetos() {
+  const grid = document.getElementById('projetos-grid');
+  if (!grid) return;
+
+  if (!projects.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder-open"></i><p>Nenhum projeto cadastrado</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = projects.map(p => {
+    const acts = activities.filter(a => a.project === p.name);
+    const done = acts.filter(a => a.status === 'Concluído').length;
+    const pct  = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
+    const overdue = acts.filter(a => a.status === 'Vencido').length;
+
+    return `<div class="card" style="overflow:hidden">
+      <div style="height:4px;background:${p.color||'var(--blue)'}"></div>
+      <div style="padding:16px 18px">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+          <div style="flex:1">
+            <div style="font-family:var(--font-head);font-weight:700;font-size:.9rem;color:var(--text-1)">${esc(p.name)}</div>
+            <div style="font-size:.65rem;color:var(--text-4);font-family:var(--font-mono);margin-top:1px">${esc(p.code||'')}</div>
+          </div>
+          <span class="badge ${p.status==='Concluído'?'badge-green':'badge-blue'}">${esc(p.status)}</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-bottom:12px;min-height:18px">${esc(p.desc||'')}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${pct}%;background:${p.color}"></div></div>
+          <span style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;color:var(--text-3)">${pct}%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--text-3)">
+          <span><i class="fa-solid fa-list-check" style="color:var(--blue)"></i> ${acts.length} ativ.</span>
+          <span><i class="fa-solid fa-check" style="color:var(--green)"></i> ${done} concl.</span>
+          ${overdue>0?`<span><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> ${overdue} atras.</span>`:''}
+          <span style="margin-left:auto"><i class="fa-solid fa-user" style="opacity:.5"></i> ${esc(p.manager||'—')}</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px">
+        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="addActForProject('${esc(p.name)}')">
+          <i class="fa-solid fa-plus"></i> Atividade
+        </button>
+        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="editProj('${p.id}')">
+          <i class="fa-solid fa-pen"></i> Editar
+        </button>
+        <button class="action-btn danger" onclick="deleteProj('${p.id}')" data-tooltip="Excluir">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   EQUIPE
+══════════════════════════════════════════════════ */
+function renderEquipe() {
+  const grid = document.getElementById('equipe-grid');
+  if (!grid) return;
+  const people = [...new Set(activities.map(a=>a.responsible).filter(Boolean))];
+
+  grid.innerHTML = people.map((name, i) => {
+    const myActs  = activities.filter(a => a.responsible === name);
+    const done    = myActs.filter(a => a.status==='Concluído').length;
+    const overdue = myActs.filter(a => a.status==='Vencido').length;
+    const pct     = myActs.length ? Math.round((done/myActs.length)*100) : 0;
+
+    return `<div class="card">
+      <div style="padding:16px 18px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${COLORS[i%COLORS.length]},${COLORS[(i+2)%COLORS.length]});display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.95rem;flex-shrink:0">${name[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:700;font-size:.85rem;color:var(--text-1)">${esc(name)}</div>
+            <div style="font-size:.68rem;color:var(--text-4)">${myActs.length} atividades atribuídas</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <div style="flex:1;text-align:center;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;color:var(--text-1)">${myActs.length}</div>
+            <div style="font-size:.6rem;color:var(--text-4);text-transform:uppercase;letter-spacing:.05em">Total</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:8px;background:var(--green-dim);border-radius:8px;border:1px solid rgba(5,150,105,.15)">
+            <div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;color:var(--green)">${done}</div>
+            <div style="font-size:.6rem;color:var(--green);text-transform:uppercase;letter-spacing:.05em">Concluídas</div>
+          </div>
+          ${overdue>0?`<div style="flex:1;text-align:center;padding:8px;background:var(--red-dim);border-radius:8px;border:1px solid rgba(220,38,38,.15)">
+            <div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;color:var(--red)">${overdue}</div>
+            <div style="font-size:.6rem;color:var(--red);text-transform:uppercase;letter-spacing:.05em">Atrasadas</div>
+          </div>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill fill-${pct===100?'green':''}" style="width:${pct}%"></div></div>
+          <span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-4)">${pct}%</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   CRUD ATIVIDADES
+══════════════════════════════════════════════════ */
+function openModal(type) {
+  if (type === 'activity') {
+    editingActId = null;
+    document.getElementById('modal-act-title').textContent = 'Nova Atividade';
+    ['act-id','act-project','act-responsible','act-description','act-obs'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('act-start').value = todayISO();
+    document.getElementById('act-due').value   = '';
+    document.getElementById('act-status').value   = 'Pendente';
+    document.getElementById('act-progress').value = 0;
+    document.getElementById('modal-activity').classList.add('open');
+    setTimeout(()=>document.getElementById('act-description')?.focus(),100);
+  } else {
+    editingProjId = null;
+    document.getElementById('modal-proj-title').textContent = 'Novo Projeto';
+    ['proj-id','proj-name','proj-code','proj-desc','proj-manager'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('proj-status').value = 'Em andamento';
+    document.getElementById('proj-start').value  = todayISO();
+    document.getElementById('proj-end').value    = '';
+    selectColor(COLORS[Math.floor(Math.random()*COLORS.length)]);
+    document.getElementById('modal-project').classList.add('open');
+    setTimeout(()=>document.getElementById('proj-name')?.focus(),100);
+  }
+}
+
+function editAct(id) {
+  const a = activities.find(x=>x.id===id);
+  if (!a) return;
+  editingActId = id;
+  document.getElementById('modal-act-title').textContent = 'Editar Atividade';
+  document.getElementById('act-id').value          = a.id;
+  document.getElementById('act-project').value     = a.project||'';
+  document.getElementById('act-responsible').value = a.responsible||'';
+  document.getElementById('act-description').value = a.description||'';
+  document.getElementById('act-start').value       = a.startDate||'';
+  document.getElementById('act-due').value         = a.dueDate||'';
+  document.getElementById('act-status').value      = a.status||'Pendente';
+  document.getElementById('act-progress').value    = a.progress||0;
+  document.getElementById('act-obs').value         = a.obs||'';
+  document.getElementById('modal-activity').classList.add('open');
+}
+
+function saveActivity() {
+  const proj = document.getElementById('act-project').value.trim();
+  const desc = document.getElementById('act-description').value.trim();
+  const resp = document.getElementById('act-responsible').value.trim();
+  if (!proj) return toast('Projeto é obrigatório', 'error');
+  if (!desc) return toast('Título é obrigatório', 'error');
+
+  const data = {
+    project:     proj,
+    description: desc,
+    responsible: resp,
+    startDate:   document.getElementById('act-start').value,
+    dueDate:     document.getElementById('act-due').value,
+    status:      document.getElementById('act-status').value,
+    progress:    parseInt(document.getElementById('act-progress').value)||0,
+    obs:         document.getElementById('act-obs').value.trim(),
+    isCritical:  false,
+    duration:    '',
+  };
+
+  if (editingActId) {
+    const idx = activities.findIndex(a=>a.id===editingActId);
+    if (idx>=0) activities[idx] = { ...activities[idx], ...data };
+    toast('✓ Atividade atualizada', 'success');
+  } else {
+    activities.push({ id:uid(), ...data });
+    toast('✓ Atividade criada', 'success');
+  }
+
+  // Garante projeto na lista
+  if (!projects.find(p=>p.name===proj)) {
+    const color = COLORS[projects.length % COLORS.length];
+    projects.push({ id:uid(), name:proj, code:'', desc:'', manager:'', status:'Em andamento', startDate:todayISO(), endDate:'', color, progress:0 });
+    PROJECT_COLORS_MAP[proj] = color;
+  }
+
+  save();
+  closeModal('modal-activity');
+  renderAll();
+}
+
+function completeAct(id) {
+  const a = activities.find(x=>x.id===id);
+  if (!a) return;
+  a.status = 'Concluído';
+  a.progress = 100;
+  save(); renderAll();
+  toast('✓ Atividade concluída!', 'success');
+}
+
+function deleteAct(id) {
+  if (!confirm('Excluir esta atividade?')) return;
+  activities = activities.filter(a=>a.id!==id);
+  save(); renderAll();
+  toast('Atividade excluída', 'info');
+}
+
+function addActForProject(projName) {
+  openModal('activity');
+  setTimeout(()=>{ document.getElementById('act-project').value = projName; },80);
+}
+
+/* ══════════════════════════════════════════════════
+   CRUD PROJETOS
+══════════════════════════════════════════════════ */
+function editProj(id) {
+  const p = projects.find(x=>x.id===id);
+  if (!p) return;
+  editingProjId = id;
+  document.getElementById('modal-proj-title').textContent = 'Editar Projeto';
+  document.getElementById('proj-id').value      = p.id;
+  document.getElementById('proj-name').value    = p.name||'';
+  document.getElementById('proj-code').value    = p.code||'';
+  document.getElementById('proj-desc').value    = p.desc||'';
+  document.getElementById('proj-manager').value = p.manager||'';
+  document.getElementById('proj-status').value  = p.status||'Em andamento';
+  document.getElementById('proj-start').value   = p.startDate||'';
+  document.getElementById('proj-end').value     = p.endDate||'';
+  selectColor(p.color||COLORS[0]);
+  document.getElementById('modal-project').classList.add('open');
+}
+
+function saveProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  const mgr  = document.getElementById('proj-manager').value.trim();
+  if (!name) return toast('Nome é obrigatório', 'error');
+  if (!mgr)  return toast('Gestor é obrigatório', 'error');
+
+  const selectedColor = document.getElementById('color-picker').dataset.selected || COLORS[0];
+  const data = {
+    name,
+    code:      document.getElementById('proj-code').value.trim(),
+    desc:      document.getElementById('proj-desc').value.trim(),
+    manager:   mgr,
+    status:    document.getElementById('proj-status').value,
+    startDate: document.getElementById('proj-start').value,
+    endDate:   document.getElementById('proj-end').value,
+    color:     selectedColor,
+  };
+
+  if (editingProjId) {
+    const idx = projects.findIndex(p=>p.id===editingProjId);
+    if (idx>=0) { projects[idx]={...projects[idx],...data}; PROJECT_COLORS_MAP[name]=selectedColor; }
+    toast('✓ Projeto atualizado', 'success');
+  } else {
+    projects.push({ id:uid(), progress:0, ...data });
+    PROJECT_COLORS_MAP[name] = selectedColor;
+    toast('✓ Projeto criado', 'success');
+  }
+
+  save();
+  closeModal('modal-project');
+  renderAll();
+}
+
+function deleteProj(id) {
+  const p = projects.find(x=>x.id===id);
+  if (!p) return;
+  if (!confirm(`Excluir projeto "${p.name}"?`)) return;
+  projects = projects.filter(x=>x.id!==id);
+  save(); renderAll();
+  toast('Projeto excluído', 'info');
+}
+
+function buildColorPicker() {
+  const el = document.getElementById('color-picker');
+  if (!el) return;
+  el.innerHTML = COLORS.map(c => `
+    <div onclick="selectColor('${c}')" style="width:22px;height:22px;border-radius:6px;background:${c};cursor:pointer;transition:transform .15s;box-shadow:0 1px 3px rgba(0,0,0,.2)" data-color="${c}" title="${c}"></div>
+  `).join('');
+  selectColor(COLORS[0]);
+}
+
+function selectColor(color) {
+  const el = document.getElementById('color-picker');
+  if (!el) return;
+  el.dataset.selected = color;
+  el.querySelectorAll('[data-color]').forEach(d => {
+    d.style.transform = d.dataset.color === color ? 'scale(1.25)' : 'scale(1)';
+    d.style.outline   = d.dataset.color === color ? `2px solid ${color}` : 'none';
+    d.style.outlineOffset = '2px';
+  });
+}
+
+function updateProjectsDatalist() {
+  const dl = document.getElementById('projects-datalist');
+  if (!dl) return;
+  dl.innerHTML = projects.map(p => `<option value="${esc(p.name)}">`).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   UI HELPERS
+══════════════════════════════════════════════════ */
+function switchView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-'+name)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el?.classList.add('active');
+  const titles = { dashboard:'Dashboard', atividades:'Atividades', kanban:'Kanban', projetos:'Projetos', equipe:'Equipe', graficos:'Gráficos' };
+  document.getElementById('page-title').textContent = titles[name]||name;
+  if (name==='graficos') { renderFullCharts(); }
+  if (name==='kanban')   { renderKanban(); }
+  if (name==='equipe')   { renderEquipe(); }
+  if (name==='projetos') { renderProjetos(); }
+}
+
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function closeModalOutside(e, id) {
+  if (e.target.id === id) closeModal(id);
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.dataset.theme === 'dark';
+  html.dataset.theme = dark ? 'light' : 'dark';
+  document.getElementById('theme-icon').className = dark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  // Redraw charts
+  if (chartProj) { chartProj.destroy(); chartProj=null; }
+  if (chartDonut){ chartDonut.destroy(); chartDonut=null; }
+  renderCharts();
+}
+
+function toggleNotif() {
+  const list = activities.filter(a=>a.status==='Vencido');
+  if (!list.length) { toast('✓ Nenhuma atividade vencida', 'success'); return; }
+  toast(`⚠ ${list.length} atividade(s) vencida(s)`, 'warning');
+}
+
+let _toastT;
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  const icons = { success:'fa-check', error:'fa-xmark', warning:'fa-triangle-exclamation', info:'fa-info' };
+  el.innerHTML = `<i class="fa-solid ${icons[type]||'fa-info'}"></i> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(20px)'; setTimeout(()=>el.remove(),300); }, 3500);
+}
+</script>
 </body>
 </html>
