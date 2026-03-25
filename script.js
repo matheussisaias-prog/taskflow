@@ -1256,13 +1256,15 @@ function loadWAConfig() {
 }
 
 window.saveWAConfig = function saveWAConfig() {
-  const token  = document.getElementById('wa-apikey').value.trim();
-  const chatId = document.getElementById('wa-phone').value.trim();
-  const auto   = document.getElementById('wa-auto').value;
+  const token   = document.getElementById('wa-apikey').value.trim();
+  const chatId  = document.getElementById('wa-phone').value.trim();
+  const auto    = document.getElementById('wa-auto').value;
+  const company = (document.getElementById('wa-company')?.value || '').trim();
   if (!token)  return showToast('⚠ Cole o Token do bot', 'warning');
   if (!chatId) return showToast('⚠ Detecte ou informe o Chat ID', 'warning');
-  const cfg = { phone: chatId, apikey: token, auto };
+  const cfg = { phone: chatId, apikey: token, auto, company };
   localStorage.setItem(WA_CONFIG_KEY, JSON.stringify(cfg));
+  if (company) localStorage.setItem('taskflow_brand', JSON.stringify({ name: company }));
   closeWAConfig();
   showToast('✅ Telegram configurado!', 'success');
 }
@@ -1394,19 +1396,24 @@ async function sendOverdueAlerts(cfg, triggeredBy = 'auto') {
 }
 
 function scheduleAutoAlerts() {
-  const cfg = loadWAConfig();
-  if (cfg.auto === '1') sendOverdueAlerts(cfg, 'startup');
+  // Roda a cada 30 minutos — envia apenas se passou 30min desde o último envio
   setInterval(() => {
     const c = loadWAConfig();
-    if (c.auto === '1') sendOverdueAlerts(c, 'hourly');
-  }, 60 * 60 * 1000);
+    if (c.auto !== '1') return;
+    const last = parseInt(localStorage.getItem('taskflow_wa_last_sent') || '0');
+    if ((Date.now() - last) >= 30 * 60 * 1000) {
+      sendOverdueAlerts(c, 'interval');
+    }
+  }, 30 * 60 * 1000);
 }
 
 window.openWAConfig = function openWAConfig() {
   const cfg = loadWAConfig();
-  document.getElementById('wa-apikey').value = cfg.apikey || '';
-  document.getElementById('wa-phone').value  = cfg.phone  || '';
-  document.getElementById('wa-auto').value   = cfg.auto   || '1';
+  document.getElementById('wa-apikey').value = cfg.apikey  || '';
+  document.getElementById('wa-phone').value  = cfg.phone   || '';
+  document.getElementById('wa-auto').value   = cfg.auto    || '1';
+  const compEl = document.getElementById('wa-company');
+  if (compEl) compEl.value = cfg.company || '';
   document.getElementById('wa-status-msg').style.display = 'none';
   document.getElementById('wa-config-overlay').classList.add('open');
 }
@@ -1740,11 +1747,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wa-dot').classList.remove('hidden');
     scheduleAutoAlerts();
 
-    // Alerta ao abrir o sistema
+    // Alerta ao abrir — só envia se passou 30min desde o último
     if (waCfg.auto === '1') {
       const lastSent = parseInt(localStorage.getItem('taskflow_wa_last_sent') || '0');
-      const horaPassou = (Date.now() - lastSent) > 60 * 60 * 1000; // 1h
-      if (horaPassou) {
+      if ((Date.now() - lastSent) >= 30 * 60 * 1000) {
         setTimeout(() => sendOverdueAlerts(waCfg, 'startup'), 3000);
       }
     }

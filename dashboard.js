@@ -369,7 +369,19 @@ function renderUpcoming() {
   if (!wrap) return;
 
   // Suporta tanto state.activities (script.js) quanto outros nomes
-  const allActs = (state && state.activities) ? state.activities : [];
+  // Tenta várias fontes possíveis para as atividades
+  let allActs = [];
+  if (typeof state !== 'undefined' && Array.isArray(state.activities) && state.activities.length > 0) {
+    allActs = state.activities;
+  } else if (typeof window.state !== 'undefined' && Array.isArray(window.state.activities)) {
+    allActs = window.state.activities;
+  } else {
+    // Fallback: lê direto do localStorage
+    try {
+      const raw = localStorage.getItem('taskflow_activities');
+      if (raw) allActs = JSON.parse(raw);
+    } catch(_) {}
+  }
 
   // Pega TODAS as atividades não concluídas, com ou sem data
   // Ordena: com data primeiro (pela mais próxima), sem data no final
