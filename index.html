@@ -38,7 +38,8 @@
   --text-3:     #64748b;
   --text-4:     #94a3b8;
 
-  --sidebar-w:  240px;
+  --sidebar-w:  56px;
+  --sidebar-w-expanded: 240px;
   --header-h:   60px;
   --radius:     12px;
   --radius-sm:  8px;
@@ -98,8 +99,50 @@ body {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   z-index: 100;
-  transition: width var(--trans);
+  transition: width .22s cubic-bezier(.4,0,.2,1);
   overflow: hidden;
+}
+
+.sidebar:hover {
+  width: var(--sidebar-w-expanded);
+  box-shadow: 4px 0 24px rgba(0,0,0,.18);
+}
+
+/* labels ocultas quando recolhido */
+.logo-name, .logo-version,
+.sidebar-section-label,
+.nav-item > span:not(.nav-icon),
+.nav-badge,
+.user-name, .user-role {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: max-width .22s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+  display: inline-block;
+}
+
+.sidebar-section-label {
+  display: block;
+}
+
+/* exibe ao hover */
+.sidebar:hover .logo-name,
+.sidebar:hover .logo-version,
+.sidebar:hover .nav-item > span:not(.nav-icon),
+.sidebar:hover .nav-badge,
+.sidebar:hover .user-name,
+.sidebar:hover .user-role {
+  max-width: 180px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar:hover .sidebar-section-label {
+  max-width: 200px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .sidebar-logo {
@@ -107,10 +150,12 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 18px;
+  padding: 0 13px;
   border-bottom: 1px solid rgba(255,255,255,.07);
   flex-shrink: 0;
 }
+
+.sidebar:hover .sidebar-logo { padding: 0 18px; }
 
 .logo-mark {
   width: 30px; height: 30px;
@@ -174,6 +219,7 @@ body {
   text-decoration: none;
   position: relative;
   margin-bottom: 1px;
+  justify-content: flex-start;
 }
 
 .nav-item:hover {
@@ -220,6 +266,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   transition: background var(--trans);
+  justify-content: flex-start;
 }
 
 .user-card:hover { background: rgba(255,255,255,.07); }
@@ -251,6 +298,7 @@ body {
 ═══════════════════════════════════════════════ */
 .main-wrap {
   margin-left: var(--sidebar-w);
+  transition: margin-left .22s cubic-bezier(.4,0,.2,1);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1284,6 +1332,88 @@ select.form-control { cursor: pointer; }
 }
 
 /* ═══════════════════════════════════════════════
+   GANTT
+═══════════════════════════════════════════════ */
+.gantt-wrap { overflow-x: auto; }
+.gantt-table { width: 100%; border-collapse: collapse; font-size: .76rem; }
+.gantt-table th { background: var(--surface2); color: var(--text-3); font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.gantt-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.gantt-table tbody tr:hover td { background: var(--surface2); }
+.gantt-bar-cell { min-width: 500px; position: relative; padding: 0 !important; }
+.gantt-bar-bg { height: 44px; position: relative; }
+.gantt-bar { position: absolute; height: 20px; top: 12px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: .6rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.15); transition: opacity .15s; cursor: pointer; }
+.gantt-bar:hover { opacity: .85; filter: brightness(1.1); }
+.gantt-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(220,38,38,.6); z-index: 2; pointer-events: none; }
+.gantt-header-months { display: flex; border-bottom: 1px solid var(--border); }
+.gantt-month { flex-shrink: 0; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); padding: 6px 8px; border-right: 1px dashed var(--border); }
+
+/* ═══════════════════════════════════════════════
+   CALENDARIO
+═══════════════════════════════════════════════ */
+.cal-wrap { padding: 16px 20px; }
+.cal-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.cal-title { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; color: var(--text-1); flex: 1; letter-spacing: -.3px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day-header { text-align: center; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); padding: 6px 0; }
+.cal-day { min-height: 80px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px; transition: background var(--trans); }
+.cal-day:hover { background: var(--blue-dim); border-color: rgba(37,99,235,.2); }
+.cal-day.today { border-color: var(--blue); background: var(--blue-dim); }
+.cal-day.other-month { opacity: .35; }
+.cal-day-num { font-size: .72rem; font-weight: 700; color: var(--text-2); margin-bottom: 3px; }
+.cal-day.today .cal-day-num { color: var(--blue); }
+.cal-event { font-size: .58rem; background: var(--blue); color: #fff; border-radius: 3px; padding: 1px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-event.ev-red    { background: var(--red); }
+.cal-event.ev-green  { background: var(--green); }
+.cal-event.ev-amber  { background: var(--amber); }
+.cal-event.ev-purple { background: var(--purple); }
+
+/* ═══════════════════════════════════════════════
+   PORTFOLIO
+═══════════════════════════════════════════════ */
+.portfolio-timeline { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.pf-tl-header { display: flex; border-bottom: 2px solid var(--border); }
+.pf-tl-names { width: 200px; min-width: 200px; border-right: 2px solid var(--border); flex-shrink: 0; }
+.pf-tl-months { flex: 1; display: flex; overflow: hidden; }
+.pf-tl-month { flex-shrink: 0; border-right: 1px solid var(--border); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-4); display: flex; align-items: center; padding: 0 8px; height: 32px; }
+.pf-tl-row { display: flex; border-bottom: 1px solid var(--border); min-height: 50px; align-items: center; }
+.pf-tl-row:last-child { border-bottom: none; }
+.pf-tl-name-cell { width: 200px; min-width: 200px; border-right: 2px solid var(--border); padding: 8px 12px; flex-shrink: 0; }
+.pf-tl-proj-name { font-size: .78rem; font-weight: 700; color: var(--text-1); }
+.pf-tl-proj-meta { font-size: .62rem; color: var(--text-4); }
+.pf-tl-bars { flex: 1; position: relative; height: 50px; }
+.pf-bar { position: absolute; height: 20px; top: 15px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: .58rem; color: #fff; font-weight: 700; overflow: hidden; }
+.pf-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(220,38,38,.5); z-index: 2; }
+
+/* ═══════════════════════════════════════════════
+   RECURSOS HEATMAP
+═══════════════════════════════════════════════ */
+.recursos-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.recursos-table th { background: var(--surface2); font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: center; }
+.recursos-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: center; vertical-align: middle; }
+.heat-cell { width: 28px; height: 28px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: .6rem; font-weight: 700; margin: 1px; }
+.heat-free   { background: rgba(5,150,105,.2);  color: var(--green); }
+.heat-warn   { background: rgba(217,119,6,.25); color: var(--amber); }
+.heat-over   { background: rgba(220,38,38,.2);  color: var(--red); }
+.heat-empty  { background: var(--surface2); color: var(--text-4); }
+
+/* ═══════════════════════════════════════════════
+   IMPORTAR
+═══════════════════════════════════════════════ */
+.import-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 48px 24px; text-align: center; cursor: pointer; transition: all var(--trans); color: var(--text-4); }
+.import-drop:hover, .import-drop.dragover { border-color: var(--blue); background: var(--blue-dim); color: var(--blue); }
+.import-drop i { font-size: 2.5rem; margin-bottom: 12px; opacity: .5; display: block; }
+
+/* ═══════════════════════════════════════════════
+   HISTÓRICO
+═══════════════════════════════════════════════ */
+.hist-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.hist-item:last-child { border-bottom: none; }
+.hist-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .7rem; flex-shrink: 0; }
+.hist-body { flex: 1; }
+.hist-text { font-size: .78rem; color: var(--text-2); line-height: 1.4; }
+.hist-time { font-size: .65rem; color: var(--text-4); font-family: var(--font-mono); margin-top: 2px; }
+
+/* ═══════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════ */
 @media (max-width: 1100px) {
@@ -1293,12 +1423,8 @@ select.form-control { cursor: pointer; }
 }
 
 @media (max-width: 768px) {
-  :root { --sidebar-w: 56px; }
-  .logo-name, .logo-version, .sidebar-section-label,
-  .nav-item span:not(.nav-icon), .user-name, .user-role { display: none; }
-  .sidebar-logo { padding: 0 13px; justify-content: center; }
-  .nav-item { justify-content: center; padding: 10px; }
-  .header-search { width: 160px; }
+  :root { --sidebar-w: 48px; --sidebar-w-expanded: 220px; }
+  .header-search { width: 140px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>
@@ -1341,6 +1467,22 @@ select.form-control { cursor: pointer; }
   </div>
 
   <div class="sidebar-section">
+    <div class="sidebar-section-label">Visualizações</div>
+    <a class="nav-item" onclick="switchView('gantt', this)" data-tooltip="Gantt">
+      <span class="nav-icon"><i class="fa-solid fa-bars-staggered"></i></span>
+      <span>Gantt</span>
+    </a>
+    <a class="nav-item" onclick="switchView('portfolio', this)" data-tooltip="Portfólio">
+      <span class="nav-icon"><i class="fa-solid fa-layer-group"></i></span>
+      <span>Portfólio</span>
+    </a>
+    <a class="nav-item" onclick="switchView('recursos', this)" data-tooltip="Recursos">
+      <span class="nav-icon"><i class="fa-solid fa-users-gear"></i></span>
+      <span>Recursos</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
     <div class="sidebar-section-label">Analytics</div>
     <a class="nav-item" onclick="switchView('equipe', this)" data-tooltip="Equipe">
       <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
@@ -1349,6 +1491,30 @@ select.form-control { cursor: pointer; }
     <a class="nav-item" onclick="switchView('graficos', this)" data-tooltip="Gráficos">
       <span class="nav-icon"><i class="fa-solid fa-chart-bar"></i></span>
       <span>Gráficos</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Calendários</div>
+    <a class="nav-item" onclick="switchView('cal-atividades', this)" data-tooltip="Cal. Atividades">
+      <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+      <span>Cal. Atividades</span>
+    </a>
+    <a class="nav-item" onclick="switchView('cal-equipe', this)" data-tooltip="Cal. Equipe">
+      <span class="nav-icon"><i class="fa-solid fa-calendar-check"></i></span>
+      <span>Cal. Equipe</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Sistema</div>
+    <a class="nav-item" onclick="switchView('importar', this)" data-tooltip="Importar">
+      <span class="nav-icon"><i class="fa-solid fa-file-import"></i></span>
+      <span>Importar</span>
+    </a>
+    <a class="nav-item" onclick="switchView('historico', this)" data-tooltip="Histórico">
+      <span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+      <span>Histórico</span>
     </a>
   </div>
 
@@ -1381,6 +1547,9 @@ select.form-control { cursor: pointer; }
     <button class="header-btn" id="notif-btn" onclick="toggleNotif()" data-tooltip="Notificações">
       <i class="fa-solid fa-bell"></i>
       <span class="notif-dot" id="notif-dot"></span>
+    </button>
+    <button class="header-btn" onclick="openModal('modal-config-cal')" data-tooltip="Configurar Calendário / Feriados">
+      <i class="fa-solid fa-calendar-days" style="color:var(--amber)"></i>
     </button>
     <button class="header-btn" id="tg-btn" onclick="openTelegramModal()" data-tooltip="Configurar Telegram" style="position:relative">
       <i class="fa-brands fa-telegram" style="color:#2ca5e0"></i>
@@ -1607,6 +1776,147 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
+    <!-- ══════════════════ GANTT ══════════════════ -->
+    <div class="view" id="view-gantt">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-bars-staggered" style="color:var(--blue);font-size:.85rem"></i>
+          <span class="card-title">Cronograma Gantt</span>
+          <span class="card-subtitle" id="gantt-range"></span>
+        </div>
+        <div class="gantt-wrap" id="gantt-wrap">
+          <div style="padding:32px;text-align:center;color:var(--text-4)">Carregando Gantt...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ PORTFÓLIO ══════════════════ -->
+    <div class="view" id="view-portfolio">
+      <div class="section-hd"><span class="section-hd-title">Portfólio de Projetos</span></div>
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="pf-kpis"></div>
+      <!-- Timeline -->
+      <div class="portfolio-timeline" id="pf-timeline"></div>
+    </div>
+
+    <!-- ══════════════════ RECURSOS ══════════════════ -->
+    <div class="view" id="view-recursos">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-users-gear" style="color:var(--purple);font-size:.85rem"></i>
+          <span class="card-title">Conflito de Recursos</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn-secondary" style="font-size:.72rem" onclick="setRecPeriod(4)">4 sem</button>
+            <button class="btn-secondary" style="font-size:.72rem" onclick="setRecPeriod(8)">8 sem</button>
+            <button class="btn-secondary" style="font-size:.72rem" onclick="setRecPeriod(12)">12 sem</button>
+          </div>
+        </div>
+        <div style="padding:6px 14px;display:flex;gap:16px;border-bottom:1px solid var(--border);font-size:.68rem;color:var(--text-3)">
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(5,150,105,.3);display:inline-block"></span>Livre (&lt;70%)</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(217,119,6,.4);display:inline-block"></span>Atenção (70-99%)</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(220,38,38,.35);display:inline-block"></span>Sobrecarregado (≥100%)</span>
+        </div>
+        <div class="table-wrap" id="recursos-wrap"></div>
+        <div style="padding:14px 20px;border-top:1px solid var(--border)">
+          <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-bottom:8px">Conflitos detectados</div>
+          <div id="conflitos-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ CAL. ATIVIDADES ══════════════════ -->
+    <div class="view" id="view-cal-atividades">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-calendar-days" style="color:var(--blue);font-size:.85rem"></i>
+          <span class="card-title">Calendário de Atividades</span>
+        </div>
+        <div class="cal-wrap" id="cal-ativ-wrap"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ CAL. EQUIPE ══════════════════ -->
+    <div class="view" id="view-cal-equipe">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-calendar-check" style="color:var(--green);font-size:.85rem"></i>
+          <span class="card-title">Calendário da Equipe</span>
+          <div style="margin-left:auto">
+            <select class="filter-select" id="cal-eq-pessoa" onchange="renderCalEquipe()">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <div class="cal-wrap" id="cal-equipe-wrap"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ IMPORTAR ══════════════════ -->
+    <div class="view" id="view-importar">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-file-import" style="color:var(--blue);font-size:.85rem"></i>
+            <span class="card-title">Importar CSV / JSON</span>
+          </div>
+          <div class="card-body">
+            <div class="import-drop" id="import-drop" onclick="document.getElementById('import-file').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleImportDrop(event)">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <div style="font-size:.85rem;font-weight:600;color:var(--text-2);margin-bottom:4px">Arraste um arquivo ou clique para selecionar</div>
+              <div style="font-size:.72rem">Suporta .csv e .json</div>
+            </div>
+            <input type="file" id="import-file" accept=".csv,.json" style="display:none" onchange="handleImportFile(event)"/>
+            <div id="import-preview" style="margin-top:14px;display:none">
+              <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-bottom:8px">Preview</div>
+              <div id="import-preview-content"></div>
+              <div style="margin-top:12px;display:flex;gap:8px">
+                <button class="btn-primary" onclick="confirmImport()"><i class="fa-solid fa-check"></i> Importar</button>
+                <button class="btn-secondary" onclick="cancelImport()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-file-export" style="color:var(--green);font-size:.85rem"></i>
+            <span class="card-title">Exportar Dados</span>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn-secondary" onclick="exportJSON()" style="justify-content:flex-start">
+              <i class="fa-solid fa-file-code" style="color:var(--amber)"></i> Exportar JSON (backup completo)
+            </button>
+            <button class="btn-secondary" onclick="exportCSV()" style="justify-content:flex-start">
+              <i class="fa-solid fa-file-csv" style="color:var(--green)"></i> Exportar CSV (atividades)
+            </button>
+            <div style="padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);font-size:.72rem;color:var(--text-3)">
+              <strong style="color:var(--text-2)">Formato CSV esperado:</strong><br/>
+              <code style="font-family:var(--font-mono);font-size:.65rem">projeto, titulo, responsavel, inicio, termino, status, progresso</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ HISTÓRICO ══════════════════ -->
+    <div class="view" id="view-historico">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-3);font-size:.85rem"></i>
+          <span class="card-title">Histórico de Alterações</span>
+          <div style="margin-left:auto">
+            <button class="btn-secondary" style="font-size:.72rem;color:var(--red)" onclick="clearHistory()">
+              <i class="fa-solid fa-trash"></i> Limpar
+            </button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 20px">
+          <div id="hist-list">
+            <div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>Nenhuma alteração registrada</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /page-content -->
 </div><!-- /main-wrap -->
 
@@ -1636,15 +1946,31 @@ select.form-control { cursor: pointer; }
         <label class="form-label">Título / Descrição <span class="req">*</span></label>
         <input class="form-control" id="act-description" placeholder="Ex: Compra de materiais, Montagem da estrutura..."/>
       </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Data de Início</label>
-          <input class="form-control" type="date" id="act-start"/>
+      <!-- Calculadora de prazo -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+          <i class="fa-solid fa-calculator" style="color:var(--blue);font-size:.8rem"></i>
+          <span style="font-size:.75rem;font-weight:700;color:var(--text-2)">Calculadora de Prazo</span>
+          <span style="font-size:.65rem;color:var(--text-4);margin-left:auto">9h/dia · exclui finais de semana e feriados</span>
         </div>
-        <div class="form-group">
-          <label class="form-label">Data de Término <span class="req">*</span></label>
-          <input class="form-control" type="date" id="act-due"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Início <span class="req">*</span></label>
+            <input class="form-control" type="date" id="act-start" oninput="calcPrazo()"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Duração (horas)</label>
+            <input class="form-control" type="number" id="act-duration-h" min="1" placeholder="Ex: 45" oninput="calcPrazo()" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Término</label>
+            <input class="form-control" type="date" id="act-due" oninput="calcDurFromDates()"/>
+          </div>
+          <button class="btn-secondary" onclick="event.preventDefault();calcPrazo()" style="height:34px;flex-shrink:0;padding:0 10px" title="Recalcular">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
         </div>
+        <div id="calc-result" style="margin-top:8px;font-size:.72rem;color:var(--text-3);display:none"></div>
       </div>
       <div class="form-grid">
         <div class="form-group">
@@ -1730,6 +2056,75 @@ select.form-control { cursor: pointer; }
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-project')">Cancelar</button>
       <button class="btn-primary" onclick="saveProject()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FERIADOS / CONFIGURAÇÕES DE CALENDÁRIO -->
+<div class="modal-overlay" id="modal-config-cal" onclick="closeModalOutside(event,'modal-config-cal')">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <i class="fa-solid fa-calendar-xmark" style="color:var(--red);font-size:1rem"></i>
+      <span class="modal-title">Configurações de Calendário</span>
+      <button class="modal-close" onclick="closeModal('modal-config-cal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Horas por dia -->
+      <div class="form-group">
+        <label class="form-label">Horas de trabalho por dia</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input class="form-control" type="number" id="cfg-horas-dia" value="9" min="1" max="24" style="width:80px;font-family:var(--font-mono)"/>
+          <span style="font-size:.75rem;color:var(--text-3)">horas/dia útil</span>
+        </div>
+      </div>
+      <!-- Dias da semana úteis -->
+      <div class="form-group">
+        <label class="form-label">Dias úteis da semana</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="cfg-dias-semana">
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);transition:all .15s" id="lbl-dom">
+            <input type="checkbox" id="d0" value="0" onchange="updateDayLabel(0)"/> Dom
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--blue-dim);border-color:var(--blue)" id="lbl-seg">
+            <input type="checkbox" id="d1" value="1" checked onchange="updateDayLabel(1)"/> Seg
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--blue-dim);border-color:var(--blue)" id="lbl-ter">
+            <input type="checkbox" id="d2" value="2" checked onchange="updateDayLabel(2)"/> Ter
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--blue-dim);border-color:var(--blue)" id="lbl-qua">
+            <input type="checkbox" id="d3" value="3" checked onchange="updateDayLabel(3)"/> Qua
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--blue-dim);border-color:var(--blue)" id="lbl-qui">
+            <input type="checkbox" id="d4" value="4" checked onchange="updateDayLabel(4)"/> Qui
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--blue-dim);border-color:var(--blue)" id="lbl-sex">
+            <input type="checkbox" id="d5" value="5" checked onchange="updateDayLabel(5)"/> Sex
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)" id="lbl-sab">
+            <input type="checkbox" id="d6" value="6" onchange="updateDayLabel(6)"/> Sáb
+          </label>
+        </div>
+      </div>
+      <!-- Feriados -->
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px">
+          Feriados
+          <button class="btn-secondary" style="font-size:.65rem;padding:2px 8px;height:auto" onclick="loadFeriadosBR()">
+            <i class="fa-solid fa-flag"></i> Carregar feriados BR 2025/2026
+          </button>
+        </label>
+        <div id="feriados-list" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px">
+          <input class="form-control" type="date" id="novo-feriado" style="flex:1"/>
+          <input class="form-control" type="text" id="novo-feriado-nome" placeholder="Nome (ex: Carnaval)" style="flex:2"/>
+          <button class="btn-primary" onclick="addFeriado()" style="flex-shrink:0;padding:0 12px">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-config-cal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveCalConfig()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
     </div>
   </div>
 </div>
@@ -1857,6 +2252,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Telegram — inicia alertas automáticos
   scheduleTelegram();
+  // Histórico
+  loadHistory();
 });
 
 function load() {
@@ -2431,8 +2828,7 @@ function renderEquipe() {
 /* ══════════════════════════════════════════════════
    CRUD ATIVIDADES
 ══════════════════════════════════════════════════ */
-function openModal(type) {
-  if (type === 'activity') {
+window._openModalActivity = function() {
     editingActId = null;
     document.getElementById('modal-act-title').textContent = 'Nova Atividade';
     ['act-id','act-project','act-responsible','act-description','act-obs'].forEach(id => {
@@ -2444,7 +2840,8 @@ function openModal(type) {
     document.getElementById('act-progress').value = 0;
     document.getElementById('modal-activity').classList.add('open');
     setTimeout(()=>document.getElementById('act-description')?.focus(),100);
-  } else {
+};
+window._openModalProject = function() {
     editingProjId = null;
     document.getElementById('modal-proj-title').textContent = 'Novo Projeto';
     ['proj-id','proj-name','proj-code','proj-desc','proj-manager'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -2454,8 +2851,7 @@ function openModal(type) {
     selectColor(COLORS[Math.floor(Math.random()*COLORS.length)]);
     document.getElementById('modal-project').classList.add('open');
     setTimeout(()=>document.getElementById('proj-name')?.focus(),100);
-  }
-}
+};
 
 function editAct(id) {
   const a = activities.find(x=>x.id===id);
@@ -2471,6 +2867,9 @@ function editAct(id) {
   document.getElementById('act-status').value      = a.status||'Pendente';
   document.getElementById('act-progress').value    = a.progress||0;
   document.getElementById('act-obs').value         = a.obs||'';
+  const durHEl = document.getElementById('act-duration-h');
+  if (durHEl) durHEl.value = a.durationH || '';
+  document.getElementById('calc-result').style.display = 'none';
   document.getElementById('modal-activity').classList.add('open');
 }
 
@@ -2481,6 +2880,9 @@ function saveActivity() {
   if (!proj) return toast('Projeto é obrigatório', 'error');
   if (!desc) return toast('Título é obrigatório', 'error');
 
+  const horasVal = document.getElementById('act-duration-h')?.value;
+  const cfg      = loadCalCfg();
+  const durStr   = horasVal ? `${horasVal}h (${Math.ceil(parseFloat(horasVal)/(cfg.horasDia||9))}d úteis)` : '';
   const data = {
     project:     proj,
     description: desc,
@@ -2491,16 +2893,19 @@ function saveActivity() {
     progress:    parseInt(document.getElementById('act-progress').value)||0,
     obs:         document.getElementById('act-obs').value.trim(),
     isCritical:  false,
-    duration:    '',
+    duration:    durStr,
+    durationH:   parseFloat(horasVal)||0,
   };
 
   if (editingActId) {
     const idx = activities.findIndex(a=>a.id===editingActId);
     if (idx>=0) activities[idx] = { ...activities[idx], ...data };
     toast('✓ Atividade atualizada', 'success');
+    addHistory('update', `Atividade atualizada: ${data.description} (${data.project})`);
   } else {
     activities.push({ id:uid(), ...data });
     toast('✓ Atividade criada', 'success');
+    addHistory('create', `Nova atividade: ${data.description} (${data.project})`);
   }
 
   // Garante projeto na lista
@@ -2520,12 +2925,14 @@ function completeAct(id) {
   if (!a) return;
   a.status = 'Concluído';
   a.progress = 100;
+  addHistory('complete', `Atividade concluída: ${a.description} (${a.project})`);
   save(); renderAll();
   toast('✓ Atividade concluída!', 'success');
 }
 
 function deleteAct(id) {
   if (!confirm('Excluir esta atividade?')) return;
+  addHistory('delete', `Atividade excluída: ${activities.find(a=>a.id===id)?.description||id}`);
   activities = activities.filter(a=>a.id!==id);
   save(); renderAll();
   toast('Atividade excluída', 'info');
@@ -2632,12 +3039,24 @@ function switchView(name, el) {
   document.getElementById('view-'+name)?.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el?.classList.add('active');
-  const titles = { dashboard:'Dashboard', atividades:'Atividades', kanban:'Kanban', projetos:'Projetos', equipe:'Equipe', graficos:'Gráficos' };
+  const titles = {
+    dashboard:'Dashboard', atividades:'Atividades', kanban:'Kanban',
+    projetos:'Projetos', equipe:'Equipe', graficos:'Gráficos',
+    gantt:'Gantt', portfolio:'Portfólio', recursos:'Recursos',
+    'cal-atividades':'Calendário de Atividades', 'cal-equipe':'Calendário da Equipe',
+    importar:'Importar / Exportar', historico:'Histórico'
+  };
   document.getElementById('page-title').textContent = titles[name]||name;
-  if (name==='graficos') { renderFullCharts(); }
-  if (name==='kanban')   { renderKanban(); }
-  if (name==='equipe')   { renderEquipe(); }
-  if (name==='projetos') { renderProjetos(); }
+  if (name==='graficos')        renderFullCharts();
+  if (name==='kanban')          renderKanban();
+  if (name==='equipe')          renderEquipe();
+  if (name==='projetos')        renderProjetos();
+  if (name==='gantt')           renderGantt();
+  if (name==='portfolio')       renderPortfolio();
+  if (name==='recursos')        renderRecursos();
+  if (name==='cal-atividades')  renderCalAtiv();
+  if (name==='cal-equipe')      renderCalEquipe();
+  if (name==='historico')       renderHistorico();
 }
 
 function closeModal(id) {
@@ -2858,6 +3277,771 @@ function toast(msg, type='info') {
   wrap.appendChild(el);
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(20px)'; setTimeout(()=>el.remove(),300); }, 3500);
 }
+
+/* ══════════════════════════════════════════════════
+   GANTT
+══════════════════════════════════════════════════ */
+function renderGantt() {
+  const wrap = document.getElementById('gantt-wrap');
+  if (!wrap) return;
+
+  const acts = [...activities].filter(a => a.startDate || a.dueDate);
+  if (!acts.length) { wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade com datas</p></div>'; return; }
+
+  // Calcular range de datas
+  const allDates = acts.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+  const minDate = new Date(allDates[0] + 'T00:00:00');
+  const maxDate = new Date(allDates[allDates.length-1] + 'T00:00:00');
+  maxDate.setDate(maxDate.getDate() + 14);
+  minDate.setDate(minDate.getDate() - 7);
+  const totalDays = Math.round((maxDate - minDate) / 86400000);
+  const pxPerDay = 5;
+  const totalW = totalDays * pxPerDay;
+
+  document.getElementById('gantt-range').textContent = `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
+
+  // Header meses
+  let monthsHtml = '';
+  let cur = new Date(minDate);
+  while (cur < maxDate) {
+    const start = new Date(cur);
+    const end   = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    const days  = Math.round(Math.min(end,maxDate) - start) / 86400000;
+    const w     = days * pxPerDay;
+    const mLabel = start.toLocaleDateString('pt-BR', { month:'short', year:'2-digit' });
+    monthsHtml += `<div class="gantt-month" style="width:${w}px">${mLabel}</div>`;
+    cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+  }
+
+  // Today line
+  const todayOffset = Math.round((new Date() - minDate) / 86400000);
+  const todayLeft   = todayOffset * pxPerDay;
+
+  // Rows
+  const rows = acts.map((a,i) => {
+    const sd   = a.startDate ? new Date(a.startDate+'T00:00:00') : new Date(a.dueDate+'T00:00:00');
+    const ed   = a.dueDate   ? new Date(a.dueDate+'T00:00:00')   : sd;
+    const left = Math.max(0, Math.round((sd - minDate)/86400000)) * pxPerDay;
+    const w    = Math.max(4, Math.round((ed - sd)/86400000 + 1)) * pxPerDay;
+    const pct  = a.progress || 0;
+    const color = projColor(a.project);
+
+    let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído'?.6:1}`;
+    const diff = diffDays(a.dueDate);
+    if (diff < 0 && a.status !== 'Concluído') barStyle += ';background:var(--red)';
+
+    return `<tr>
+      <td style="min-width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text-1)">${esc(a.description)}</td>
+      <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${color}"></span>${esc(a.project)}</span></td>
+      <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3)">${fmtDate(a.startDate)}</td>
+      <td style="font-family:var(--font-mono);font-size:.68rem;color:${diffDays(a.dueDate)<0?'var(--red)':'var(--text-3)'}">${fmtDate(a.dueDate)}</td>
+      <td class="gantt-bar-cell" style="min-width:${totalW}px">
+        <div class="gantt-bar-bg" style="width:${totalW}px">
+          <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+          <div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} (${pct}%)">
+            ${pct > 0 ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.25);border-radius:4px 0 0 4px"></div>` : ''}
+            <span style="position:relative;z-index:1">${esc(a.description)}</span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="gantt-table">
+    <thead>
+      <tr>
+        <th>Atividade</th><th>Projeto</th><th>Início</th><th>Término</th>
+        <th><div style="display:flex">${monthsHtml}</div></th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* ══════════════════════════════════════════════════
+   PORTFÓLIO
+══════════════════════════════════════════════════ */
+function renderPortfolio() {
+  // KPIs
+  const kpiEl = document.getElementById('pf-kpis');
+  if (kpiEl) {
+    const total   = projects.length;
+    const ativos  = projects.filter(p=>p.status==='Em andamento').length;
+    const overAll = activities.filter(a=>a.status==='Vencido').length;
+    const concl   = activities.filter(a=>a.status==='Concluído').length;
+    const pct     = activities.length ? Math.round((concl/activities.length)*100) : 0;
+    kpiEl.innerHTML = `
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:6px">Projetos</div>
+        <div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--text-1)">${total}</div>
+        <div style="font-size:.68rem;color:var(--text-4)">${ativos} em andamento</div>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:6px">Atividades</div>
+        <div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--text-1)">${activities.length}</div>
+        <div style="font-size:.68rem;color:var(--text-4)">${concl} concluídas (${pct}%)</div>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin-bottom:6px">Vencidas</div>
+        <div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:${overAll>0?'var(--red)':'var(--green)'}">${overAll}</div>
+        <div style="font-size:.68rem;color:var(--text-4)">Requerem ação</div>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:6px">Progresso Geral</div>
+        <div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--blue)">${pct}%</div>
+        <div class="progress-bar-track" style="margin-top:6px"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }
+
+  // Timeline
+  const tlEl = document.getElementById('pf-timeline');
+  if (!tlEl || !projects.length) return;
+
+  const allDates = [...projects.flatMap(p=>[p.startDate,p.endDate].filter(Boolean))].sort();
+  if (!allDates.length) return;
+  const minD  = new Date(allDates[0]+'T00:00:00');
+  const maxD  = new Date(allDates[allDates.length-1]+'T00:00:00');
+  maxD.setDate(maxD.getDate()+30);
+  minD.setDate(minD.getDate()-14);
+  const totalDays = Math.round((maxD-minD)/86400000);
+
+  // months header
+  let months = '';
+  let cur = new Date(minD);
+  while (cur < maxD) {
+    const end  = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    const days = Math.round((Math.min(end,maxD)-cur)/86400000);
+    const pct  = (days/totalDays)*100;
+    months += `<div class="pf-tl-month" style="width:${pct}%">${cur.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
+    cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+  }
+
+  const todayPct = (Math.round((new Date()-minD)/86400000)/totalDays)*100;
+
+  const rows = projects.map(p => {
+    const acts = activities.filter(a=>a.project===p.name);
+    const done = acts.filter(a=>a.status==='Concluído').length;
+    const pPct = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
+    const sd = p.startDate ? new Date(p.startDate+'T00:00:00') : null;
+    const ed = p.endDate   ? new Date(p.endDate+'T00:00:00')   : null;
+    let barHtml = '';
+    if (sd && ed) {
+      const left = Math.max(0,(Math.round((sd-minD)/86400000)/totalDays)*100);
+      const w    = Math.min(100-left,(Math.round((ed-sd)/86400000)/totalDays)*100);
+      barHtml = `<div class="pf-bar" style="left:${left}%;width:${w}%;background:${p.color||'var(--blue)'}">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${pPct}%;background:rgba(255,255,255,.3);border-radius:4px 0 0 4px"></div>
+        <span style="position:relative;font-size:.58rem;white-space:nowrap;overflow:hidden">${esc(p.name)} ${pPct}%</span>
+      </div>`;
+    }
+    return `<div class="pf-tl-row">
+      <div class="pf-tl-name-cell">
+        <div class="pf-tl-proj-name" style="border-left:3px solid ${p.color||'var(--blue)'};padding-left:6px">${esc(p.name)}</div>
+        <div class="pf-tl-proj-meta">${esc(p.manager||'—')} · ${acts.length} ativ.</div>
+      </div>
+      <div class="pf-tl-bars">
+        <div class="pf-today-line" style="left:${todayPct}%"></div>
+        ${barHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  tlEl.innerHTML = `
+    <div class="pf-tl-header">
+      <div class="pf-tl-names" style="padding:8px 12px;font-size:.65rem;font-weight:700;color:var(--text-4);text-transform:uppercase">Projeto</div>
+      <div class="pf-tl-months" style="flex:1;display:flex">${months}</div>
+    </div>
+    ${rows}`;
+}
+
+/* ══════════════════════════════════════════════════
+   RECURSOS
+══════════════════════════════════════════════════ */
+let recPeriod = 8;
+
+function setRecPeriod(w) { recPeriod = w; renderRecursos(); }
+
+function renderRecursos() {
+  const wrap = document.getElementById('recursos-wrap');
+  const confEl = document.getElementById('conflitos-list');
+  if (!wrap) return;
+
+  const people = [...new Set(activities.map(a=>a.responsible).filter(Boolean))];
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const weeks  = [];
+  for (let i=0; i<recPeriod; i++) {
+    const ws = new Date(today); ws.setDate(today.getDate() + i*7);
+    const we = new Date(ws);    we.setDate(ws.getDate()+6);
+    weeks.push({ start:ws, end:we, label:`S${i+1}` });
+  }
+
+  const conflicts = [];
+
+  const rows = people.map(p => {
+    const cells = weeks.map(w => {
+      const myActs = activities.filter(a => {
+        if (a.responsible !== p || a.status === 'Concluído') return false;
+        if (!a.startDate && !a.dueDate) return false;
+        const sd = a.startDate ? new Date(a.startDate+'T00:00:00') : new Date(a.dueDate+'T00:00:00');
+        const ed = a.dueDate   ? new Date(a.dueDate+'T00:00:00')   : sd;
+        return sd <= w.end && ed >= w.start;
+      });
+      const load = myActs.length;
+      let cls = 'heat-empty', label = '—';
+      if (load > 0) {
+        const pct = (load/1)*100;
+        if (pct >= 200)      { cls='heat-over';  label=load; }
+        else if (pct >= 100) { cls='heat-warn';  label=load; }
+        else                  { cls='heat-free';  label=load; }
+        if (load > 2 && !conflicts.find(c=>c.person===p)) conflicts.push({ person:p, load, week:w.label });
+      }
+      return `<td><div class="heat-cell ${cls}">${label}</div></td>`;
+    }).join('');
+    return `<tr>
+      <td style="text-align:left;font-weight:600;font-size:.78rem;white-space:nowrap;min-width:120px">${esc(p)}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const heads = weeks.map(w=>`<th>${w.label}</th>`).join('');
+  wrap.innerHTML = `<table class="recursos-table">
+    <thead><tr><th style="text-align:left">Responsável</th>${heads}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  if (confEl) {
+    if (!conflicts.length) {
+      confEl.innerHTML = `<div style="font-size:.75rem;color:var(--text-4);padding:8px 0">✅ Nenhum conflito detectado.</div>`;
+    } else {
+      confEl.innerHTML = conflicts.map(c=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.75rem">
+          <span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i>Conflito</span>
+          <span style="color:var(--text-2)"><strong>${esc(c.person)}</strong> — ${c.load} atividades simultâneas (${c.week})</span>
+        </div>`).join('');
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   CALENDÁRIOS
+══════════════════════════════════════════════════ */
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function renderCalBase(containerId, actsFiltered) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+
+  const today = new Date();
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay  = new Date(calYear, calMonth+1, 0);
+  const startDow = firstDay.getDay();
+  const monthName = firstDay.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  let html = `<div class="cal-header">
+    <button class="btn-secondary" onclick="calNav(-1,'${containerId}')"><i class="fa-solid fa-chevron-left"></i></button>
+    <span class="cal-title">${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</span>
+    <button class="btn-secondary" onclick="calNav(1,'${containerId}')"><i class="fa-solid fa-chevron-right"></i></button>
+    <button class="btn-secondary" onclick="calToday('${containerId}')">Hoje</button>
+  </div>
+  <div class="cal-grid">`;
+
+  const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  html += days.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+
+  // Células vazias
+  for (let i=0; i<startDow; i++) html += `<div class="cal-day other-month"></div>`;
+
+  for (let d=1; d<=lastDay.getDate(); d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===d;
+    const dayActs = actsFiltered.filter(a => a.dueDate===dateStr || a.startDate===dateStr);
+    const evHtml  = dayActs.slice(0,3).map(a => {
+      const diff = diffDays(a.dueDate);
+      const cls  = a.status==='Concluído' ? 'ev-green' : diff<0 ? 'ev-red' : diff===0 ? 'ev-amber' : '';
+      return `<div class="cal-event ${cls}" title="${esc(a.description)}">${esc(a.description)}</div>`;
+    }).join('');
+    html += `<div class="cal-day ${isToday?'today':''}">
+      <div class="cal-day-num">${d}</div>
+      ${evHtml}
+      ${dayActs.length>3?`<div style="font-size:.55rem;color:var(--text-4)">+${dayActs.length-3} mais</div>`:''}
+    </div>`;
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function renderCalAtiv()   { renderCalBase('cal-ativ-wrap', activities); }
+function renderCalEquipe() {
+  const pessoa = document.getElementById('cal-eq-pessoa')?.value || '';
+  const filtered = pessoa ? activities.filter(a=>a.responsible===pessoa) : activities;
+  renderCalBase('cal-equipe-wrap', filtered);
+
+  // Populate select
+  const sel = document.getElementById('cal-eq-pessoa');
+  if (sel && sel.options.length <= 1) {
+    [...new Set(activities.map(a=>a.responsible).filter(Boolean))].forEach(p => {
+      const o = document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o);
+    });
+  }
+}
+
+function calNav(dir, containerId) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth=0; calYear++; }
+  if (calMonth < 0)  { calMonth=11; calYear--; }
+  if (containerId === 'cal-ativ-wrap')   renderCalAtiv();
+  else                                    renderCalEquipe();
+}
+
+function calToday(containerId) {
+  calYear  = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+  if (containerId === 'cal-ativ-wrap') renderCalAtiv();
+  else                                  renderCalEquipe();
+}
+
+/* ══════════════════════════════════════════════════
+   IMPORTAR / EXPORTAR
+══════════════════════════════════════════════════ */
+let importData = null;
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processImportFile(file);
+}
+
+function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (file) processImportFile(file);
+}
+
+function processImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      if (file.name.endsWith('.json')) {
+        importData = JSON.parse(ev.target.result);
+        showImportPreview(Array.isArray(importData) ? importData : importData.activities || []);
+      } else {
+        // CSV
+        const lines = ev.target.result.split('\n').filter(l=>l.trim());
+        const headers = lines[0].split(',').map(h=>h.trim().toLowerCase());
+        importData = lines.slice(1).map(line => {
+          const vals = line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+          const obj  = {};
+          headers.forEach((h,i) => obj[h]=vals[i]||'');
+          return {
+            id: uid(),
+            project:     obj.projeto||obj.project||'',
+            description: obj.titulo||obj.title||obj.description||'',
+            responsible: obj.responsavel||obj.responsible||'',
+            startDate:   obj.inicio||obj.start||'',
+            dueDate:     obj.termino||obj.end||obj.due||'',
+            status:      obj.status||'Pendente',
+            progress:    parseInt(obj.progresso||obj.progress||0)||0,
+            isCritical:  false, obs:'', duration:''
+          };
+        }).filter(a=>a.description);
+        showImportPreview(importData);
+      }
+    } catch(e) {
+      toast('Erro ao ler arquivo: '+e.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showImportPreview(data) {
+  const preview = document.getElementById('import-preview');
+  const content = document.getElementById('import-preview-content');
+  preview.style.display = 'block';
+  content.innerHTML = `<div style="font-size:.75rem;color:var(--text-3);margin-bottom:6px">${data.length} atividade(s) encontradas</div>` +
+    data.slice(0,5).map(a=>`<div style="font-size:.72rem;padding:4px 8px;background:var(--surface2);border-radius:4px;margin-bottom:3px;display:flex;gap:8px">
+      <span style="font-weight:600;color:var(--text-1)">${esc(a.description)}</span>
+      <span style="color:var(--text-4)">${esc(a.project)}</span>
+      <span style="color:var(--text-4)">${esc(a.dueDate)}</span>
+    </div>`).join('') +
+    (data.length>5?`<div style="font-size:.68rem;color:var(--text-4);margin-top:4px">...e mais ${data.length-5}</div>`:'');
+}
+
+function confirmImport() {
+  if (!importData) return;
+  const data = Array.isArray(importData) ? importData : importData.activities || [];
+  data.forEach(a => { if (!a.id) a.id = uid(); activities.push(a); });
+  save(); renderAll();
+  document.getElementById('import-preview').style.display = 'none';
+  importData = null;
+  toast(`✓ ${data.length} atividade(s) importadas!`, 'success');
+  addHistory('import', `${data.length} atividades importadas`);
+}
+
+function cancelImport() {
+  importData = null;
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-file').value = '';
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({activities,projects},null,2)], {type:'application/json'});
+  dlBlob(blob, 'taskflow-backup.json');
+  toast('✓ Backup exportado', 'success');
+}
+
+function exportCSV() {
+  const header = 'projeto,titulo,responsavel,inicio,termino,status,progresso';
+  const rows = activities.map(a => [a.project,a.description,a.responsible,a.startDate,a.dueDate,a.status,a.progress].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
+  const blob = new Blob([[header,...rows].join('\n')], {type:'text/csv'});
+  dlBlob(blob, 'taskflow-atividades.csv');
+  toast('✓ CSV exportado', 'success');
+}
+
+function dlBlob(blob, name) {
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+
+/* ══════════════════════════════════════════════════
+   HISTÓRICO
+══════════════════════════════════════════════════ */
+const HIST_KEY = 'tf_history';
+let history = [];
+
+function loadHistory() { try { history = JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); } catch(_) { history=[]; } }
+function saveHistory() { try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(0,200))); } catch(_){} }
+
+function addHistory(action, detail) {
+  loadHistory();
+  const icons = { create:'fa-plus', update:'fa-pen', delete:'fa-trash', complete:'fa-check', import:'fa-file-import' };
+  const colors= { create:'var(--blue)', update:'var(--amber)', delete:'var(--red)', complete:'var(--green)', import:'var(--purple)' };
+  history.unshift({ id:uid(), action, detail, ts:Date.now(), icon:icons[action]||'fa-circle', color:colors[action]||'var(--text-3)' });
+  saveHistory();
+}
+
+function renderHistorico() {
+  loadHistory();
+  const el = document.getElementById('hist-list');
+  if (!el) return;
+  if (!history.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>Nenhuma alteração registrada</p></div>';
+    return;
+  }
+  el.innerHTML = history.slice(0,50).map(h => {
+    const d = new Date(h.ts);
+    const time = d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+    return `<div class="hist-item">
+      <div class="hist-icon" style="background:${h.color}22;color:${h.color}"><i class="fa-solid ${h.icon}"></i></div>
+      <div class="hist-body">
+        <div class="hist-text">${esc(h.detail)}</div>
+        <div class="hist-time">${time}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearHistory() {
+  if (!confirm('Limpar todo o histórico?')) return;
+  history = [];
+  saveHistory();
+  renderHistorico();
+  toast('Histórico limpo', 'info');
+}
+
+window.renderCalAtiv    = renderCalAtiv;
+window.renderCalEquipe  = renderCalEquipe;
+window.calNav           = calNav;
+window.calToday         = calToday;
+window.setRecPeriod     = setRecPeriod;
+window.handleImportDrop = handleImportDrop;
+window.handleImportFile = handleImportFile;
+window.confirmImport    = confirmImport;
+window.cancelImport     = cancelImport;
+window.exportJSON       = exportJSON;
+window.exportCSV        = exportCSV;
+window.clearHistory     = clearHistory;
+
+
+/* ══════════════════════════════════════════════════
+   CONFIGURAÇÃO DE CALENDÁRIO
+══════════════════════════════════════════════════ */
+const CAL_CFG_KEY = 'tf_cal_config';
+
+const FERIADOS_BR = [
+  // 2025
+  { date:'2025-01-01', nome:'Confraternização Universal' },
+  { date:'2025-03-03', nome:'Carnaval' },
+  { date:'2025-03-04', nome:'Carnaval' },
+  { date:'2025-04-18', nome:'Sexta-feira Santa' },
+  { date:'2025-04-21', nome:'Tiradentes' },
+  { date:'2025-05-01', nome:'Dia do Trabalho' },
+  { date:'2025-06-19', nome:'Corpus Christi' },
+  { date:'2025-09-07', nome:'Independência do Brasil' },
+  { date:'2025-10-12', nome:'Nossa Senhora Aparecida' },
+  { date:'2025-11-02', nome:'Finados' },
+  { date:'2025-11-15', nome:'Proclamação da República' },
+  { date:'2025-11-20', nome:'Consciência Negra' },
+  { date:'2025-12-25', nome:'Natal' },
+  // 2026
+  { date:'2026-01-01', nome:'Confraternização Universal' },
+  { date:'2026-02-16', nome:'Carnaval' },
+  { date:'2026-02-17', nome:'Carnaval' },
+  { date:'2026-04-03', nome:'Sexta-feira Santa' },
+  { date:'2026-04-21', nome:'Tiradentes' },
+  { date:'2026-05-01', nome:'Dia do Trabalho' },
+  { date:'2026-06-04', nome:'Corpus Christi' },
+  { date:'2026-09-07', nome:'Independência do Brasil' },
+  { date:'2026-10-12', nome:'Nossa Senhora Aparecida' },
+  { date:'2026-11-02', nome:'Finados' },
+  { date:'2026-11-15', nome:'Proclamação da República' },
+  { date:'2026-11-20', nome:'Consciência Negra' },
+  { date:'2026-12-25', nome:'Natal' },
+];
+
+function loadCalCfg() {
+  try {
+    const raw = localStorage.getItem(CAL_CFG_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(_) {}
+  return {
+    horasDia: 9,
+    diasUteis: [1,2,3,4,5], // seg-sex
+    feriados: FERIADOS_BR.slice()
+  };
+}
+
+function saveCalConfig() {
+  const horasDia = parseInt(document.getElementById('cfg-horas-dia').value) || 9;
+  const diasUteis = [0,1,2,3,4,5,6].filter(d => document.getElementById('d'+d)?.checked);
+  const cfg = loadCalCfg();
+  cfg.horasDia  = horasDia;
+  cfg.diasUteis = diasUteis;
+  localStorage.setItem(CAL_CFG_KEY, JSON.stringify(cfg));
+  closeModal('modal-config-cal');
+  toast('✓ Configurações salvas!', 'success');
+}
+
+function openModal(id) {
+  if (id === 'modal-config-cal') {
+    const cfg = loadCalCfg();
+    document.getElementById('cfg-horas-dia').value = cfg.horasDia || 9;
+    // Dias da semana
+    [0,1,2,3,4,5,6].forEach(d => {
+      const el = document.getElementById('d'+d);
+      if (el) el.checked = cfg.diasUteis.includes(d);
+      updateDayLabel(d);
+    });
+    renderFeriadosList();
+    document.getElementById('modal-config-cal').classList.add('open');
+  } else if (id === 'activity') {
+    window._openModalActivity();
+  } else if (id === 'project') {
+    window._openModalProject();
+  }
+}
+
+function updateDayLabel(d) {
+  const labels = ['lbl-dom','lbl-seg','lbl-ter','lbl-qua','lbl-qui','lbl-sex','lbl-sab'];
+  const el = document.getElementById(labels[d]);
+  if (!el) return;
+  const checked = document.getElementById('d'+d)?.checked;
+  el.style.background    = checked ? 'var(--blue-dim)' : 'var(--surface2)';
+  el.style.borderColor   = checked ? 'var(--blue)'     : 'var(--border)';
+  el.style.color         = checked ? 'var(--blue)'     : 'var(--text-3)';
+}
+
+function renderFeriadosList() {
+  const cfg  = loadCalCfg();
+  const list = document.getElementById('feriados-list');
+  if (!list) return;
+  if (!cfg.feriados.length) {
+    list.innerHTML = '<div style="font-size:.72rem;color:var(--text-4);padding:6px 0">Nenhum feriado cadastrado</div>';
+    return;
+  }
+  const sorted = [...cfg.feriados].sort((a,b)=>a.date.localeCompare(b.date));
+  list.innerHTML = sorted.map((f,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">
+      <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-3)">${fmtDate(f.date)}</span>
+      <span style="font-size:.75rem;color:var(--text-2);flex:1">${esc(f.nome)}</span>
+      <button style="background:none;border:none;cursor:pointer;color:var(--text-4);font-size:.72rem;padding:2px 5px;border-radius:4px" onclick="removeFeriado('${f.date}')" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+function addFeriado() {
+  const date = document.getElementById('novo-feriado').value;
+  const nome = document.getElementById('novo-feriado-nome').value.trim();
+  if (!date) return toast('Selecione uma data', 'error');
+  const cfg = loadCalCfg();
+  if (cfg.feriados.find(f=>f.date===date)) return toast('Feriado já cadastrado', 'warning');
+  cfg.feriados.push({ date, nome: nome || 'Feriado' });
+  localStorage.setItem(CAL_CFG_KEY, JSON.stringify(cfg));
+  document.getElementById('novo-feriado').value = '';
+  document.getElementById('novo-feriado-nome').value = '';
+  renderFeriadosList();
+}
+
+function removeFeriado(date) {
+  const cfg = loadCalCfg();
+  cfg.feriados = cfg.feriados.filter(f=>f.date!==date);
+  localStorage.setItem(CAL_CFG_KEY, JSON.stringify(cfg));
+  renderFeriadosList();
+}
+
+function loadFeriadosBR() {
+  const cfg = loadCalCfg();
+  let added = 0;
+  FERIADOS_BR.forEach(f => {
+    if (!cfg.feriados.find(x=>x.date===f.date)) { cfg.feriados.push(f); added++; }
+  });
+  localStorage.setItem(CAL_CFG_KEY, JSON.stringify(cfg));
+  renderFeriadosList();
+  toast(`✓ ${added} feriado(s) carregados`, 'success');
+}
+
+window.updateDayLabel  = updateDayLabel;
+window.addFeriado      = addFeriado;
+window.removeFeriado   = removeFeriado;
+window.loadFeriadosBR  = loadFeriadosBR;
+window.saveCalConfig   = saveCalConfig;
+
+/* ══════════════════════════════════════════════════
+   CALCULADORA DE PRAZO
+══════════════════════════════════════════════════ */
+
+/** Verifica se uma data ISO é dia útil (não é fim de semana nem feriado) */
+function isDiaUtil(dateISO) {
+  const cfg  = loadCalCfg();
+  const d    = new Date(dateISO + 'T00:00:00');
+  const dow  = d.getDay(); // 0=dom...6=sab
+  if (!cfg.diasUteis.includes(dow)) return false;
+  if (cfg.feriados.find(f=>f.date===dateISO)) return false;
+  return true;
+}
+
+/** Avança N dias úteis a partir de uma data ISO */
+function addDiasUteis(startISO, nDias) {
+  const d = new Date(startISO + 'T00:00:00');
+  let count = 0;
+  while (count < nDias) {
+    d.setDate(d.getDate() + 1);
+    const iso = d.toISOString().slice(0,10);
+    if (isDiaUtil(iso)) count++;
+  }
+  return d.toISOString().slice(0,10);
+}
+
+/** Conta horas úteis entre duas datas */
+function horasUteisEntre(startISO, endISO) {
+  const cfg     = loadCalCfg();
+  const hpd     = cfg.horasDia || 9;
+  let cur       = new Date(startISO + 'T00:00:00');
+  const fim     = new Date(endISO   + 'T00:00:00');
+  let diasUteis = 0;
+  while (cur <= fim) {
+    const iso = cur.toISOString().slice(0,10);
+    if (isDiaUtil(iso)) diasUteis++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return diasUteis * hpd;
+}
+
+/** Calcula término a partir de início + horas */
+function calcTermino(startISO, horas) {
+  const cfg  = loadCalCfg();
+  const hpd  = cfg.horasDia || 9;
+  const dias = Math.ceil(horas / hpd);
+  return addDiasUteis(startISO, dias - 1); // -1 pq o próprio dia de início conta
+}
+
+/** Chamada pelo input: calcula término quando usuário digita horas */
+function calcPrazo() {
+  const start = document.getElementById('act-start')?.value;
+  const horas = parseFloat(document.getElementById('act-duration-h')?.value);
+  const resEl = document.getElementById('calc-result');
+  if (!resEl) return;
+
+  if (!start) { resEl.style.display='none'; return; }
+
+  if (!horas || horas <= 0) {
+    resEl.style.display = 'none';
+    return;
+  }
+
+  const cfg   = loadCalCfg();
+  const hpd   = cfg.horasDia || 9;
+  const dias  = Math.ceil(horas / hpd);
+  const fim   = calcTermino(start, horas);
+
+  // Preenche campo de término
+  const dueEl = document.getElementById('act-due');
+  if (dueEl) dueEl.value = fim;
+
+  // Também preenche duração no campo principal da atividade
+  const durEl = document.getElementById('act-duration-h');
+  
+  // Conta feriados no período
+  const cfg2 = loadCalCfg();
+  let feriadosNoPeriodo = 0;
+  let cur = new Date(start + 'T00:00:00');
+  const fimD = new Date(fim + 'T00:00:00');
+  while (cur <= fimD) {
+    const iso = cur.toISOString().slice(0,10);
+    const dow = cur.getDay();
+    if (cfg2.diasUteis.includes(dow) && cfg2.feriados.find(f=>f.date===iso)) feriadosNoPeriodo++;
+    cur.setDate(cur.getDate()+1);
+  }
+
+  // Dias corridos totais
+  const diasCorridos = Math.round((fimD - new Date(start+'T00:00:00'))/86400000) + 1;
+
+  resEl.style.display = 'flex';
+  resEl.style.flexWrap = 'wrap';
+  resEl.style.gap = '10px';
+  resEl.innerHTML = `
+    <span style="display:flex;align-items:center;gap:4px">
+      <i class="fa-solid fa-calendar-check" style="color:var(--green)"></i>
+      <strong style="color:var(--green)">${fmtDate(fim)}</strong>
+      <span style="color:var(--text-4)">término calculado</span>
+    </span>
+    <span class="badge badge-blue">${dias} dia(s) útil(is)</span>
+    <span class="badge badge-gray">${diasCorridos} dias corridos</span>
+    ${feriadosNoPeriodo > 0 ? `<span class="badge badge-amber"><i class="fa-solid fa-umbrella-beach"></i> ${feriadosNoPeriodo} feriado(s) no período</span>` : ''}
+    <span class="badge badge-gray"><i class="fa-solid fa-clock"></i> ${hpd}h/dia</span>`;
+}
+
+/** Chamada quando usuário muda o término manualmente — calcula as horas */
+function calcDurFromDates() {
+  const start = document.getElementById('act-start')?.value;
+  const due   = document.getElementById('act-due')?.value;
+  const resEl = document.getElementById('calc-result');
+  if (!start || !due || due < start) { if(resEl) resEl.style.display='none'; return; }
+
+  const horas = horasUteisEntre(start, due);
+  const durEl = document.getElementById('act-duration-h');
+  if (durEl) durEl.value = horas;
+
+  const cfg  = loadCalCfg();
+  const hpd  = cfg.horasDia || 9;
+  const dias = Math.round(horas / hpd);
+
+  if (resEl) {
+    resEl.style.display = 'flex';
+    resEl.style.flexWrap = 'wrap';
+    resEl.style.gap = '10px';
+    resEl.innerHTML = `
+      <span style="display:flex;align-items:center;gap:4px">
+        <i class="fa-solid fa-hourglass-half" style="color:var(--blue)"></i>
+        <strong style="color:var(--blue)">${horas}h</strong>
+        <span style="color:var(--text-4)">de trabalho efetivo</span>
+      </span>
+      <span class="badge badge-blue">${dias} dia(s) útil(is)</span>
+      <span class="badge badge-gray"><i class="fa-solid fa-clock"></i> ${hpd}h/dia</span>`;
+  }
+}
+
+window.calcPrazo        = calcPrazo;
+window.calcDurFromDates = calcDurFromDates;
+
 </script>
 </body>
 </html>
