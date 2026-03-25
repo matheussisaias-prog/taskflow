@@ -32,6 +32,7 @@ let state = {
   reschedulingId:   null,  // ID sendo reprogramado
   currentView:      'dashboard',
 };
+window.state = state; // expõe para dashboard.js e outros módulos
 
 /* ──────────────────────────────────────────────────────────────
    UTILITÁRIOS DE DATA
