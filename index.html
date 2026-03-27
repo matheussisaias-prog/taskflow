@@ -2038,15 +2038,28 @@ select.form-control { cursor: pointer; }
           </select>
         </div>
       </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Início</label>
-          <input class="form-control" type="date" id="proj-start"/>
+      <!-- Calculadora de prazo do projeto -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+          <i class="fa-solid fa-calculator" style="color:var(--blue);font-size:.8rem"></i>
+          <span style="font-size:.75rem;font-weight:700;color:var(--text-2)">Datas do Projeto</span>
+          <span style="font-size:.65rem;color:var(--text-4);margin-left:auto">Exclui sábado e domingo</span>
         </div>
-        <div class="form-group">
-          <label class="form-label">Término Previsto</label>
-          <input class="form-control" type="date" id="proj-end"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Início <span class="req">*</span></label>
+            <input class="form-control" type="date" id="proj-start" oninput="projCalcFim()"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Dias úteis</label>
+            <input class="form-control" type="number" id="proj-dias-uteis" min="1" placeholder="Ex: 10" oninput="projCalcFim()" style="font-family:var(--font-mono)"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Término Previsto</label>
+            <input class="form-control" type="date" id="proj-end" oninput="projCalcDias()"/>
+          </div>
         </div>
+        <div id="proj-calc-result" style="margin-top:8px;font-size:.72rem;color:var(--text-3);display:none;flex-wrap:wrap;gap:8px"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Cor do Projeto</label>
@@ -2848,6 +2861,8 @@ window._openModalProject = function() {
     document.getElementById('proj-status').value = 'Em andamento';
     document.getElementById('proj-start').value  = todayISO();
     document.getElementById('proj-end').value    = '';
+    const puEl = document.getElementById('proj-dias-uteis'); if(puEl) puEl.value='';
+    const prEl = document.getElementById('proj-calc-result'); if(prEl) prEl.style.display='none';
     selectColor(COLORS[Math.floor(Math.random()*COLORS.length)]);
     document.getElementById('modal-project').classList.add('open');
     setTimeout(()=>document.getElementById('proj-name')?.focus(),100);
@@ -2962,6 +2977,107 @@ function editProj(id) {
   selectColor(p.color||COLORS[0]);
   document.getElementById('modal-project').classList.add('open');
 }
+
+
+/* ══════════════════════════════════════════════════
+   CALCULADORA DE PRAZO — PROJETO
+   Exclui sábado (6) e domingo (0)
+══════════════════════════════════════════════════ */
+
+/** Avança N dias úteis (sem sáb/dom) a partir de startISO */
+function projAddDiasUteis(startISO, nDias) {
+  const d = new Date(startISO + 'T00:00:00');
+  let count = 0;
+  // O próprio dia de início conta se for dia útil
+  if (nDias <= 1) {
+    // garante que o dia de início seja útil
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  // Avança a partir do dia seguinte ao início
+  let started = false;
+  while (count < nDias) {
+    if (started) d.setDate(d.getDate() + 1);
+    started = true;
+    if (d.getDay() !== 0 && d.getDay() !== 6) count++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/** Conta dias úteis entre duas datas (inclusivo) */
+function projContaDiasUteis(startISO, endISO) {
+  let cur  = new Date(startISO + 'T00:00:00');
+  const fim = new Date(endISO   + 'T00:00:00');
+  let count = 0;
+  while (cur <= fim) {
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+/** Chamada quando usuário muda Início ou Dias úteis → calcula Término */
+function projCalcFim() {
+  const start = document.getElementById('proj-start')?.value;
+  const dias  = parseInt(document.getElementById('proj-dias-uteis')?.value);
+  const resEl = document.getElementById('proj-calc-result');
+
+  if (!start || !dias || dias < 1) {
+    if (resEl) resEl.style.display = 'none';
+    return;
+  }
+
+  const fim = projAddDiasUteis(start, dias);
+  const endEl = document.getElementById('proj-end');
+  if (endEl) endEl.value = fim;
+
+  // Dias corridos
+  const diasCorridos = Math.round(
+    (new Date(fim + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000
+  ) + 1;
+
+  if (resEl) {
+    resEl.style.display = 'flex';
+    resEl.innerHTML = `
+      <span style="display:flex;align-items:center;gap:5px;color:var(--green);font-weight:700">
+        <i class="fa-solid fa-calendar-check"></i> ${formatDate(fim)}
+      </span>
+      <span class="badge badge-blue">${dias} dia(s) útil(is)</span>
+      <span class="badge badge-gray">${diasCorridos} dia(s) corrido(s)</span>`;
+  }
+}
+
+/** Chamada quando usuário muda Término manualmente → calcula Dias úteis */
+function projCalcDias() {
+  const start = document.getElementById('proj-start')?.value;
+  const end   = document.getElementById('proj-end')?.value;
+  const resEl = document.getElementById('proj-calc-result');
+
+  if (!start || !end || end < start) {
+    if (resEl) resEl.style.display = 'none';
+    return;
+  }
+
+  const dias = projContaDiasUteis(start, end);
+  const diasUtilEl = document.getElementById('proj-dias-uteis');
+  if (diasUtilEl) diasUtilEl.value = dias;
+
+  const diasCorridos = Math.round(
+    (new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000
+  ) + 1;
+
+  if (resEl) {
+    resEl.style.display = 'flex';
+    resEl.innerHTML = `
+      <span style="display:flex;align-items:center;gap:5px;color:var(--blue);font-weight:700">
+        <i class="fa-solid fa-hourglass-half"></i> ${dias} dia(s) útil(is)
+      </span>
+      <span class="badge badge-gray">${diasCorridos} dia(s) corrido(s)</span>`;
+  }
+}
+
+window.projCalcFim  = projCalcFim;
+window.projCalcDias = projCalcDias;
 
 function saveProject() {
   const name = document.getElementById('proj-name').value.trim();
