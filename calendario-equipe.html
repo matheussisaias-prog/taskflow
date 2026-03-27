@@ -313,6 +313,29 @@ body {
 .cal-day.other { opacity:.45; background:var(--surface2); }
 .cal-day.today { outline:2px solid var(--primary); outline-offset:-2px; }
 .cal-day.today .cal-day-num { background:var(--primary); color:#fff; border-radius:50%; }
+.cal-span-bar {
+  display:block;
+  height:19px;
+  line-height:19px;
+  font-size:.61rem;
+  font-weight:700;
+  color:#fff;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  cursor:pointer;
+  margin-bottom:2px;
+  padding:0 5px;
+  transition:opacity .15s;
+}
+.cal-span-bar:hover { opacity:.8; }
+.cal-span-bar.bar-start  { border-radius:9px 0 0 9px; margin-left:3px; }
+.cal-span-bar.bar-end    { border-radius:0 9px 9px 0; margin-right:3px; }
+.cal-span-bar.bar-mid    { border-radius:0; }
+.cal-span-bar.bar-single { border-radius:9px; margin-left:3px; margin-right:3px; }
+.cal-span-bar.bar-mid .bar-label,
+.cal-span-bar.bar-end .bar-label { display:none; }
+.cal-span-bar.bar-mid.bar-week-start .bar-label { display:inline; }
 .cal-day-num {
   width:22px; height:22px; display:flex;
   align-items:center; justify-content:center;
@@ -807,9 +830,9 @@ input[type=color] { padding:3px 6px; height:36px; cursor:pointer; }
                     </tr>
                   </thead>
                   <tbody>
-                    <tr class="ex-row row-blue"><td><strong>WENDELL XAVIER</strong></td><td>Gerente de Projetos</td><td>Equipe 01</td><td>wendell@empresa.com</td><td>55 85 99999-0001</td><td><span class="color-chip" style="background:#1D4ED8">#1D4ED8</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Gerente geral</td></tr>
-                    <tr class="ex-row row-green"><td><strong>PAULO MELO</strong></td><td>Eng. Mecânico</td><td>Equipe 02</td><td>paulo@empresa.com</td><td>55 85 99999-0002</td><td><span class="color-chip" style="background:#059669">#059669</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Projetos mecânicos</td></tr>
-                    <tr class="ex-row row-amber"><td><strong>CAROLINE BERNARDO</strong></td><td>Analista Compras</td><td>Equipe 03</td><td>carol@empresa.com</td><td>55 85 99999-0003</td><td><span class="color-chip" style="background:#D97706">#D97706</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Aquisições</td></tr>
+                    <tr class="ex-row row-blue"><td><strong>WENDELL XAVIER</strong></td><td>Gerente de Projetos</td><td>Equipe 01</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b5c2d0dbd1d0d9d9f5d0d8c5c7d0c6d49bd6dad8">[email&#160;protected]</a></td><td>55 85 99999-0001</td><td><span class="color-chip" style="background:#1D4ED8">#1D4ED8</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Gerente geral</td></tr>
+                    <tr class="ex-row row-green"><td><strong>PAULO MELO</strong></td><td>Eng. Mecânico</td><td>Equipe 02</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="562637233a3916333b26243325377835393b">[email&#160;protected]</a></td><td>55 85 99999-0002</td><td><span class="color-chip" style="background:#059669">#059669</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Projetos mecânicos</td></tr>
+                    <tr class="ex-row row-amber"><td><strong>CAROLINE BERNARDO</strong></td><td>Analista Compras</td><td>Equipe 03</td><td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2d4e4c5f42416d48405d5f485e4c034e4240">[email&#160;protected]</a></td><td>55 85 99999-0003</td><td><span class="color-chip" style="background:#D97706">#D97706</span></td><td><span class="status-chip chip-ativo">Ativo</span></td><td>Aquisições</td></tr>
                     <tr class="ex-row empty-row"><td colspan="8" style="color:var(--text3);font-style:italic;font-size:.72rem">← Adicione seus funcionários abaixo desta linha →</td></tr>
                   </tbody>
                 </table>
@@ -1078,7 +1101,7 @@ input[type=color] { padding:3px 6px; height:36px; cursor:pointer; }
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
 
 /* ══════════════════════════════════════════════
@@ -1586,6 +1609,48 @@ function renderCalMonth(filterEmp) {
 
   const todayStr = todayISO();
   const wkDays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const N = days.length;
+  const isoList = days.map(d=>toISO(d.date));
+
+  // Pega todas as rotinas do mês (multi-dia) filtradas
+  const allRots = state.routines
+    .filter(r => !filterEmp || r.empNome===filterEmp)
+    .filter(r => r.startDate && r.endDate && r.startDate<=r.endDate)
+    .sort((a,b)=>{
+      const da=new Date(a.endDate)-new Date(a.startDate);
+      const db=new Date(b.endDate)-new Date(b.startDate);
+      return db-da; // longas primeiro
+    });
+
+  // Aloca slots por dia
+  const slotMap = Array.from({length:N},()=>[]);
+  const rotSlot = {};
+  allRots.forEach(r=>{
+    const si = isoList.indexOf(r.startDate);
+    const ei = isoList.indexOf(r.endDate);
+    if (si<0 || ei<0) return;
+    let slot=0, found=false;
+    while(!found){
+      let ok=true;
+      for(let i=si;i<=ei;i++){if(slotMap[i][slot]){ok=false;break;}}
+      if(ok) found=true; else slot++;
+      if(slot>10) break;
+    }
+    rotSlot[r.id]=slot;
+    for(let i=si;i<=ei;i++) slotMap[i][slot]=r.id;
+  });
+
+  // Monta barras por dia
+  const dayBars = Array.from({length:N},()=>[]);
+  allRots.forEach(r=>{
+    const si=Math.max(0,isoList.indexOf(r.startDate));
+    const ei=Math.min(N-1,isoList.indexOf(r.endDate));
+    if(si<0||ei<0) return;
+    const slot=rotSlot[r.id]; if(slot===undefined) return;
+    for(let i=si;i<=ei;i++){
+      dayBars[i].push({rot:r,slot,isStart:i===si,isEnd:i===ei,isWeekStart:(i%7)===0});
+    }
+  });
 
   let html=`<div class="cal-wrap">
     <div class="cal-week-header">
@@ -1593,26 +1658,60 @@ function renderCalMonth(filterEmp) {
     </div>
     <div class="cal-grid">`;
 
-  days.forEach(({date,other})=>{
+  days.forEach(({date,other},idx)=>{
     const iso=toISO(date);
     const isToday=iso===todayStr;
     const dow=date.getDay();
     const isWE=dow===0||dow===6;
-    const rots=routinesForDate(iso).filter(r=>!filterEmp||r.empNome===filterEmp);
-    const MAX=4;
 
-    let pills='';
-    rots.slice(0,MAX).forEach(r=>{
-      const emp=state.employees.find(x=>x.nome===r.empNome);
-      const color=emp?.color||r.empColor||'#64748B';
-      pills+=`<div class="cal-pill" style="background:${color}" title="${esc(r.empNome)}: ${esc(r.tipo)} @ ${esc(r.local)}">${initials(r.empNome)} ${esc(r.tipo)}</div>`;
-    });
-    if (rots.length>MAX) pills+=`<div class="cal-more">+${rots.length-MAX} mais</div>`;
+    // Rotinas de dia único
+    const singleRots = routinesForDate(iso)
+      .filter(r=>(!filterEmp||r.empNome===filterEmp) && (r.startDate===r.endDate||!r.endDate||r.endDate===r.startDate));
+
+    const bars=dayBars[idx]||[];
+    const maxSlot=bars.length?Math.max(...bars.map(b=>b.slot)):-1;
+    const MAX_SLOTS=3;
+
+    // Barras multi-dia
+    let barsHtml='';
+    for(let s=0;s<=Math.min(maxSlot,MAX_SLOTS-1);s++){
+      const bar=bars.find(b=>b.slot===s);
+      if(!bar){barsHtml+=`<div style="height:21px;margin-bottom:2px"></div>`;continue;}
+      const {rot,isStart,isEnd,isWeekStart}=bar;
+      const emp=state.employees.find(x=>x.nome===rot.empNome);
+      const color=emp?.color||rot.empColor||'#64748B';
+      let shape=isStart&&isEnd?'bar-single':isStart?'bar-start':isEnd?'bar-end':'bar-mid';
+      const wkCls=(!isStart&&isWeekStart)?' bar-week-start':'';
+      const showLabel=isStart||(!isStart&&isWeekStart);
+      barsHtml+=`<div class="cal-span-bar ${shape}${wkCls}" style="background:${color}"
+        title="${esc(rot.empNome)}: ${esc(rot.tipo)} @ ${esc(rot.local)}"
+        onclick="event.stopPropagation();openModalRotina('${rot.id}','${iso}')">
+        ${showLabel?`<span class="bar-label">${initials(rot.empNome)} ${esc(rot.tipo)}</span>`:''}
+      </div>`;
+    }
+
+    // Dia único abaixo das barras
+    let singleHtml='';
+    if(maxSlot<MAX_SLOTS-1){
+      singleRots.slice(0,MAX_SLOTS-bars.length).forEach(r=>{
+        const emp=state.employees.find(x=>x.nome===r.empNome);
+        const color=emp?.color||r.empColor||'#64748B';
+        singleHtml+=`<div class="cal-pill" style="background:${color}"
+          title="${esc(r.empNome)}: ${esc(r.tipo)}"
+          onclick="event.stopPropagation();openModalRotina('${r.id}','${iso}')">${initials(r.empNome)} ${esc(r.tipo)}</div>`;
+      });
+    }
+
+    const hidden=bars.filter(b=>b.slot>=MAX_SLOTS&&b.isStart).length+
+                 (maxSlot>=MAX_SLOTS-1?singleRots.length:Math.max(0,singleRots.length-(MAX_SLOTS-bars.length)));
+    const moreHtml=hidden>0?`<div class="cal-more">+${hidden} mais</div>`:'';
 
     html+=`<div class="cal-day${other?' other':''}${isToday?' today':''}${isWE?' we-day':''}"
       onclick="openModalRotina(null,'${iso}')">
       <div class="cal-day-num">${date.getDate()}</div>
-      <div class="cal-events">${pills}</div>
+      <div style="display:flex;flex-direction:column;gap:0;margin-top:2px">
+        ${barsHtml}${singleHtml}${moreHtml}
+      </div>
     </div>`;
   });
 
@@ -2077,13 +2176,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   updateClock();
   setInterval(updateClock,1000);
   setInterval(()=>{renderCal();},5*60*1000);
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){closeModalEmp();closeModalRotina();closeLocPopup();}
-    if(e.key==='ArrowLeft'&&document.getElementById('panel-calendario').classList.contains('active'))navCal(-1);
-    if(e.key==='ArrowRight'&&document.getElementById('panel-calendario').classList.contains('active'))navCal(1);
-  });
-  console.log('%c TaskFlow Equipe ✦ ','background:#059669;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold');
-});
-</script>
-</body>
-</html>
+  document.addEventListener('keydown',

@@ -334,6 +334,60 @@
     }
     .cal-more:hover { color: var(--primary); }
 
+    /* ── Eventos multi-dia (barra que se estica) ── */
+    .cal-multiday-layer {
+      position: absolute;
+      left: 0; right: 0;
+      top: 30px; /* abaixo do número do dia */
+      pointer-events: none;
+      z-index: 2;
+    }
+    .cal-span-bar {
+      display: block;
+      height: 18px;
+      line-height: 18px;
+      font-size: .62rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+      cursor: pointer;
+      pointer-events: all;
+      transition: opacity .15s;
+      padding: 0 6px;
+    }
+    .cal-span-bar:hover { opacity: .82; }
+    /* Início do evento */
+    .cal-span-bar.bar-start {
+      border-radius: 9px 0 0 9px;
+      margin-left: 4px;
+    }
+    /* Evento continua na semana seguinte */
+    .cal-span-bar.bar-mid {
+      border-radius: 0;
+      margin-left: 0;
+      margin-right: 0;
+    }
+    /* Fim do evento */
+    .cal-span-bar.bar-end {
+      border-radius: 0 9px 9px 0;
+      margin-right: 4px;
+    }
+    /* Evento que começa e termina no mesmo dia */
+    .cal-span-bar.bar-single {
+      border-radius: 9px;
+      margin-left: 4px;
+      margin-right: 4px;
+    }
+    /* Label só aparece no início ou quando corta semana */
+    .cal-span-bar.bar-mid .bar-label,
+    .cal-span-bar.bar-end .bar-label { display: none; }
+    .cal-span-bar.bar-mid.bar-week-start .bar-label { display: inline; }
+    .cal-day { position: relative; }
+    .cal-events { margin-top: 0; }
+
     /* WEEK VIEW */
     .cal-week { display: flex; flex-direction: column; }
     .week-header {
@@ -1023,60 +1077,195 @@ function renderMonth() {
   document.getElementById('cal-month-title').textContent =
     title.charAt(0).toUpperCase() + title.slice(1);
 
-  // Build days array
+  /* ── Monta grid de 42 células (começa na Segunda) ── */
   const firstDay = new Date(yr, mo, 1);
   const lastDay  = new Date(yr, mo + 1, 0);
-  let startDow = firstDay.getDay(); // 0=Sun
-  // Shift to Monday start
+  let startDow = firstDay.getDay();
   startDow = (startDow === 0) ? 6 : startDow - 1;
 
   const days = [];
-  // Prev month fill
-  for (let i = startDow - 1; i >= 0; i--) {
-    const d = new Date(yr, mo, -i);
-    days.push({ date: d, other: true });
-  }
-  // This month
-  for (let d = 1; d <= lastDay.getDate(); d++) {
-    days.push({ date: new Date(yr, mo, d), other: false });
-  }
-  // Next month fill (complete to 42 cells)
-  let next = 1;
-  while (days.length < 42) {
-    days.push({ date: new Date(yr, mo + 1, next++), other: true });
-  }
+  for (let i = startDow - 1; i >= 0; i--) days.push({ date: new Date(yr, mo, -i),      other: true  });
+  for (let d = 1; d <= lastDay.getDate(); d++) days.push({ date: new Date(yr, mo, d),   other: false });
+  let nxt = 1;
+  while (days.length < 42) days.push({ date: new Date(yr, mo + 1, nxt++), other: true });
 
   const todayStr = todayISO();
   const weekDays = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const N        = days.length; // 42
+  const isoList  = days.map(d => toISO(d.date));
+  const gridStart = isoList[0];
+  const gridEnd   = isoList[N - 1];
 
+  /* ── Separa atividades em multi-dia vs. dia único ── */
+  // Multi-dia: startDate DIFERENTE de dueDate e se sobrepõe ao grid
+  const multiActs = activities
+    .filter(a => {
+      if (!a.startDate || !a.dueDate)          return false;
+      if (a.startDate >= a.dueDate)            return false; // exige pelo menos 2 dias distintos
+      if (a.startDate > gridEnd)               return false;
+      if (a.dueDate   < gridStart)             return false;
+      return true;
+    })
+    .sort((a, b) => {
+      // Barras mais longas ficam nos slots de cima
+      const da = new Date(a.dueDate)   - new Date(a.startDate);
+      const db = new Date(b.dueDate)   - new Date(b.startDate);
+      return db - da;
+    });
+
+  const multiIds = new Set(multiActs.map(a => a.id || a.description));
+
+  /* ── Helper: índice clampado no grid ── */
+  function clampIdx(iso) {
+    if (iso <= gridStart) return 0;
+    if (iso >= gridEnd)   return N - 1;
+    const i = isoList.indexOf(iso);
+    return i >= 0 ? i : -1;
+  }
+
+  /* ── Aloca slots (evita sobreposição vertical) ── */
+  const slotMap = Array.from({ length: N }, () => []); // slotMap[day][slot] = key
+  const actSlot = {};
+
+  multiActs.forEach(a => {
+    const si = clampIdx(a.startDate);
+    const ei = clampIdx(a.dueDate);
+    if (si < 0 || ei < 0 || si > ei) return;
+
+    let slot = 0;
+    while (slot <= 10) {
+      let ok = true;
+      for (let i = si; i <= ei; i++) {
+        if (slotMap[i][slot]) { ok = false; break; }
+      }
+      if (ok) break;
+      slot++;
+    }
+    const key = a.id || a.description;
+    actSlot[key] = slot;
+    for (let i = si; i <= ei; i++) slotMap[i][slot] = key;
+  });
+
+  /* ── Monta barras por dia ── */
+  const dayBars = Array.from({ length: N }, () => []);
+
+  multiActs.forEach(a => {
+    const key  = a.id || a.description;
+    const slot = actSlot[key];
+    if (slot === undefined) return;
+
+    const si = clampIdx(a.startDate);
+    const ei = clampIdx(a.dueDate);
+    if (si < 0 || ei < 0) return;
+
+    const realStart = a.startDate >= gridStart; // começa dentro do grid?
+    const realEnd   = a.dueDate   <= gridEnd;   // termina dentro do grid?
+
+    for (let i = si; i <= ei; i++) {
+      dayBars[i].push({
+        act,
+        slot,
+        isStart:     i === si && realStart,
+        isEnd:       i === ei && realEnd,
+        isWeekStart: (i % 7) === 0,
+      });
+    }
+  });
+
+  // Variável usada dentro do loop — precisa ser função closure
+  function getAct(bar) { return bar.act; }
+
+  /* ── Cor da barra ── */
+  function barColor(a) {
+    const cls = eventClass(a);
+    if (cls === 'ev-overdue')     return 'var(--red)';
+    if (cls === 'ev-done')        return 'var(--green)';
+    if (cls === 'ev-today')       return 'var(--yellow)';
+    if (cls === 'ev-rescheduled') return '#8b5cf6';
+    if (typeof projects !== 'undefined') {
+      const proj = projects.find(p => p.name === a.project);
+      if (proj && proj.color) return proj.color;
+    }
+    return 'var(--primary)';
+  }
+
+  /* ── Monta HTML ── */
   let html = `<div class="cal-month">
     <div class="cal-header-row">
-      ${weekDays.map((d,i) => `<div class="cal-header-cell${i>=5?' weekend':''}">${d}</div>`).join('')}
+      ${weekDays.map((d, i) => `<div class="cal-header-cell${i >= 5 ? ' weekend' : ''}">${d}</div>`).join('')}
     </div>
     <div class="cal-grid">`;
 
-  days.forEach(({ date, other }) => {
-    const iso = toISO(date);
-    const isToday = iso === todayStr;
-    const dow = date.getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const dayActs = activities.filter(a => a.dueDate === iso);
-    const maxShow = 3;
+  const MAX_SLOTS = 3; // máximo de barras visíveis por dia
 
-    let evHtml = '';
-    dayActs.slice(0, maxShow).forEach(a => {
-      evHtml += `<div class="cal-event-pill ${eventClass(a)}" 
-        onclick="event.stopPropagation();openDetail('${iso}',event)" 
-        title="${escHtml(a.description)}">${escHtml(a.description)}</div>`;
+  days.forEach(({ date, other }, idx) => {
+    const iso       = toISO(date);
+    const isToday   = iso === todayStr;
+    const dow       = date.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+
+    /* Barras deste dia (ordenadas por slot) */
+    const bars    = (dayBars[idx] || []).slice().sort((a, b) => a.slot - b.slot);
+    const maxSlot = bars.length ? bars[bars.length - 1].slot : -1;
+
+    /* Atividades de dia único — não são multi-dia */
+    const singleActs = activities.filter(a => {
+      if (multiIds.has(a.id || a.description)) return false;
+      return a.dueDate === iso || (a.startDate === iso && !a.dueDate);
     });
-    if (dayActs.length > maxShow) {
-      evHtml += `<div class="cal-more" onclick="event.stopPropagation();openDetail('${iso}',event)">+${dayActs.length - maxShow} mais</div>`;
+
+    /* Barras HTML */
+    let barsHtml = '';
+    for (let s = 0; s <= Math.min(maxSlot, MAX_SLOTS - 1); s++) {
+      const bar = bars.find(b => b.slot === s);
+      if (!bar) {
+        // Placeholder para manter alinhamento dos slots entre colunas
+        barsHtml += `<div style="height:19px;margin-bottom:2px"></div>`;
+        continue;
+      }
+      const a             = bar.act;
+      const color         = barColor(a);
+      const { isStart, isEnd, isWeekStart } = bar;
+
+      let shape = 'bar-mid';
+      if (isStart && isEnd)  shape = 'bar-single';
+      else if (isStart)      shape = 'bar-start';
+      else if (isEnd)        shape = 'bar-end';
+
+      const wkCls      = (!isStart && isWeekStart) ? ' bar-week-start' : '';
+      const showLabel  = isStart || (!isStart && isWeekStart);
+      const label      = showLabel ? `<span class="bar-label">${escHtml(a.description)}</span>` : '';
+
+      barsHtml += `<div class="cal-span-bar ${shape}${wkCls}"
+        style="background:${color}"
+        title="${escHtml(a.description)} (${a.startDate} → ${a.dueDate})"
+        onclick="event.stopPropagation();openDetail('${iso}',event)">${label}</div>`;
     }
 
-    html += `<div class="cal-day${other?' other-month':''}${isToday?' is-today':''}${isWeekend?' weekend-day':''}" 
+    /* Pills de dia único (só se sobrar espaço) */
+    let singleHtml = '';
+    const usedSlots = Math.min(maxSlot + 1, MAX_SLOTS);
+    const freeSlots = MAX_SLOTS - usedSlots;
+    singleActs.slice(0, freeSlots).forEach(a => {
+      singleHtml += `<div class="cal-event-pill ${eventClass(a)}"
+        onclick="event.stopPropagation();openDetail('${iso}',event)"
+        title="${escHtml(a.description)}">${escHtml(a.description)}</div>`;
+    });
+
+    /* "+N mais" */
+    const hiddenBars   = bars.filter(b => b.slot >= MAX_SLOTS && b.isStart).length;
+    const hiddenSingle = Math.max(0, singleActs.length - freeSlots);
+    const moreCount    = hiddenBars + hiddenSingle;
+    const moreHtml     = moreCount > 0
+      ? `<div class="cal-more" onclick="event.stopPropagation();openDetail('${iso}',event)">+${moreCount} mais</div>`
+      : '';
+
+    html += `<div class="cal-day${other ? ' other-month' : ''}${isToday ? ' is-today' : ''}${isWeekend ? ' weekend-day' : ''}"
       onclick="openDetail('${iso}',event)">
       <div class="cal-day-num">${date.getDate()}</div>
-      <div class="cal-events">${evHtml}</div>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+        ${barsHtml}${singleHtml}${moreHtml}
+      </div>
     </div>`;
   });
 
