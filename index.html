@@ -1656,7 +1656,7 @@ select.form-control { cursor: pointer; }
           <div class="card">
             <div class="card-header">
               <i class="fa-solid fa-robot" style="color:var(--amber);font-size:.85rem"></i>
-              <span class="card-title">Recomendações IA</span>
+              <span class="card-title">Alertas Inteligentes</span>
             </div>
             <div class="card-body" style="padding:12px 14px">
               <div class="alert-list" id="alert-list">
@@ -2395,32 +2395,93 @@ function renderUpcoming() {
 /* ══════════════════════════════════════════════════
    ALERTS / RECOMENDAÇÕES
 ══════════════════════════════════════════════════ */
+function normalizePersonName(name) {
+  return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function renderAlerts() {
   const el = document.getElementById('alert-list');
+  if (!el) return;
+
   const alerts = [];
+  const abertas = activities.filter(a => a.status !== 'Concluído');
 
-  const overdue = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) < 0);
+  const overdue = abertas.filter(a => a.dueDate && diffDays(a.dueDate) < 0);
   if (overdue.length > 0) {
-    alerts.push({ type:'red', icon:'fa-triangle-exclamation', text:`<strong>${overdue.length} atividade(s) vencida(s)</strong> precisam de ação imediata.` });
+    const top = overdue
+      .slice()
+      .sort((a,b) => diffDays(a.dueDate) - diffDays(b.dueDate))
+      .slice(0, 3)
+      .map(a => esc(a.description))
+      .join(', ');
+    alerts.push({
+      type:'red',
+      icon:'fa-triangle-exclamation',
+      text:`<strong>${overdue.length} atividade(s) atrasada(s)</strong> precisam de ação imediata.${top ? ` Itens mais críticos: ${top}.` : ''}`
+    });
   }
 
-  const today = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) === 0);
-  if (today.length > 0) {
-    alerts.push({ type:'amber', icon:'fa-clock', text:`<strong>${today.length} atividade(s) vencem hoje</strong> — ${today.map(a=>a.description).join(', ')}.` });
+  const dueToday = abertas.filter(a => a.dueDate && diffDays(a.dueDate) === 0);
+  if (dueToday.length > 0) {
+    const nomes = dueToday.slice(0, 3).map(a => esc(a.description)).join(', ');
+    alerts.push({
+      type:'amber',
+      icon:'fa-clock',
+      text:`<strong>${dueToday.length} atividade(s) vencem hoje</strong>${nomes ? ` — ${nomes}.` : '.'}`
+    });
   }
 
-  const critical = activities.filter(a => a.isCritical && a.status !== 'Concluído');
+  const dueSoon = abertas.filter(a => a.dueDate && diffDays(a.dueDate) > 0 && diffDays(a.dueDate) <= 3);
+  if (dueSoon.length > 0) {
+    alerts.push({
+      type:'blue',
+      icon:'fa-calendar-day',
+      text:`<strong>${dueSoon.length} atividade(s)</strong> vencem nos próximos 3 dias.`
+    });
+  }
+
+  const porPessoa = {};
+  abertas.forEach(a => {
+    const chave = normalizePersonName(a.responsible || 'Não definido');
+    if (!porPessoa[chave]) porPessoa[chave] = { nome: (a.responsible || 'Não definido').trim() || 'Não definido', quantidade: 0 };
+    porPessoa[chave].quantidade += 1;
+  });
+
+  Object.values(porPessoa)
+    .filter(p => p.quantidade > 5)
+    .sort((a,b) => b.quantidade - a.quantidade)
+    .forEach(p => {
+      alerts.push({
+        type:'amber',
+        icon:'fa-user-clock',
+        text:`<strong>Sobrecarga detectada</strong> — ${esc(p.nome)} está com ${p.quantidade} atividade(s) abertas.`
+      });
+    });
+
+  projects.forEach(project => {
+    const nomeProjeto = project.name || '';
+    if (!nomeProjeto) return;
+    const atrasadasProjeto = overdue.filter(a => (a.project || '') === nomeProjeto);
+    if (atrasadasProjeto.length >= 2) {
+      alerts.push({
+        type:'red',
+        icon:'fa-screwdriver-wrench',
+        text:`<strong>Projeto em risco</strong> — ${esc(nomeProjeto)} tem ${atrasadasProjeto.length} atividade(s) atrasada(s).`
+      });
+    }
+  });
+
+  const critical = abertas.filter(a => a.isCritical);
   if (critical.length > 0) {
-    alerts.push({ type:'blue', icon:'fa-route', text:`<strong>${critical.length} atividade(s) no caminho crítico</strong> precisam de acompanhamento.` });
-  }
-
-  const soon = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) > 0 && diffDays(a.dueDate) <= 3);
-  if (soon.length > 0) {
-    alerts.push({ type:'amber', icon:'fa-calendar-day', text:`<strong>${soon.length} atividade(s)</strong> vencem em até 3 dias.` });
+    alerts.push({
+      type:'blue',
+      icon:'fa-route',
+      text:`<strong>${critical.length} atividade(s) no caminho crítico</strong> precisam de acompanhamento próximo.`
+    });
   }
 
   if (!alerts.length) {
-    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia! Nenhum alerta.</p></div>`;
+    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia! Nenhum alerta relevante no momento.</p></div>`;
     return;
   }
 
