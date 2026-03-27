@@ -1656,7 +1656,7 @@ select.form-control { cursor: pointer; }
           <div class="card">
             <div class="card-header">
               <i class="fa-solid fa-robot" style="color:var(--amber);font-size:.85rem"></i>
-              <span class="card-title">Alertas Inteligentes</span>
+              <span class="card-title">Recomendações IA</span>
             </div>
             <div class="card-body" style="padding:12px 14px">
               <div class="alert-list" id="alert-list">
@@ -2395,93 +2395,32 @@ function renderUpcoming() {
 /* ══════════════════════════════════════════════════
    ALERTS / RECOMENDAÇÕES
 ══════════════════════════════════════════════════ */
-function normalizePersonName(name) {
-  return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
 function renderAlerts() {
   const el = document.getElementById('alert-list');
-  if (!el) return;
-
   const alerts = [];
-  const abertas = activities.filter(a => a.status !== 'Concluído');
 
-  const overdue = abertas.filter(a => a.dueDate && diffDays(a.dueDate) < 0);
+  const overdue = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) < 0);
   if (overdue.length > 0) {
-    const top = overdue
-      .slice()
-      .sort((a,b) => diffDays(a.dueDate) - diffDays(b.dueDate))
-      .slice(0, 3)
-      .map(a => esc(a.description))
-      .join(', ');
-    alerts.push({
-      type:'red',
-      icon:'fa-triangle-exclamation',
-      text:`<strong>${overdue.length} atividade(s) atrasada(s)</strong> precisam de ação imediata.${top ? ` Itens mais críticos: ${top}.` : ''}`
-    });
+    alerts.push({ type:'red', icon:'fa-triangle-exclamation', text:`<strong>${overdue.length} atividade(s) vencida(s)</strong> precisam de ação imediata.` });
   }
 
-  const dueToday = abertas.filter(a => a.dueDate && diffDays(a.dueDate) === 0);
-  if (dueToday.length > 0) {
-    const nomes = dueToday.slice(0, 3).map(a => esc(a.description)).join(', ');
-    alerts.push({
-      type:'amber',
-      icon:'fa-clock',
-      text:`<strong>${dueToday.length} atividade(s) vencem hoje</strong>${nomes ? ` — ${nomes}.` : '.'}`
-    });
+  const today = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) === 0);
+  if (today.length > 0) {
+    alerts.push({ type:'amber', icon:'fa-clock', text:`<strong>${today.length} atividade(s) vencem hoje</strong> — ${today.map(a=>a.description).join(', ')}.` });
   }
 
-  const dueSoon = abertas.filter(a => a.dueDate && diffDays(a.dueDate) > 0 && diffDays(a.dueDate) <= 3);
-  if (dueSoon.length > 0) {
-    alerts.push({
-      type:'blue',
-      icon:'fa-calendar-day',
-      text:`<strong>${dueSoon.length} atividade(s)</strong> vencem nos próximos 3 dias.`
-    });
-  }
-
-  const porPessoa = {};
-  abertas.forEach(a => {
-    const chave = normalizePersonName(a.responsible || 'Não definido');
-    if (!porPessoa[chave]) porPessoa[chave] = { nome: (a.responsible || 'Não definido').trim() || 'Não definido', quantidade: 0 };
-    porPessoa[chave].quantidade += 1;
-  });
-
-  Object.values(porPessoa)
-    .filter(p => p.quantidade > 5)
-    .sort((a,b) => b.quantidade - a.quantidade)
-    .forEach(p => {
-      alerts.push({
-        type:'amber',
-        icon:'fa-user-clock',
-        text:`<strong>Sobrecarga detectada</strong> — ${esc(p.nome)} está com ${p.quantidade} atividade(s) abertas.`
-      });
-    });
-
-  projects.forEach(project => {
-    const nomeProjeto = project.name || '';
-    if (!nomeProjeto) return;
-    const atrasadasProjeto = overdue.filter(a => (a.project || '') === nomeProjeto);
-    if (atrasadasProjeto.length >= 2) {
-      alerts.push({
-        type:'red',
-        icon:'fa-screwdriver-wrench',
-        text:`<strong>Projeto em risco</strong> — ${esc(nomeProjeto)} tem ${atrasadasProjeto.length} atividade(s) atrasada(s).`
-      });
-    }
-  });
-
-  const critical = abertas.filter(a => a.isCritical);
+  const critical = activities.filter(a => a.isCritical && a.status !== 'Concluído');
   if (critical.length > 0) {
-    alerts.push({
-      type:'blue',
-      icon:'fa-route',
-      text:`<strong>${critical.length} atividade(s) no caminho crítico</strong> precisam de acompanhamento próximo.`
-    });
+    alerts.push({ type:'blue', icon:'fa-route', text:`<strong>${critical.length} atividade(s) no caminho crítico</strong> precisam de acompanhamento.` });
+  }
+
+  const soon = activities.filter(a => a.status !== 'Concluído' && a.dueDate && diffDays(a.dueDate) > 0 && diffDays(a.dueDate) <= 3);
+  if (soon.length > 0) {
+    alerts.push({ type:'amber', icon:'fa-calendar-day', text:`<strong>${soon.length} atividade(s)</strong> vencem em até 3 dias.` });
   }
 
   if (!alerts.length) {
-    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia! Nenhum alerta relevante no momento.</p></div>`;
+    el.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-solid fa-shield-check"></i><p>Tudo em dia! Nenhum alerta.</p></div>`;
     return;
   }
 
@@ -3387,7 +3326,7 @@ function renderGantt() {
     const pct  = a.progress || 0;
     const color = projColor(a.project);
 
-    let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído'?.6:1}`;
+    let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído' ? .6 : 1}`;
     const diff = diffDays(a.dueDate);
     if (diff < 0 && a.status !== 'Concluído') barStyle += ';background:var(--red)';
 
@@ -4104,5 +4043,592 @@ window.calcPrazo        = calcPrazo;
 window.calcDurFromDates = calcDurFromDates;
 
 </script>
+
+<style id="taskflow-enhancements">
+.kanban-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:start}
+.kanban-col{min-height:420px;display:flex;flex-direction:column}
+.kanban-cards{display:flex;flex-direction:column;gap:14px;min-height:180px;padding-top:8px}
+.kanban-card{cursor:grab;transition:transform .15s, box-shadow .15s, border-color .15s}
+.kanban-card.dragging{opacity:.55;transform:rotate(1.5deg);cursor:grabbing}
+.kanban-dropzone{min-height:160px;border:1.5px dashed transparent;border-radius:14px;padding:6px;transition:border-color .15s, background .15s}
+.kanban-dropzone.drag-over{border-color:var(--blue);background:var(--blue-dim)}
+.project-folder{display:flex;flex-direction:column;gap:12px;margin-bottom:18px}
+.project-folder-title{display:flex;align-items:center;gap:8px;font-family:var(--font-head);font-size:.92rem;font-weight:800;color:var(--text-1)}
+.project-folder-sub{font-size:.72rem;color:var(--text-4);margin-left:6px}
+.project-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.team-chart-card{margin-bottom:14px}
+.team-calendar-matrix{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.team-calendar-table{border-collapse:collapse;min-width:980px;width:100%}
+.team-calendar-table th,.team-calendar-table td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:7px 8px;vertical-align:top}
+.team-calendar-table th{position:sticky;top:0;background:var(--surface2);z-index:2;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4)}
+.team-calendar-table th:first-child,.team-calendar-table td:first-child{position:sticky;left:0;background:var(--surface);z-index:3;min-width:180px;max-width:180px}
+.team-day-cell{min-width:90px;min-height:70px;cursor:pointer;background:var(--surface);transition:background .15s}
+.team-day-cell:hover{background:var(--surface2)}
+.team-day-stack{display:flex;flex-direction:column;gap:4px}
+.team-pill{font-size:.58rem;line-height:1.25;padding:3px 6px;border-radius:999px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team-pill.project{background:var(--blue)}
+.team-pill.folga{background:var(--amber)}
+.team-pill.ferias{background:var(--green)}
+.team-pill.outra{background:var(--purple)}
+.team-pill.treinamento{background:#0ea5e9}
+.cal-event{cursor:pointer}
+.cal-event:hover{filter:brightness(1.05)}
+.cal-day{min-height:124px}
+.cal-day.other-month{background:transparent;border:none}
+.cal-event-more{font-size:.56rem;color:var(--text-4);font-weight:700;margin-top:2px}
+.recursos-db{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0}
+.resource-person-card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:14px;box-shadow:var(--shadow)}
+.resource-person-card h4{font-size:.82rem;margin-bottom:4px}
+.resource-person-card p{font-size:.7rem;color:var(--text-3);margin-bottom:8px}
+.resource-person-card .meta{display:flex;flex-wrap:wrap;gap:6px}
+.resource-person-card .meta .badge{font-size:.58rem}
+.gantt-inline-btn{margin-left:8px;border:none;background:var(--blue-dim);color:var(--blue);width:22px;height:22px;border-radius:6px;cursor:pointer}
+.gantt-inline-btn:hover{background:var(--blue);color:#fff}
+.portfolio-info{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:.76rem;color:var(--text-3);margin-bottom:12px}
+.portfolio-list{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+.portfolio-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.portfolio-row .title{font-weight:700;color:var(--text-1)}
+.portfolio-row .sub{font-size:.68rem;color:var(--text-4);margin-top:2px}
+.gantt-toolbar-extra,.calendar-toolbar-extra{display:flex;gap:8px;align-items:center;margin-left:auto}
+@media (max-width:980px){.portfolio-row{grid-template-columns:1fr 1fr}.team-calendar-table th:first-child,.team-calendar-table td:first-child{min-width:150px;max-width:150px}}
+@media print{body *{visibility:hidden !important}.print-section,.print-section *{visibility:visible !important}.print-section{position:absolute;left:0;top:0;width:100%;background:#fff;padding:20px}}
+</style>
+<script>
+(function(){
+  const STORAGE_EMP='tf_employees_v2';
+  const STORAGE_TEAMCAL='tf_team_calendar_v2';
+  const STORAGE_RESOURCES='tf_resources_registry_v1';
+  let chartTeamResAvg = null;
+  let draggedKanbanId = null;
+  const originalLoad = window.load;
+  const originalSave = window.save;
+
+  window.employees = window.employees || [];
+  window.teamCalendar = window.teamCalendar || {};
+  window.resourceRegistry = window.resourceRegistry || [];
+
+  function normalizeName(name){
+    return String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
+  }
+  function titleName(name){
+    return String(name||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+  }
+  function getProjectStatusGroup(status){
+    if (status === 'Arquivado') return 'arquivados';
+    if (status === 'Concluído') return 'concluidos';
+    return 'ativos';
+  }
+  function isoToDate(iso){ return iso ? new Date(iso + 'T00:00:00') : null; }
+  function rangeForActivity(a){
+    const start = a.startDate || a.dueDate;
+    const end = a.dueDate || a.startDate || start;
+    return { start, end };
+  }
+  function activityRunsOn(a, dateStr){
+    const r = rangeForActivity(a);
+    if (!r.start && !r.end) return false;
+    return dateStr >= (r.start || r.end) && dateStr <= (r.end || r.start);
+  }
+  function getCanonicalEmployeeName(raw){
+    const key = normalizeName(raw);
+    if (!key) return '';
+    const found = employees.find(e => e.key === key);
+    return found ? found.name : titleName(raw);
+  }
+  function buildEmployeeDatabase(){
+    const map = new Map((employees||[]).map(e => [e.key, {...e}]));
+    (resourceRegistry||[]).filter(r => r.isCollaborator).forEach(r => {
+      const key = normalizeName(r.name);
+      if (!key) return;
+      const existing = map.get(key) || { id:r.id || ('emp_'+key.replace(/[^a-z0-9]+/g,'_')), key, name:titleName(r.name), team:'Não definida', notes:'' };
+      existing.name = titleName(r.name);
+      existing.team = r.team || existing.team || 'Não definida';
+      existing.role = r.role || existing.role || '';
+      map.set(key, existing);
+    });
+    activities.forEach(a => {
+      const key = normalizeName(a.responsible);
+      if (!key) return;
+      const canonical = map.get(key)?.name || titleName(a.responsible);
+      a.responsible = canonical;
+      const existing = map.get(key) || { id:'emp_'+key.replace(/[^a-z0-9]+/g,'_'), key, name: canonical, team:'Não definida', notes:'' };
+      existing.name = canonical;
+      existing.lastProject = a.project || existing.lastProject || '';
+      if (!existing.projects) existing.projects = [];
+      if (a.project && !existing.projects.includes(a.project)) existing.projects.push(a.project);
+      map.set(key, existing);
+    });
+    employees = [...map.values()].sort((a,b) => a.name.localeCompare(b.name,'pt-BR'));
+  }
+  function loadExtraStores(){
+    try { employees = JSON.parse(localStorage.getItem(STORAGE_EMP) || '[]'); } catch(_) { employees = []; }
+    try { teamCalendar = JSON.parse(localStorage.getItem(STORAGE_TEAMCAL) || '{}'); } catch(_) { teamCalendar = {}; }
+    try { resourceRegistry = JSON.parse(localStorage.getItem(STORAGE_RESOURCES) || '[]'); } catch(_) { resourceRegistry = []; }
+    projects.forEach(p => { if (!p.status) p.status = 'Em andamento'; });
+    buildEmployeeDatabase();
+  }
+  function saveExtraStores(){
+    localStorage.setItem(STORAGE_EMP, JSON.stringify(employees));
+    localStorage.setItem(STORAGE_TEAMCAL, JSON.stringify(teamCalendar));
+    localStorage.setItem(STORAGE_RESOURCES, JSON.stringify(resourceRegistry));
+  }
+  window.load = function(){ originalLoad(); loadExtraStores(); };
+  window.save = function(){ buildEmployeeDatabase(); originalSave(); saveExtraStores(); };
+
+  function ensureProjectStatusOptions(){
+    const sel = document.getElementById('proj-status');
+    if (sel && ![...sel.options].some(o => o.value === 'Arquivado')) {
+      const opt = document.createElement('option'); opt.value='Arquivado'; opt.textContent='Arquivado'; sel.appendChild(opt);
+    }
+  }
+  function ensureActivityModalExtras(){
+    const body = document.querySelector('#modal-activity .modal-body');
+    if (!body || document.getElementById('act-parent-id')) return;
+    const hidden = document.createElement('input'); hidden.type='hidden'; hidden.id='act-parent-id'; body.prepend(hidden);
+  }
+  function injectViewButtons(){
+    const calHdr = document.querySelector('#view-cal-atividades .card-header');
+    if (calHdr && !document.getElementById('btn-export-cal-pdf')) {
+      const box = document.createElement('div'); box.className='calendar-toolbar-extra';
+      box.innerHTML = '<button class="btn-secondary" id="btn-export-cal-pdf" onclick="exportCalAtivPdf()"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>';
+      calHdr.appendChild(box);
+    }
+    const ganttHdr = document.querySelector('#view-gantt .card-header');
+    if (ganttHdr && !document.getElementById('btn-gantt-sub')) {
+      const box = document.createElement('div'); box.className='gantt-toolbar-extra';
+      box.innerHTML = '<button class="btn-secondary" id="btn-gantt-sub" onclick="addSubactivityFromGantt()"><i class="fa-solid fa-diagram-project"></i> Nova subatividade</button>';
+      ganttHdr.appendChild(box);
+    }
+    const equipeView = document.getElementById('view-equipe');
+    if (equipeView && !document.getElementById('team-res-chart-card')) {
+      const card = document.createElement('div');
+      card.className='card team-chart-card';
+      card.id='team-res-chart-card';
+      card.innerHTML = '<div class="card-header"><i class="fa-solid fa-chart-column" style="color:var(--green);font-size:.85rem"></i><span class="card-title">Tempo médio de resolução por pessoa</span></div><div class="card-body"><canvas id="team-resolution-chart" height="95"></canvas></div>';
+      equipeView.insertBefore(card, document.getElementById('equipe-grid'));
+    }
+    const calEqHdr = document.querySelector('#view-cal-equipe .card-header');
+    if (calEqHdr && !document.getElementById('btn-cal-equipe-status')) {
+      const box = document.createElement('div'); box.className='calendar-toolbar-extra';
+      box.innerHTML = '<button class="btn-secondary" id="btn-cal-equipe-status" onclick="openTeamStatusPrompt()"><i class="fa-solid fa-user-clock"></i> Lançar status</button>';
+      calEqHdr.appendChild(box);
+    }
+  }
+  function employeeOptionsHtml(selected=''){
+    return employees.map(e => `<option value="${esc(e.name)}" ${e.name===selected?'selected':''}>${esc(e.name)}</option>`).join('');
+  }
+  function renderResourceRegistry(){
+    const host = document.getElementById('resource-registry-list');
+    if (!host) return;
+    const cards = (resourceRegistry||[]).slice().sort((a,b)=>titleName(a.name).localeCompare(titleName(b.name),'pt-BR')).map(item => `
+      <div class="resource-person-card">
+        <h4>${esc(titleName(item.name))}</h4>
+        <p>${item.isCollaborator ? 'Colaborador' : 'Recurso'}${item.team ? ' • ' + esc(item.team) : ''}</p>
+        <div class="meta">
+          <span class="badge ${item.isCollaborator ? 'badge-green' : 'badge-blue'}">${item.isCollaborator ? 'Equipe' : 'Recurso'}</span>
+          ${item.role ? `<span class="badge badge-purple">${esc(item.role)}</span>` : ''}
+          <button class="action-btn danger" onclick="deleteResourceEntry('${item.id}')" data-tooltip="Excluir"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`).join('');
+    host.innerHTML = cards || `<div class="empty-state"><i class="fa-solid fa-id-badge"></i><p>Nenhum cadastro manual ainda</p></div>`;
+  }
+  window._openModalActivity = function(){
+    ensureActivityModalExtras();
+    editingActId = null;
+    document.getElementById('modal-act-title').textContent = 'Nova Atividade';
+    ['act-id','act-project','act-responsible','act-description','act-obs','act-parent-id'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('act-start').value = todayISO();
+    document.getElementById('act-due').value = '';
+    document.getElementById('act-status').value = 'Pendente';
+    document.getElementById('act-progress').value = 0;
+    document.getElementById('modal-activity').classList.add('open');
+    setTimeout(()=>document.getElementById('act-description')?.focus(),100);
+  };
+  window.editAct = function(id){
+    ensureActivityModalExtras();
+    const a = activities.find(x=>x.id===id);
+    if (!a) return;
+    editingActId = id;
+    document.getElementById('modal-act-title').textContent = a.parentId ? 'Editar Subatividade' : 'Editar Atividade';
+    document.getElementById('act-id').value = a.id;
+    document.getElementById('act-project').value = a.project||'';
+    document.getElementById('act-responsible').value = a.responsible||'';
+    document.getElementById('act-description').value = a.description||'';
+    document.getElementById('act-start').value = a.startDate||'';
+    document.getElementById('act-due').value = a.dueDate||'';
+    document.getElementById('act-status').value = a.status||'Pendente';
+    document.getElementById('act-progress').value = a.progress||0;
+    document.getElementById('act-obs').value = a.obs||'';
+    document.getElementById('act-parent-id').value = a.parentId || '';
+    const durHEl = document.getElementById('act-duration-h');
+    if (durHEl) durHEl.value = a.durationH || '';
+    document.getElementById('calc-result').style.display = 'none';
+    document.getElementById('modal-activity').classList.add('open');
+  };
+  window.saveActivity = function(){
+    ensureActivityModalExtras();
+    const proj = document.getElementById('act-project').value.trim();
+    const desc = document.getElementById('act-description').value.trim();
+    let resp = document.getElementById('act-responsible').value.trim();
+    if (!proj) return toast('Projeto é obrigatório', 'error');
+    if (!desc) return toast('Título é obrigatório', 'error');
+    const horasVal = document.getElementById('act-duration-h')?.value;
+    const cfg = loadCalCfg();
+    resp = resp ? getCanonicalEmployeeName(resp) : '';
+    const durStr = horasVal ? `${horasVal}h (${Math.ceil(parseFloat(horasVal)/(cfg.horasDia||9))}d úteis)` : '';
+    const data = {
+      project: proj,
+      description: desc,
+      responsible: resp,
+      startDate: document.getElementById('act-start').value,
+      dueDate: document.getElementById('act-due').value,
+      status: document.getElementById('act-status').value,
+      progress: parseInt(document.getElementById('act-progress').value)||0,
+      obs: document.getElementById('act-obs').value.trim(),
+      isCritical: false,
+      duration: durStr,
+      durationH: parseFloat(horasVal)||0,
+      parentId: document.getElementById('act-parent-id')?.value || ''
+    };
+    if (editingActId) {
+      const idx = activities.findIndex(a=>a.id===editingActId);
+      if (idx>=0) activities[idx] = { ...activities[idx], ...data };
+      addHistory('update', `${data.parentId?'Subatividade':'Atividade'} atualizada: ${data.description} (${data.project})`);
+      toast('✓ Registro atualizado', 'success');
+    } else {
+      activities.push({ id:uid(), ...data });
+      addHistory('create', `Nova ${data.parentId?'subatividade':'atividade'}: ${data.description} (${data.project})`);
+      toast(`✓ ${data.parentId?'Subatividade':'Atividade'} criada`, 'success');
+    }
+    if (!projects.find(p=>p.name===proj)) {
+      const color = COLORS[projects.length % COLORS.length];
+      projects.push({ id:uid(), name:proj, code:'', desc:'', manager:'', status:'Em andamento', startDate:todayISO(), endDate:'', color, progress:0 });
+      PROJECT_COLORS_MAP[proj] = color;
+    }
+    buildEmployeeDatabase();
+    save(); closeModal('modal-activity'); renderAll();
+    if (document.getElementById('view-cal-atividades')?.classList.contains('active')) renderCalAtiv();
+    if (document.getElementById('view-cal-equipe')?.classList.contains('active')) renderCalEquipe();
+  };
+  window.saveProject = function(){
+    const name = document.getElementById('proj-name').value.trim();
+    const mgr  = document.getElementById('proj-manager').value.trim();
+    if (!name) return toast('Nome é obrigatório', 'error');
+    if (!mgr) return toast('Gestor é obrigatório', 'error');
+    const selectedColor = document.getElementById('color-picker').dataset.selected || COLORS[0];
+    const data = {
+      name,
+      code: document.getElementById('proj-code').value.trim(),
+      desc: document.getElementById('proj-desc').value.trim(),
+      manager: mgr,
+      status: document.getElementById('proj-status').value,
+      startDate: document.getElementById('proj-start').value,
+      endDate: document.getElementById('proj-end').value,
+      color: selectedColor,
+    };
+    if (editingProjId) {
+      const idx = projects.findIndex(p=>p.id===editingProjId);
+      const oldName = idx>=0 ? projects[idx].name : name;
+      if (idx>=0) projects[idx] = {...projects[idx], ...data};
+      if (oldName !== name) activities.forEach(a => { if (a.project === oldName) a.project = name; });
+      toast('✓ Projeto atualizado', 'success');
+    } else {
+      projects.push({ id:uid(), progress:0, ...data });
+      toast('✓ Projeto criado', 'success');
+    }
+    PROJECT_COLORS_MAP[name] = selectedColor;
+    save(); closeModal('modal-project'); renderAll();
+  };
+  window.renderKanban = function(){
+    const board = document.getElementById('kanban-board'); if (!board) return;
+    const cols = [
+      { key:'Pendente', label:'Pendente', dot:'#3b82f6' },
+      { key:'Em Andamento', label:'Em Andamento', dot:'#d97706' },
+      { key:'Reprogramado', label:'Reprogramado', dot:'#7c3aed' },
+      { key:'Vencido', label:'Atrasado', dot:'#dc2626' },
+      { key:'Concluído', label:'Concluído', dot:'#059669' },
+    ];
+    board.innerHTML = cols.map(col => {
+      const cards = activities.filter(a => a.status === col.key).sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
+      return `<div class="kanban-col">
+        <div class="kanban-col-header"><div class="kanban-dot" style="background:${col.dot}"></div><span class="kanban-col-title">${col.label}</span><span class="kanban-col-count">${cards.length}</span></div>
+        <div class="kanban-dropzone" data-status="${col.key}" ondragover="kanbanAllowDrop(event)" ondrop="kanbanDrop(event,'${col.key}')" ondragleave="kanbanDragLeave(event)">
+          <div class="kanban-cards">
+          ${cards.length ? cards.map(a => {
+            const diff = diffDays(a.dueDate);
+            const detail = a.parentId ? '<span class="badge badge-purple" style="font-size:.55rem">SUB</span>' : '';
+            return `<div class="kanban-card" draggable="true" data-id="${a.id}" ondragstart="kanbanDragStart(event)" ondragend="kanbanDragEnd(event)" onclick="editAct('${a.id}')">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><div class="kanban-card-title">${esc(a.description)}</div>${detail}</div>
+              <div class="kanban-card-meta"><span class="kanban-card-proj"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span><div class="kanban-card-avatar" title="${esc(a.responsible||'Sem responsável')}">${(a.responsible||'?')[0].toUpperCase()}</div></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:.64rem;color:var(--text-4)"><span>${esc(a.responsible||'Sem responsável')}</span><span>${diff<0?Math.abs(diff)+'d atraso':a.dueDate?fmtDate(a.dueDate):'Sem data'}</span></div>
+            </div>`;
+          }).join('') : '<div style="padding:12px;text-align:center;font-size:.72rem;color:var(--text-4)">Arraste cards para cá</div>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  };
+  window.kanbanDragStart = function(ev){ draggedKanbanId = ev.currentTarget.dataset.id; ev.currentTarget.classList.add('dragging'); };
+  window.kanbanDragEnd = function(ev){ ev.currentTarget.classList.remove('dragging'); document.querySelectorAll('.kanban-dropzone').forEach(z=>z.classList.remove('drag-over')); };
+  window.kanbanAllowDrop = function(ev){ ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); };
+  window.kanbanDragLeave = function(ev){ ev.currentTarget.classList.remove('drag-over'); };
+  window.kanbanDrop = function(ev, status){ ev.preventDefault(); ev.currentTarget.classList.remove('drag-over'); if (!draggedKanbanId) return; const act = activities.find(a=>a.id===draggedKanbanId); if (!act) return; act.status = status; if (status==='Concluído') act.progress=100; if (status!=='Concluído' && act.progress===100) act.progress=90; addHistory('update', `Kanban: ${act.description} movida para ${status}`); save(); renderAll(); draggedKanbanId = null; };
+  window.renderProjetos = function(){
+    const grid = document.getElementById('projetos-grid'); if (!grid) return;
+    if (!projects.length) { grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder-open"></i><p>Nenhum projeto cadastrado</p></div>`; return; }
+    const sections = [
+      { key:'ativos', title:'Projetos ativos', sub:'Em andamento, planejamento e pausados' },
+      { key:'concluidos', title:'Projetos concluídos', sub:'Finalizados e preservados para histórico' },
+      { key:'arquivados', title:'Projetos arquivados', sub:'Passados e guardados em pasta de consulta' }
+    ];
+    function projectCard(p){
+      const acts = activities.filter(a => a.project === p.name);
+      const done = acts.filter(a => a.status === 'Concluído').length;
+      const overdue = acts.filter(a => a.status === 'Vencido').length;
+      const pct = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
+      const group = getProjectStatusGroup(p.status);
+      return `<div class="card" style="overflow:hidden"><div style="height:4px;background:${p.color||'var(--blue)'}"></div><div style="padding:16px 18px">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="flex:1"><div style="font-family:var(--font-head);font-weight:700;font-size:.9rem;color:var(--text-1)">${esc(p.name)}</div><div style="font-size:.65rem;color:var(--text-4);font-family:var(--font-mono);margin-top:1px">${esc(p.code||'')}</div></div><span class="badge ${group==='ativos'?'badge-blue':group==='concluidos'?'badge-green':'badge-purple'}">${esc(p.status)}</span></div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-bottom:12px;min-height:18px">${esc(p.desc||'')}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${pct}%;background:${p.color}"></div></div><span style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;color:var(--text-3)">${pct}%</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:.7rem;color:var(--text-3)"><span><i class="fa-solid fa-list-check" style="color:var(--blue)"></i> ${acts.length} ativ.</span><span><i class="fa-solid fa-check" style="color:var(--green)"></i> ${done} concl.</span>${overdue>0?`<span><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> ${overdue} atras.</span>`:''}<span><i class="fa-solid fa-user"></i> ${esc(p.manager||'—')}</span></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="addActForProject('${esc(p.name)}')"><i class="fa-solid fa-plus"></i> Atividade</button>
+        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="editProj('${p.id}')"><i class="fa-solid fa-pen"></i> Editar</button>
+        ${group!=='arquivados' ? `<button class="btn-secondary" style="font-size:.75rem" onclick="setProjectStatus('${p.id}','Arquivado')"><i class="fa-solid fa-box-archive"></i></button>` : `<button class="btn-secondary" style="font-size:.75rem" onclick="setProjectStatus('${p.id}','Em andamento')"><i class="fa-solid fa-box-open"></i></button>`}
+        <button class="action-btn danger" onclick="deleteProj('${p.id}')" data-tooltip="Excluir"><i class="fa-solid fa-trash"></i></button>
+      </div></div>`;
+    }
+    grid.innerHTML = sections.map(sec => {
+      const list = projects.filter(p => getProjectStatusGroup(p.status) === sec.key);
+      return `<div class="project-folder" style="grid-column:1/-1"><div><div class="project-folder-title"><i class="fa-solid ${sec.key==='ativos'?'fa-folder-open':sec.key==='concluidos'?'fa-folder-check':'fa-box-archive'}"></i>${sec.title}<span class="project-folder-sub">${sec.sub}</span></div></div><div class="project-grid">${list.length?list.map(projectCard).join(''):`<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder"></i><p>Nenhum item nesta pasta</p></div>`}</div></div>`;
+    }).join('');
+  };
+  window.setProjectStatus = function(id, status){ const p = projects.find(x=>x.id===id); if(!p) return; p.status = status; addHistory('update', `Projeto ${p.name} alterado para ${status}`); save(); renderProjetos(); renderPortfolio(); toast('Status do projeto atualizado', 'success'); };
+  window.addSubactivityFromGantt = function(parentId=''){
+    window._openModalActivity();
+    if (!parentId) return;
+    const parent = activities.find(a => a.id === parentId); if (!parent) return;
+    document.getElementById('act-parent-id').value = parent.id;
+    document.getElementById('act-project').value = parent.project || '';
+    document.getElementById('act-start').value = parent.startDate || todayISO();
+    document.getElementById('act-due').value = parent.dueDate || '';
+    document.getElementById('act-description').value = `Subatividade — ${parent.description}`;
+    document.getElementById('modal-act-title').textContent = 'Nova Subatividade';
+  };
+  window.renderGantt = function(){
+    const wrap = document.getElementById('gantt-wrap'); if (!wrap) return;
+    const acts = [...activities].filter(a => a.startDate || a.dueDate);
+    if (!acts.length) { wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade com datas</p></div>'; return; }
+    const byParent = acts.slice().sort((a,b)=> (a.startDate||a.dueDate||'').localeCompare(b.startDate||b.dueDate||''));
+    const ordered = [];
+    byParent.filter(a=>!a.parentId).forEach(parent=>{ ordered.push(parent); byParent.filter(s=>s.parentId===parent.id).forEach(s=>ordered.push({...s,_isSub:true})); });
+    byParent.filter(a=>a.parentId && !byParent.find(p=>p.id===a.parentId)).forEach(a=>ordered.push({...a,_isSub:true}));
+    const allDates = acts.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+    const minDate = new Date(allDates[0] + 'T00:00:00'); const maxDate = new Date(allDates[allDates.length-1] + 'T00:00:00');
+    maxDate.setDate(maxDate.getDate()+14); minDate.setDate(minDate.getDate()-7);
+    const totalDays = Math.max(1, Math.round((maxDate - minDate) / 86400000));
+    const pxPerDay = 5; const totalW = totalDays * pxPerDay;
+    document.getElementById('gantt-range').textContent = `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
+    let monthsHtml=''; let cur=new Date(minDate);
+    while(cur<maxDate){ const start=new Date(cur); const end=new Date(cur.getFullYear(), cur.getMonth()+1,1); const days=Math.max(1,Math.round((Math.min(end,maxDate)-start)/86400000)); const w=days*pxPerDay; monthsHtml += `<div class="gantt-month" style="width:${w}px">${start.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`; cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+    const todayLeft = Math.round((new Date()-minDate)/86400000)*pxPerDay;
+    const rows = ordered.map(a => {
+      const sd = isoToDate(a.startDate || a.dueDate); const ed = isoToDate(a.dueDate || a.startDate); const left = Math.max(0, Math.round((sd-minDate)/86400000))*pxPerDay; const w = Math.max(4, Math.round((ed-sd)/86400000 + 1))*pxPerDay; const pct = a.progress||0; const color = a._isSub ? 'var(--purple)' : projColor(a.project); const diff = diffDays(a.dueDate); let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído' ? .6 : 1}`; if(diff<0 && a.status!=='Concluído') barStyle += ';background:var(--red)';
+      return `<tr><td style="min-width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text-1)">${a._isSub?'<span style="opacity:.45">↳</span> ':''}${esc(a.description)}<button class="gantt-inline-btn" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" title="Criar subatividade"><i class="fa-solid fa-plus"></i></button></td><td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td><td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3)">${fmtDate(a.startDate)}</td><td style="font-family:var(--font-mono);font-size:.68rem;color:${diff<0?'var(--red)':'var(--text-3)'}">${fmtDate(a.dueDate)}</td><td class="gantt-bar-cell" style="min-width:${totalW}px"><div class="gantt-bar-bg" style="width:${totalW}px"><div class="gantt-today-line" style="left:${todayLeft}px"></div><div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} (${pct}%)" onclick="editAct('${a.id}')">${pct>0?`<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.25);border-radius:4px 0 0 4px"></div>`:''}<span style="position:relative;z-index:1">${esc(a.description)}</span></div></div></td></tr>`;
+    }).join('');
+    wrap.innerHTML = `<table class="gantt-table"><thead><tr><th>Atividade</th><th>Projeto</th><th>Início</th><th>Término</th><th><div style="display:flex">${monthsHtml}</div></th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+  function calcAvgResolution(person){
+    const done = activities.filter(a => a.responsible===person && a.status==='Concluído');
+    if (!done.length) return 0;
+    const vals = done.map(a => {
+      if (a.startDate && a.dueDate) return Math.max(1, Math.round((isoToDate(a.dueDate)-isoToDate(a.startDate))/86400000)+1);
+      if (a.durationH) return Math.max(1, Math.ceil(a.durationH / (loadCalCfg().horasDia || 9)));
+      return 1;
+    });
+    return Math.round((vals.reduce((s,v)=>s+v,0)/vals.length)*10)/10;
+  }
+  function renderTeamResolutionChart(people){
+    const canvas = document.getElementById('team-resolution-chart'); if (!canvas || typeof Chart === 'undefined') return;
+    if (chartTeamResAvg) chartTeamResAvg.destroy();
+    chartTeamResAvg = new Chart(canvas, { type:'bar', data:{ labels:people, datasets:[{ label:'Dias médios', data:people.map(calcAvgResolution), backgroundColor:'rgba(37,99,235,.65)', borderRadius:6, borderSkipped:false }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color:'#94a3b8', font:{ size:10 } }, grid:{ display:false } }, y:{ ticks:{ color:'#94a3b8', font:{ size:10 } }, grid:{ color:'rgba(148,163,184,.12)' } } } } });
+  }
+  window.saveResourceEntry = function(){
+    const nameEl = document.getElementById('resource-name');
+    const teamEl = document.getElementById('resource-team');
+    const roleEl = document.getElementById('resource-role');
+    const collabEl = document.getElementById('resource-is-collaborator');
+    if (!nameEl) return;
+    const rawName = nameEl.value || '';
+    const key = normalizeName(rawName);
+    if (!key) return toast('Digite o nome do cadastro', 'warning');
+    const exists = (resourceRegistry||[]).some(r => normalizeName(r.name) === key);
+    if (exists) return toast('Esse nome já está cadastrado', 'warning');
+    resourceRegistry.push({
+      id: 'res_'+Date.now(),
+      name: titleName(rawName),
+      team: (teamEl?.value || '').trim(),
+      role: (roleEl?.value || '').trim(),
+      isCollaborator: !!collabEl?.checked
+    });
+    if (nameEl) nameEl.value = '';
+    if (teamEl) teamEl.value = '';
+    if (roleEl) roleEl.value = '';
+    if (collabEl) collabEl.checked = true;
+    save();
+    renderRecursos();
+    renderEquipe();
+    renderCalEquipe();
+    toast('Cadastro salvo com sucesso', 'success');
+  };
+  window.deleteResourceEntry = function(id){
+    const item = (resourceRegistry||[]).find(r => r.id === id);
+    resourceRegistry = (resourceRegistry||[]).filter(r => r.id !== id);
+    if (item?.isCollaborator) {
+      const key = normalizeName(item.name);
+      employees = employees.filter(e => e.key !== key || activities.some(a => normalizeName(a.responsible) === key));
+    }
+    save();
+    renderRecursos();
+    renderEquipe();
+    renderCalEquipe();
+    toast('Cadastro removido', 'success');
+  };
+
+  window.renderEquipe = function(){
+    const grid = document.getElementById('equipe-grid'); if (!grid) return;
+    const people = employees.map(e=>e.name);
+    renderTeamResolutionChart(people);
+    if (!people.length) { grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-users"></i><p>Nenhum colaborador encontrado</p></div>`; return; }
+    grid.innerHTML = people.map((name, i) => {
+      const emp = employees.find(e=>e.name===name) || {};
+      const myActs = activities.filter(a => a.responsible === name); const done = myActs.filter(a => a.status==='Concluído').length; const overdue = myActs.filter(a => a.status==='Vencido').length; const pct = myActs.length ? Math.round((done/myActs.length)*100) : 0; const avg = calcAvgResolution(name);
+      return `<div class="card"><div style="padding:16px 18px"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${COLORS[i%COLORS.length]},${COLORS[(i+2)%COLORS.length]});display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.95rem;flex-shrink:0">${name[0].toUpperCase()}</div><div style="flex:1"><div style="font-weight:700;font-size:.85rem;color:var(--text-1)">${esc(name)}</div><div style="font-size:.68rem;color:var(--text-4)">${esc(emp.team||'Não definida')} · ${myActs.length} atividades</div></div><span class="badge badge-blue">${avg||0}d méd.</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px"><div style="text-align:center;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)"><div style="font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:var(--text-1)">${myActs.length}</div><div style="font-size:.58rem;color:var(--text-4);text-transform:uppercase">Total</div></div><div style="text-align:center;padding:8px;background:var(--green-dim);border-radius:8px;border:1px solid rgba(5,150,105,.15)"><div style="font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:var(--green)">${done}</div><div style="font-size:.58rem;color:var(--green);text-transform:uppercase">Concl.</div></div><div style="text-align:center;padding:8px;background:${overdue?'var(--red-dim)':'var(--surface2)'};border-radius:8px;border:1px solid var(--border)"><div style="font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:${overdue?'var(--red)':'var(--text-1)'}">${overdue}</div><div style="font-size:.58rem;color:var(--text-4);text-transform:uppercase">Atras.</div></div><div style="text-align:center;padding:8px;background:var(--blue-dim);border-radius:8px;border:1px solid rgba(37,99,235,.14)"><div style="font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:var(--blue)">${avg||0}</div><div style="font-size:.58rem;color:var(--blue);text-transform:uppercase">Dias méd.</div></div></div>
+      <div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill fill-${pct===100?'green':''}" style="width:${pct}%"></div></div><span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-4)">${pct}%</span></div></div></div>`;
+    }).join('');
+  };
+  window.renderPortfolio = function(){
+    const kpiEl = document.getElementById('pf-kpis');
+    const tlEl = document.getElementById('pf-timeline');
+    if (!kpiEl || !tlEl) return;
+    const total = projects.length, ativos = projects.filter(p=>getProjectStatusGroup(p.status)==='ativos').length, concluidos = projects.filter(p=>p.status==='Concluído').length, arquivados = projects.filter(p=>p.status==='Arquivado').length, overdue = activities.filter(a=>a.status==='Vencido').length;
+    kpiEl.innerHTML = `<div class="card" style="padding:14px 16px"><div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:6px">Projetos ativos</div><div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--text-1)">${ativos}</div><div style="font-size:.68rem;color:var(--text-4)">${total} no portfólio</div></div><div class="card" style="padding:14px 16px"><div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:6px">Concluídos</div><div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--green)">${concluidos}</div><div style="font-size:.68rem;color:var(--text-4)">Entregues e mantidos no histórico</div></div><div class="card" style="padding:14px 16px"><div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:6px">Arquivados</div><div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:var(--purple)">${arquivados}</div><div style="font-size:.68rem;color:var(--text-4)">Guardados por pasta</div></div><div class="card" style="padding:14px 16px"><div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${overdue?'var(--red)':'var(--text-3)'};margin-bottom:6px">Risco operacional</div><div style="font-family:var(--font-head);font-size:1.8rem;font-weight:800;color:${overdue?'var(--red)':'var(--green)'}">${overdue}</div><div style="font-size:.68rem;color:var(--text-4)">Atividades vencidas abertas</div></div>`;
+    const info = `<div class="portfolio-info"><strong>O que esta aba mostra:</strong> visão macro do portfólio — status de cada projeto, gestor responsável, progresso consolidado, tarefas abertas e projetos em risco. É a visão executiva para decidir prioridade, capacidade e saúde do setor.</div>`;
+    const rows = projects.map(p => {
+      const acts = activities.filter(a=>a.project===p.name); const done = acts.filter(a=>a.status==='Concluído').length; const open = acts.filter(a=>a.status!=='Concluído').length; const late = acts.filter(a=>a.status==='Vencido').length; const pct = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
+      return `<div class="portfolio-row"><div><div class="title">${esc(p.name)}</div><div class="sub">${esc(p.manager||'Sem gestor')} · ${esc(p.code||'Sem código')}</div></div><div><span class="badge ${p.status==='Concluído'?'badge-green':p.status==='Arquivado'?'badge-purple':'badge-blue'}">${esc(p.status||'Em andamento')}</span></div><div><strong>${pct}%</strong><div class="sub">progresso</div></div><div><strong>${open}</strong><div class="sub">abertas</div></div><div><strong style="color:${late?'var(--red)':'var(--green)'}">${late}</strong><div class="sub">vencidas</div></div></div>`;
+    }).join('');
+    tlEl.innerHTML = info + `<div class="portfolio-list">${rows || `<div class="empty-state"><i class="fa-solid fa-folder"></i><p>Nenhum projeto</p></div>`}</div>`;
+  };
+  window.renderRecursos = function(){
+    const wrap = document.getElementById('recursos-wrap'); const confEl = document.getElementById('conflitos-list'); if (!wrap) return;
+    const people = employees;
+    const today = new Date(); today.setHours(0,0,0,0); const weeks=[];
+    for (let i=0;i<recPeriod;i++){ const ws=new Date(today); ws.setDate(today.getDate()+i*7); const we=new Date(ws); we.setDate(ws.getDate()+6); weeks.push({start:ws,end:we,label:`S${i+1}`}); }
+    const conflicts=[];
+    const heads = weeks.map(w=>`<th>${w.label}</th>`).join('');
+    const rows = people.map(emp => {
+      const cells = weeks.map(w => {
+        const myActs = activities.filter(a => { if (a.responsible !== emp.name || a.status==='Concluído') return false; const r=rangeForActivity(a); if(!r.start&&!r.end) return false; const sd=isoToDate(r.start); const ed=isoToDate(r.end); return sd<=w.end && ed>=w.start; });
+        const load = myActs.length; let cls='heat-empty', label='—'; if(load>0){ if(load>=3){ cls='heat-over'; } else if(load>=2){ cls='heat-warn'; } else { cls='heat-free'; } label=load; if(load>2 && !conflicts.find(c=>c.person===emp.name)) conflicts.push({person:emp.name,load,week:w.label}); }
+        return `<td><div class="heat-cell ${cls}">${label}</div></td>`;
+      }).join('');
+      return `<tr><td style="text-align:left;font-weight:600;font-size:.78rem;white-space:nowrap;min-width:190px"><div>${esc(emp.name)}</div><div style="font-size:.62rem;color:var(--text-4);font-weight:500">Equipe: ${esc(emp.team||'Não definida')}</div></td>${cells}</tr>`;
+    }).join('');
+    const dbCards = people.map(emp => `<div class="resource-person-card"><h4>${esc(emp.name)}</h4><p>${esc(emp.team||'Não definida')}</p><div class="meta"><span class="badge badge-blue">${(emp.projects||[]).length} projeto(s)</span><span class="badge badge-green">Cadastro ativo</span><button class="btn-secondary" style="padding:3px 8px;font-size:.62rem" onclick="editEmployeeTeam('${esc(emp.name)}')"><i class="fa-solid fa-users"></i> Equipe</button></div></div>`).join('');
+    wrap.innerHTML = `<div class="card" style="margin:14px 14px 16px;padding:14px;border:1px solid var(--border);background:var(--surface)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div><div style="font-weight:700;color:var(--text-1)">Cadastro rápido</div><div style="font-size:.7rem;color:var(--text-4)">Use o campo de colaborador para mandar a pessoa direto para Equipe e Calendário de Equipe.</div></div></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:10px;align-items:end">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:.7rem;color:var(--text-3)">Nome
+          <input id="resource-name" class="input" placeholder="Ex: Carlos Silva" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:.7rem;color:var(--text-3)">Equipe
+          <input id="resource-team" class="input" placeholder="Ex: Produção" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:.7rem;color:var(--text-3)">Função
+          <input id="resource-role" class="input" placeholder="Ex: Soldador" />
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.76rem;color:var(--text-2);padding:0 4px 11px 4px;white-space:nowrap"><input type="checkbox" id="resource-is-collaborator" checked> Cadastrar colaborador</label>
+        <button class="btn-primary" onclick="saveResourceEntry()"><i class="fa-solid fa-plus"></i> Salvar</button>
+      </div>
+    </div>
+    <div id="resource-registry-list" class="recursos-db"></div>
+    <div class="recursos-db">${dbCards || `<div class="empty-state"><i class="fa-solid fa-users"></i><p>Nenhum colaborador alocado ainda</p></div>`}</div><table class="recursos-table"><thead><tr><th style="text-align:left">Funcionário</th>${heads}</tr></thead><tbody>${rows}</tbody></table>`;
+    renderResourceRegistry();
+    confEl.innerHTML = conflicts.length ? conflicts.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.75rem"><span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i>Conflito</span><span style="color:var(--text-2)"><strong>${esc(c.person)}</strong> — ${c.load} atividades simultâneas (${c.week})</span></div>`).join('') : `<div style="font-size:.75rem;color:var(--text-4);padding:8px 0">✅ Nenhum conflito detectado.</div>`;
+  };
+  window.editEmployeeTeam = function(name){
+    const emp = employees.find(e=>e.name===name); if(!emp) return; const next = prompt(`Defina a equipe de ${name}:`, emp.team || ''); if(next===null) return; emp.team = next.trim() || 'Não definida'; save(); renderRecursos(); renderEquipe(); renderCalEquipe(); toast('Equipe atualizada', 'success'); };
+  function eventClassForActivity(a){ const diff=diffDays(a.dueDate); if(a.status==='Concluído') return 'ev-green'; if(a.status==='Reprogramado') return 'ev-purple'; if(diff<0) return 'ev-red'; if(diff===0) return 'ev-amber'; return ''; }
+  window.renderCalBase = function(containerId, actsFiltered){
+    const wrap = document.getElementById(containerId); if(!wrap) return;
+    wrap.classList.add('print-section');
+    const today = new Date(); const firstDay = new Date(calYear, calMonth, 1); const lastDay = new Date(calYear, calMonth+1, 0); const startDow = firstDay.getDay(); const monthName = firstDay.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    let html = `<div class="cal-header"><button class="btn-secondary" onclick="calNav(-1,'${containerId}')"><i class="fa-solid fa-chevron-left"></i></button><span class="cal-title">${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</span><button class="btn-secondary" onclick="calNav(1,'${containerId}')"><i class="fa-solid fa-chevron-right"></i></button><button class="btn-secondary" onclick="calToday('${containerId}')">Hoje</button></div><div class="cal-grid">`;
+    const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']; html += days.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+    for(let i=0;i<startDow;i++) html += `<div class="cal-day other-month"></div>`;
+    for(let d=1; d<=lastDay.getDate(); d++){
+      const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===d; const dayActs = actsFiltered.filter(a => activityRunsOn(a, dateStr));
+      const evHtml = dayActs.slice(0,4).map(a=>`<div class="cal-event ${eventClassForActivity(a)}" title="${esc(a.description)} — ${esc(a.responsible||'Sem responsável')}" onclick="editAct('${a.id}')">${esc(a.description)}<span style="opacity:.9"> · ${esc(a.responsible||'—')}</span></div>`).join('');
+      html += `<div class="cal-day ${isToday?'today':''}"><div class="cal-day-num">${d}</div>${evHtml}${dayActs.length>4?`<div class="cal-event-more">+${dayActs.length-4} mais</div>`:''}</div>`;
+    }
+    html += '</div>'; wrap.innerHTML = html;
+  };
+  window.renderCalAtiv = function(){ renderCalBase('cal-ativ-wrap', activities); };
+  function teamEntryClass(type){ return type==='Folga' ? 'folga' : type==='Férias' ? 'ferias' : type==='Treinamento' ? 'treinamento' : type==='Outra atividade' ? 'outra' : 'project'; }
+  function getTeamEntriesForDay(empName, dateStr){
+    const key = normalizeName(empName); const manual = teamCalendar[key]?.[dateStr];
+    if (manual) return [{ label: manual.label || manual.type, type: manual.type }];
+    const acts = activities.filter(a => a.responsible === empName && activityRunsOn(a, dateStr));
+    return acts.map(a => ({ label: `${a.project}: ${a.description}`, type: 'Projeto' }));
+  }
+  function renderTeamCalendarSelector(){
+    const sel = document.getElementById('cal-eq-pessoa'); if (!sel) return; const cur = sel.value; sel.innerHTML = '<option value="">Todos</option>' + employeeOptionsHtml(cur);
+    if (cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  }
+  window.renderCalEquipe = function(){
+    renderTeamCalendarSelector();
+    const pessoa = document.getElementById('cal-eq-pessoa')?.value || '';
+    const wrap = document.getElementById('cal-equipe-wrap'); if (!wrap) return;
+    const firstDay = new Date(calYear, calMonth, 1); const lastDay = new Date(calYear, calMonth+1, 0); const totalDays = lastDay.getDate(); const names = (pessoa ? employees.filter(e=>e.name===pessoa) : employees).map(e=>e.name);
+    const headDays = Array.from({length:totalDays}, (_,i)=>`<th>${String(i+1).padStart(2,'0')}</th>`).join('');
+    const rows = names.map(name => {
+      const emp = employees.find(e=>e.name===name) || {}; const cells = Array.from({length:totalDays}, (_,i)=>{ const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`; const entries = getTeamEntriesForDay(name, dateStr); return `<td class="team-day-cell" onclick="setTeamDayStatus('${esc(name)}','${dateStr}')"><div class="team-day-stack">${entries.length ? entries.slice(0,2).map(entry=>`<div class="team-pill ${teamEntryClass(entry.type)}" title="${esc(entry.label)}">${esc(entry.label)}</div>`).join('') : '<div style="font-size:.58rem;color:var(--text-4)">Livre</div>'}${entries.length>2?`<div style="font-size:.55rem;color:var(--text-4)">+${entries.length-2}</div>`:''}</div></td>`; }).join('');
+      return `<tr><td><div style="font-weight:700">${esc(name)}</div><div style="font-size:.62rem;color:var(--text-4)">${esc(emp.team||'Não definida')}</div></td>${cells}</tr>`;
+    }).join('');
+    wrap.classList.add('print-section');
+    wrap.innerHTML = `<div class="cal-header"><button class="btn-secondary" onclick="calNav(-1,'cal-equipe-wrap')"><i class="fa-solid fa-chevron-left"></i></button><span class="cal-title">${firstDay.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</span><button class="btn-secondary" onclick="calNav(1,'cal-equipe-wrap')"><i class="fa-solid fa-chevron-right"></i></button><button class="btn-secondary" onclick="calToday('cal-equipe-wrap')">Hoje</button></div><div class="team-calendar-matrix"><table class="team-calendar-table"><thead><tr><th>Funcionário</th>${headDays}</tr></thead><tbody>${rows || `<tr><td colspan="${totalDays+1}"><div class="empty-state"><i class="fa-solid fa-users"></i><p>Nenhum colaborador cadastrado</p></div></td></tr>`}</tbody></table></div>`;
+  };
+  window.setTeamDayStatus = function(name, dateStr){
+    const type = prompt(`Defina o status de ${name} em ${fmtDate(dateStr)}:
+
+Digite: Folga, Férias, Outra atividade, Treinamento ou Limpar`, '');
+    if (type === null) return;
+    const key = normalizeName(name); if (!teamCalendar[key]) teamCalendar[key] = {};
+    const value = type.trim();
+    if (!value || /^limpar$/i.test(value)) { delete teamCalendar[key][dateStr]; save(); renderCalEquipe(); return; }
+    const label = prompt('Detalhe opcional (ex: Férias, Visita externa, Apoio no projeto X):', value) || value;
+    teamCalendar[key][dateStr] = { type: value, label };
+    save(); renderCalEquipe(); toast('Status lançado no calendário da equipe', 'success');
+  };
+  window.openTeamStatusPrompt = function(){
+    renderTeamCalendarSelector();
+    const person = prompt('Digite exatamente o nome do funcionário para lançar um status:'); if (!person) return; const canonical = getCanonicalEmployeeName(person); const dateStr = prompt('Data no formato AAAA-MM-DD:', todayISO()); if (!dateStr) return; setTeamDayStatus(canonical, dateStr); };
+  window.exportCalAtivPdf = function(){
+    const section = document.getElementById('cal-ativ-wrap'); if (!section) return;
+    const win = window.open('', '_blank');
+    if (!win) { toast('Permita pop-up para exportar o PDF', 'warning'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><title>Calendário de Atividades</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-day-header{font-weight:700;padding:8px;background:#e5e7eb;border:1px solid #d1d5db}.cal-day{min-height:110px;border:1px solid #d1d5db;padding:6px;border-radius:6px}.cal-event{font-size:11px;background:#2563eb;color:#fff;border-radius:4px;padding:3px 5px;margin-bottom:3px}.cal-day-num{font-weight:700;margin-bottom:6px}.cal-header{display:flex;justify-content:center;margin-bottom:14px}.cal-title{font-size:22px;font-weight:700}</style></head><body><h2 style="margin-bottom:16px">Calendário de Atividades</h2>${section.innerHTML}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    win.document.close();
+  };
+  document.addEventListener('DOMContentLoaded', function(){ ensureProjectStatusOptions(); ensureActivityModalExtras(); injectViewButtons(); renderTeamCalendarSelector(); });
+})();
+</script>
+
 </body>
 </html>
