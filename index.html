@@ -1812,6 +1812,32 @@ select.form-control { cursor: pointer; }
           <span class="card-title">Cronograma Gantt</span>
           <span class="card-subtitle" id="gantt-range"></span>
         </div>
+        <!-- Filtros Gantt -->
+        <div class="filter-bar" style="gap:8px;flex-wrap:wrap">
+          <span class="filter-label"><i class="fa-solid fa-filter" style="opacity:.5"></i> Filtrar:</span>
+          <div class="header-search" style="width:180px">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="gantt-f-search" placeholder="Buscar atividade..." oninput="renderGantt()"/>
+          </div>
+          <select class="filter-select" id="gantt-f-project" onchange="renderGantt()">
+            <option value="">Todos os projetos</option>
+          </select>
+          <select class="filter-select" id="gantt-f-status" onchange="renderGantt()">
+            <option value="">Todos os status</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Em Andamento">Em Andamento</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Vencido">Vencido</option>
+            <option value="Reprogramado">Reprogramado</option>
+          </select>
+          <select class="filter-select" id="gantt-f-resp" onchange="renderGantt()">
+            <option value="">Todos os responsáveis</option>
+          </select>
+          <button class="btn-secondary" style="font-size:.75rem" onclick="clearGanttFilters()">
+            <i class="fa-solid fa-xmark"></i> Limpar
+          </button>
+          <span style="margin-left:auto;font-size:.7rem;color:var(--text-4)" id="gantt-count"></span>
+        </div>
         <div class="gantt-wrap" id="gantt-wrap">
           <div style="padding:32px;text-align:center;color:var(--text-4)">Carregando Gantt...</div>
         </div>
@@ -4563,28 +4589,227 @@ window.calcDurFromDates = calcDurFromDates;
     document.getElementById('act-description').value = `Subatividade — ${parent.description}`;
     document.getElementById('modal-act-title').textContent = 'Nova Subatividade';
   };
+  window.clearGanttFilters = function() {
+    const ids = ['gantt-f-search','gantt-f-project','gantt-f-status','gantt-f-resp'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+    // Resetar opções dinâmicas para forçar repovoamento
+    ['gantt-f-project','gantt-f-resp'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      while (el.options.length > 1) el.remove(1);
+    });
+    renderGantt();
+  };
+  window.clearGanttFilters = window.clearGanttFilters;
+
+  /* Estado de ordenação do Gantt */
+  if (!window._ganttSort) window._ganttSort = { field: 'wbs', dir: 1 };
+
+  window.ganttSortBy = function(field) {
+    if (window._ganttSort.field === field) window._ganttSort.dir *= -1;
+    else { window._ganttSort.field = field; window._ganttSort.dir = 1; }
+    renderGantt();
+  };
+
   window.renderGantt = function(){
     const wrap = document.getElementById('gantt-wrap'); if (!wrap) return;
-    const acts = [...activities].filter(a => a.startDate || a.dueDate);
-    if (!acts.length) { wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade com datas</p></div>'; return; }
-    const byParent = acts.slice().sort((a,b)=> (a.startDate||a.dueDate||'').localeCompare(b.startDate||b.dueDate||''));
-    const ordered = [];
-    byParent.filter(a=>!a.parentId).forEach(parent=>{ ordered.push(parent); byParent.filter(s=>s.parentId===parent.id).forEach(s=>ordered.push({...s,_isSub:true})); });
-    byParent.filter(a=>a.parentId && !byParent.find(p=>p.id===a.parentId)).forEach(a=>ordered.push({...a,_isSub:true}));
-    const allDates = acts.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
-    const minDate = new Date(allDates[0] + 'T00:00:00'); const maxDate = new Date(allDates[allDates.length-1] + 'T00:00:00');
-    maxDate.setDate(maxDate.getDate()+14); minDate.setDate(minDate.getDate()-7);
+
+    /* ── Popula selects ── */
+    const fpEl = document.getElementById('gantt-f-project');
+    const frEl = document.getElementById('gantt-f-resp');
+    if (fpEl && fpEl.options.length <= 1) {
+      [...new Set(activities.map(a=>a.project).filter(Boolean))].sort().forEach(p=>{
+        const o=document.createElement('option'); o.value=p; o.textContent=p; fpEl.appendChild(o);
+      });
+    }
+    if (frEl && frEl.options.length <= 1) {
+      [...new Set(activities.map(a=>a.responsible).filter(Boolean))].sort().forEach(r=>{
+        const o=document.createElement('option'); o.value=r; o.textContent=r; frEl.appendChild(o);
+      });
+    }
+
+    /* ── Filtros ── */
+    const fSearch  = (document.getElementById('gantt-f-search')?.value  || '').toLowerCase();
+    const fProject = document.getElementById('gantt-f-project')?.value  || '';
+    const fStatus  = document.getElementById('gantt-f-status')?.value   || '';
+    const fResp    = document.getElementById('gantt-f-resp')?.value     || '';
+
+    /* ── Gera WBS hierárquico para TODAS as atividades ── */
+    function buildWBS(list) {
+      // monta árvore com WBS recursivo
+      const byId = {};
+      list.forEach(a => byId[a.id] = {...a});
+      const roots = list.filter(a => !a.parentId || !byId[a.parentId]);
+      const result = [];
+      let rootIdx = 0;
+      function walk(node, prefix) {
+        const wbs = prefix;
+        result.push({...node, _wbs: wbs});
+        const children = list.filter(c => c.parentId === node.id);
+        children.forEach((child, ci) => walk(child, prefix + '.' + (ci+1)));
+      }
+      roots.forEach((r, ri) => {
+        rootIdx++;
+        walk(r, String(rootIdx));
+      });
+      // Orphans (parentId aponta para id fora da lista filtrada)
+      const inResult = new Set(result.map(r=>r.id));
+      list.filter(a => !inResult.has(a.id)).forEach((a, i) => {
+        result.push({...a, _wbs: '?.' + (i+1)});
+      });
+      return result;
+    }
+
+    /* ── Aplica filtros ── */
+    let allActs = [...activities].filter(a => a.startDate || a.dueDate);
+
+    /* Ordena pais antes de filtrar para WBS correto */
+    const sortField = window._ganttSort.field;
+    const sortDir   = window._ganttSort.dir;
+    const sortFn = {
+      wbs:         (a,b) => (a.startDate||'').localeCompare(b.startDate||''),
+      description: (a,b) => (a.description||'').localeCompare(b.description||''),
+      project:     (a,b) => (a.project||'').localeCompare(b.project||''),
+      startDate:   (a,b) => (a.startDate||'').localeCompare(b.startDate||''),
+      dueDate:     (a,b) => (a.dueDate||'').localeCompare(b.dueDate||''),
+      responsible: (a,b) => (a.responsible||'').localeCompare(b.responsible||''),
+    };
+    if (sortFn[sortField]) {
+      allActs.sort((a,b) => sortDir * sortFn[sortField](a,b));
+    }
+
+    /* Gera WBS antes de filtrar */
+    const withWBS = buildWBS(allActs);
+
+    /* Aplica filtros preservando a estrutura hierárquica */
+    let filtered = withWBS.filter(a => {
+      if (fSearch  && !a.description?.toLowerCase().includes(fSearch) &&
+                      !a.project?.toLowerCase().includes(fSearch) &&
+                      !a.responsible?.toLowerCase().includes(fSearch) &&
+                      !a._wbs?.includes(fSearch)) return false;
+      if (fProject && a.project     !== fProject) return false;
+      if (fStatus  && a.status      !== fStatus)  return false;
+      if (fResp    && a.responsible !== fResp)    return false;
+      return true;
+    });
+
+    /* Contador */
+    const countEl = document.getElementById('gantt-count');
+    if (countEl) countEl.textContent = filtered.length > 0 ? `${filtered.length} atividade(s)` : '';
+    if (!filtered.length) {
+      wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade encontrada</p></div>';
+      return;
+    }
+
+    /* ── Datas ── */
+    const allDates = filtered.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+    const minDate  = new Date(allDates[0] + 'T00:00:00');
+    const maxDate  = new Date(allDates[allDates.length-1] + 'T00:00:00');
+    maxDate.setDate(maxDate.getDate() + 14);
+    minDate.setDate(minDate.getDate() - 7);
     const totalDays = Math.max(1, Math.round((maxDate - minDate) / 86400000));
-    const pxPerDay = 5; const totalW = totalDays * pxPerDay;
-    document.getElementById('gantt-range').textContent = `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
-    let monthsHtml=''; let cur=new Date(minDate);
-    while(cur<maxDate){ const start=new Date(cur); const end=new Date(cur.getFullYear(), cur.getMonth()+1,1); const days=Math.max(1,Math.round((Math.min(end,maxDate)-start)/86400000)); const w=days*pxPerDay; monthsHtml += `<div class="gantt-month" style="width:${w}px">${start.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`; cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
-    const todayLeft = Math.round((new Date()-minDate)/86400000)*pxPerDay;
-    const rows = ordered.map(a => {
-      const sd = isoToDate(a.startDate || a.dueDate); const ed = isoToDate(a.dueDate || a.startDate); const left = Math.max(0, Math.round((sd-minDate)/86400000))*pxPerDay; const w = Math.max(4, Math.round((ed-sd)/86400000 + 1))*pxPerDay; const pct = a.progress||0; const color = a._isSub ? 'var(--purple)' : projColor(a.project); const diff = diffDays(a.dueDate); let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído' ? .6 : 1}`; if(diff<0 && a.status!=='Concluído') barStyle += ';background:var(--red)';
-      return `<tr><td style="min-width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text-1)">${a._isSub?'<span style="opacity:.45">↳</span> ':''}${esc(a.description)}<button class="gantt-inline-btn" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" title="Criar subatividade"><i class="fa-solid fa-plus"></i></button></td><td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td><td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3)">${fmtDate(a.startDate)}</td><td style="font-family:var(--font-mono);font-size:.68rem;color:${diff<0?'var(--red)':'var(--text-3)'}">${fmtDate(a.dueDate)}</td><td class="gantt-bar-cell" style="min-width:${totalW}px"><div class="gantt-bar-bg" style="width:${totalW}px"><div class="gantt-today-line" style="left:${todayLeft}px"></div><div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} (${pct}%)" onclick="editAct('${a.id}')">${pct>0?`<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.25);border-radius:4px 0 0 4px"></div>`:''}<span style="position:relative;z-index:1">${esc(a.description)}</span></div></div></td></tr>`;
+    const pxPerDay  = 5;
+    const totalW    = totalDays * pxPerDay;
+
+    document.getElementById('gantt-range').textContent =
+      `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
+
+    /* ── Header meses ── */
+    let monthsHtml = '';
+    let cur = new Date(minDate);
+    while (cur < maxDate) {
+      const start = new Date(cur);
+      const end   = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      const days  = Math.max(1, Math.round((Math.min(end, maxDate) - start) / 86400000));
+      const w     = days * pxPerDay;
+      monthsHtml += `<div class="gantt-month" style="width:${w}px">${start.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
+      cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    }
+    const todayLeft = Math.round((new Date() - minDate) / 86400000) * pxPerDay;
+
+    /* ── Helpers de sort arrow ── */
+    const sf = window._ganttSort.field;
+    const sd = window._ganttSort.dir;
+    function sortIcon(field) {
+      if (sf !== field) return '<i class="fa-solid fa-sort" style="opacity:.25;font-size:.6rem;margin-left:3px"></i>';
+      return sd > 0
+        ? '<i class="fa-solid fa-sort-up" style="color:var(--blue);font-size:.6rem;margin-left:3px"></i>'
+        : '<i class="fa-solid fa-sort-down" style="color:var(--blue);font-size:.6rem;margin-left:3px"></i>';
+    }
+
+    /* ── Linhas ── */
+    const rows = filtered.map(a => {
+      const wbs    = a._wbs || '—';
+      const depth  = (wbs.match(/\./g)||[]).length;
+      const isSub  = depth > 0;
+      const indent = depth * 14;
+
+      const sd_d = isoToDate(a.startDate || a.dueDate);
+      const ed_d = isoToDate(a.dueDate   || a.startDate);
+      const left = Math.max(0, Math.round((sd_d - minDate) / 86400000)) * pxPerDay;
+      const bw   = Math.max(4, Math.round((ed_d - sd_d) / 86400000 + 1)) * pxPerDay;
+      const pct  = a.progress || 0;
+      const diff = diffDays(a.dueDate);
+
+      /* Cor da barra */
+      let barColor = isSub ? 'var(--purple)' : projColor(a.project);
+      if (diff < 0 && a.status !== 'Concluído') barColor = 'var(--red)';
+      const opacity = a.status === 'Concluído' ? .55 : 1;
+      const barStyle = `left:${left}px;width:${bw}px;background:${barColor};opacity:${opacity}`;
+
+      /* Seta de conexão pai → filho */
+      const arrowHtml = isSub
+        ? `<span style="color:var(--text-4);font-size:.7rem;margin-right:3px;padding-left:${indent-10}px">↳</span>`
+        : '';
+
+      /* Barra de progresso interna */
+      const progressLayer = pct > 0
+        ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.28);border-radius:4px 0 0 4px;pointer-events:none"></div>`
+        : '';
+
+      return `<tr style="${isSub ? 'background:rgba(124,58,237,.03)' : ''}">
+        <td style="width:52px;min-width:52px;font-family:var(--font-mono);font-size:.65rem;color:${isSub?'var(--purple)':'var(--text-4)'};font-weight:${isSub?600:500};white-space:nowrap">${wbs}</td>
+        <td style="min-width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <div style="display:flex;align-items:center;padding-left:${indent}px">
+            ${arrowHtml}
+            <span style="font-weight:${isSub?500:600};color:var(--text-1);font-size:${isSub?'.77rem':'.8rem'}">${esc(a.description)}</span>
+            <button class="gantt-inline-btn" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" title="Criar subatividade" style="margin-left:5px"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </td>
+        <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td>
+        <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3);white-space:nowrap">${fmtDate(a.startDate)}</td>
+        <td style="font-family:var(--font-mono);font-size:.68rem;color:${diff<0?'var(--red)':'var(--text-3)'};white-space:nowrap">${fmtDate(a.dueDate)}</td>
+        <td class="gantt-bar-cell" style="min-width:${totalW}px">
+          <div class="gantt-bar-bg" style="width:${totalW}px">
+            <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+            <div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} [${wbs}] (${pct}%)" onclick="editAct('${a.id}')">
+              ${progressLayer}
+              <span style="position:relative;z-index:1;font-size:.6rem">${esc(a.description)}</span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
     }).join('');
-    wrap.innerHTML = `<table class="gantt-table"><thead><tr><th>Atividade</th><th>Projeto</th><th>Início</th><th>Término</th><th><div style="display:flex">${monthsHtml}</div></th></tr></thead><tbody>${rows}</tbody></table>`;
+
+    /* ── Monta tabela ── */
+    wrap.innerHTML = `<table class="gantt-table">
+      <thead>
+        <tr>
+          <th style="width:52px;cursor:pointer" onclick="ganttSortBy('wbs')">WBS${sortIcon('wbs')}</th>
+          <th style="cursor:pointer" onclick="ganttSortBy('description')">Atividade${sortIcon('description')}</th>
+          <th style="cursor:pointer" onclick="ganttSortBy('project')">Projeto${sortIcon('project')}</th>
+          <th style="cursor:pointer" onclick="ganttSortBy('startDate')">Início${sortIcon('startDate')}</th>
+          <th style="cursor:pointer" onclick="ganttSortBy('dueDate')">Término${sortIcon('dueDate')}</th>
+          <th><div style="display:flex">${monthsHtml}</div></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   };
   function calcAvgResolution(person){
     const done = activities.filter(a => a.responsible===person && a.status==='Concluído');
