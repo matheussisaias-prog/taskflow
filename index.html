@@ -1784,9 +1784,19 @@ select.form-control { cursor: pointer; }
     <div class="view" id="view-projetos">
       <div class="section-hd">
         <span class="section-hd-title">Projetos</span>
-        <button class="btn-primary" onclick="openModal('project')"><i class="fa-solid fa-plus"></i> Novo Projeto</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" onclick="openFolderModal()">
+            <i class="fa-solid fa-folder-plus"></i> Nova Pasta
+          </button>
+          <button class="btn-primary" onclick="openModal('project')">
+            <i class="fa-solid fa-plus"></i> Novo Projeto
+          </button>
+        </div>
       </div>
-      <div id="projetos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+      <!-- Pastas customizadas -->
+      <div id="custom-folders-wrap"></div>
+      <!-- Grid normal (projetos sem pasta) -->
+      <div id="projetos-grid" style="display:flex;flex-direction:column;gap:0"></div>
     </div>
 
     <!-- ══════════════════ EQUIPE ══════════════════ -->
@@ -1975,6 +1985,36 @@ select.form-control { cursor: pointer; }
 </div><!-- /main-wrap -->
 
 <!-- MODALS -->
+<!-- MODAL PASTA -->
+<div class="modal-overlay" id="modal-folder" onclick="closeModalOutside(event,'modal-folder')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <i class="fa-solid fa-folder-plus" style="color:var(--amber)"></i>
+      <span class="modal-title" id="folder-modal-title">Nova Pasta</span>
+      <button class="modal-close" onclick="closeModal('modal-folder')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="folder-edit-id"/>
+      <div class="form-group">
+        <label class="form-label">Nome da Pasta <span class="req">*</span></label>
+        <input class="form-control" id="folder-name" placeholder="Ex: Clientes 2026, Manutenção, Obras..."/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição <span style="color:var(--text-4);font-weight:400">(opcional)</span></label>
+        <input class="form-control" id="folder-desc" placeholder="Breve descrição da pasta..."/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cor</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="folder-color-picker"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-folder')">Cancelar</button>
+      <button class="btn-primary" onclick="saveFolder()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Nova Atividade -->
 <div class="modal-overlay" id="modal-activity" onclick="closeModalOutside(event,'modal-activity')">
   <div class="modal">
@@ -4226,6 +4266,82 @@ window.calcDurFromDates = calcDurFromDates;
 .project-folder-title{display:flex;align-items:center;gap:8px;font-family:var(--font-head);font-size:.92rem;font-weight:800;color:var(--text-1)}
 .project-folder-sub{font-size:.72rem;color:var(--text-4);margin-left:6px}
 .project-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+
+/* Pastas customizadas */
+.custom-folder {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: box-shadow .18s;
+}
+.custom-folder:hover { box-shadow: var(--shadow-md); }
+.custom-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1.5px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.custom-folder-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.custom-folder-name {
+  font-family: var(--font-head);
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text-1);
+  flex: 1;
+}
+.custom-folder-meta {
+  font-size: .68rem;
+  color: var(--text-4);
+}
+.custom-folder-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.custom-folder-header:hover .custom-folder-actions { opacity: 1; }
+.custom-folder-chevron {
+  transition: transform .2s;
+  color: var(--text-4);
+  font-size: .8rem;
+}
+.custom-folder.collapsed .custom-folder-chevron { transform: rotate(-90deg); }
+.custom-folder-body {
+  padding: 14px;
+  background: var(--surface);
+}
+.custom-folder.collapsed .custom-folder-body { display: none; }
+.custom-folder-color-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* Drop zone */
+.folder-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  font-size: .72rem;
+  color: var(--text-4);
+  margin-top: 8px;
+  transition: all .15s;
+}
+.folder-drop-zone:hover, .folder-drop-zone.dragover {
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+/* Cards arrastáveis */
+.card.dragging { opacity: .45; transform: scale(.97); }
 .team-chart-card{margin-bottom:14px}
 .team-calendar-matrix{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
 .team-calendar-table{border-collapse:collapse;min-width:980px;width:100%}
@@ -4545,36 +4661,318 @@ window.calcDurFromDates = calcDurFromDates;
   window.kanbanAllowDrop = function(ev){ ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); };
   window.kanbanDragLeave = function(ev){ ev.currentTarget.classList.remove('drag-over'); };
   window.kanbanDrop = function(ev, status){ ev.preventDefault(); ev.currentTarget.classList.remove('drag-over'); if (!draggedKanbanId) return; const act = activities.find(a=>a.id===draggedKanbanId); if (!act) return; act.status = status; if (status==='Concluído') act.progress=100; if (status!=='Concluído' && act.progress===100) act.progress=90; addHistory('update', `Kanban: ${act.description} movida para ${status}`); save(); renderAll(); draggedKanbanId = null; };
+
+/* ══════════════════════════════════════════════════
+   PASTAS CUSTOMIZADAS DE PROJETOS
+══════════════════════════════════════════════════ */
+const FOLDERS_KEY = 'tf_project_folders';
+let projectFolders = []; // [{ id, name, desc, color, projectIds:[], collapsed:false }]
+
+function loadFolders() {
+  try { projectFolders = JSON.parse(localStorage.getItem(FOLDERS_KEY) || '[]'); } catch(_) { projectFolders = []; }
+}
+function saveFolders() {
+  localStorage.setItem(FOLDERS_KEY, JSON.stringify(projectFolders));
+}
+
+/* ── MODAL ── */
+function openFolderModal(id) {
+  loadFolders();
+  document.getElementById('folder-edit-id').value = id || '';
+  document.getElementById('folder-modal-title').textContent = id ? 'Editar Pasta' : 'Nova Pasta';
+
+  if (id) {
+    const f = projectFolders.find(x => x.id === id) || {};
+    document.getElementById('folder-name').value = f.name || '';
+    document.getElementById('folder-desc').value = f.desc || '';
+    buildFolderColorPicker(f.color || '#f59e0b');
+  } else {
+    document.getElementById('folder-name').value = '';
+    document.getElementById('folder-desc').value = '';
+    buildFolderColorPicker('#f59e0b');
+  }
+  document.getElementById('modal-folder').classList.add('open');
+  setTimeout(() => document.getElementById('folder-name')?.focus(), 80);
+}
+
+function buildFolderColorPicker(selected) {
+  const COLORS = ['#f59e0b','#3b82f6','#10b981','#8b5cf6','#ef4444','#ec4899','#0ea5e9','#f97316'];
+  const el = document.getElementById('folder-color-picker');
+  if (!el) return;
+  el.dataset.selected = selected;
+  el.innerHTML = COLORS.map(c => `
+    <div onclick="selectFolderColor('${c}')"
+      style="width:22px;height:22px;border-radius:6px;background:${c};cursor:pointer;
+             transition:transform .15s;outline:${c===selected?'2.5px solid '+c:'none'};
+             outline-offset:2px;transform:${c===selected?'scale(1.25)':'scale(1)'}"
+      data-fc="${c}"></div>`).join('');
+}
+
+function selectFolderColor(c) {
+  const el = document.getElementById('folder-color-picker');
+  if (!el) return;
+  el.dataset.selected = c;
+  el.querySelectorAll('[data-fc]').forEach(d => {
+    const isActive = d.dataset.fc === c;
+    d.style.transform    = isActive ? 'scale(1.25)' : 'scale(1)';
+    d.style.outline      = isActive ? `2.5px solid ${c}` : 'none';
+    d.style.outlineOffset = '2px';
+  });
+}
+
+function saveFolder() {
+  const name  = document.getElementById('folder-name').value.trim();
+  const desc  = document.getElementById('folder-desc').value.trim();
+  const color = document.getElementById('folder-color-picker')?.dataset.selected || '#f59e0b';
+  const editId = document.getElementById('folder-edit-id').value;
+
+  if (!name) return toast('Nome da pasta é obrigatório', 'error');
+
+  loadFolders();
+  if (editId) {
+    const f = projectFolders.find(x => x.id === editId);
+    if (f) { f.name = name; f.desc = desc; f.color = color; }
+    toast('✓ Pasta atualizada', 'success');
+  } else {
+    projectFolders.push({ id: uid(), name, desc, color, projectIds: [], collapsed: false });
+    toast('✓ Pasta criada', 'success');
+  }
+  saveFolders();
+  closeModal('modal-folder');
+  renderProjetos();
+}
+
+function deleteFolder(id) {
+  if (!confirm('Excluir esta pasta? Os projetos dentro não serão excluídos.')) return;
+  loadFolders();
+  projectFolders = projectFolders.filter(f => f.id !== id);
+  saveFolders();
+  renderProjetos();
+  toast('Pasta excluída', 'info');
+}
+
+function toggleFolder(id) {
+  loadFolders();
+  const f = projectFolders.find(x => x.id === id);
+  if (f) f.collapsed = !f.collapsed;
+  saveFolders();
+  // Toggling sem re-render completo
+  const el = document.getElementById('cf-' + id);
+  if (el) el.classList.toggle('collapsed', f.collapsed);
+}
+
+/* ── Atribuir / remover projeto de pasta ── */
+function assignProjectToFolder(projId, folderId) {
+  loadFolders();
+  // Remove o projeto de qualquer pasta anterior
+  projectFolders.forEach(f => {
+    f.projectIds = (f.projectIds || []).filter(id => id !== projId);
+  });
+  if (folderId) {
+    const f = projectFolders.find(x => x.id === folderId);
+    if (f) { if (!f.projectIds) f.projectIds = []; f.projectIds.push(projId); }
+  }
+  saveFolders();
+  renderProjetos();
+}
+
+function getFolderOfProject(projId) {
+  return projectFolders.find(f => (f.projectIds || []).includes(projId)) || null;
+}
+
+/* ── Drag & Drop ── */
+let _dragProjId = null;
+
+function onProjDragStart(e, projId) {
+  _dragProjId = projId;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.querySelector(`[data-proj-id="${projId}"]`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function onProjDragEnd() {
+  document.querySelectorAll('.card.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.folder-drop-zone.dragover').forEach(el => el.classList.remove('dragover'));
+  _dragProjId = null;
+}
+
+function onFolderDragOver(e, folderId) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.folder-drop-zone').forEach(el => el.classList.remove('dragover'));
+  document.getElementById('fdz-' + folderId)?.classList.add('dragover');
+}
+
+function onFolderDrop(e, folderId) {
+  e.preventDefault();
+  if (_dragProjId) { assignProjectToFolder(_dragProjId, folderId); }
+  document.querySelectorAll('.folder-drop-zone').forEach(el => el.classList.remove('dragover'));
+}
+
+function removeFromFolder(projId) {
+  assignProjectToFolder(projId, null);
+}
+
+/* ── Render das pastas ── */
+function renderCustomFolders(projectCardFn) {
+  loadFolders();
+  const wrap = document.getElementById('custom-folders-wrap');
+  if (!wrap) return;
+  if (!projectFolders.length) { wrap.innerHTML = ''; return; }
+
+  wrap.innerHTML = projectFolders.map(f => {
+    const folderProjects = (f.projectIds || [])
+      .map(id => projects.find(p => p.id === id))
+      .filter(Boolean);
+
+    const cards = folderProjects.length
+      ? folderProjects.map(p => projectCardFn(p, f.id)).join('')
+      : `<div class="empty-state" style="padding:20px;grid-column:1/-1">
+           <i class="fa-solid fa-folder-open"></i>
+           <p>Arraste projetos para esta pasta</p>
+         </div>`;
+
+    return `
+      <div class="custom-folder ${f.collapsed ? 'collapsed' : ''}" id="cf-${f.id}">
+        <div class="custom-folder-header" onclick="toggleFolder('${f.id}')">
+          <span class="custom-folder-color-dot" style="background:${f.color}"></span>
+          <i class="fa-solid fa-folder custom-folder-icon" style="color:${f.color}"></i>
+          <span class="custom-folder-name">${esc(f.name)}</span>
+          <span class="custom-folder-meta">${folderProjects.length} projeto(s)</span>
+          <div class="custom-folder-actions" onclick="event.stopPropagation()">
+            <button class="action-btn" onclick="openFolderModal('${f.id}')" title="Renomear pasta">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="action-btn danger" onclick="deleteFolder('${f.id}')" title="Excluir pasta">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+          <i class="fa-solid fa-chevron-down custom-folder-chevron"></i>
+        </div>
+        <div class="custom-folder-body">
+          ${f.desc ? `<div style="font-size:.72rem;color:var(--text-4);margin-bottom:10px;font-style:italic">${esc(f.desc)}</div>` : ''}
+          <div class="project-grid">${cards}</div>
+          <!-- Drop zone -->
+          <div class="folder-drop-zone" id="fdz-${f.id}"
+            ondragover="onFolderDragOver(event,'${f.id}')"
+            ondrop="onFolderDrop(event,'${f.id}')"
+            ondragleave="this.classList.remove('dragover')">
+            <i class="fa-solid fa-arrow-down" style="margin-right:4px"></i>
+            Solte projetos aqui para adicionar à pasta
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.openFolderModal     = openFolderModal;
+window.saveFolder          = saveFolder;
+window.deleteFolder        = deleteFolder;
+window.toggleFolder        = toggleFolder;
+window.selectFolderColor   = selectFolderColor;
+window.removeFromFolder    = removeFromFolder;
+window.onProjDragStart     = onProjDragStart;
+window.onProjDragEnd       = onProjDragEnd;
+window.onFolderDragOver    = onFolderDragOver;
+window.onFolderDrop        = onFolderDrop;
+window.assignProjectToFolder = assignProjectToFolder;
+
   window.renderProjetos = function(){
     const grid = document.getElementById('projetos-grid'); if (!grid) return;
-    if (!projects.length) { grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder-open"></i><p>Nenhum projeto cadastrado</p></div>`; return; }
-    const sections = [
-      { key:'ativos', title:'Projetos ativos', sub:'Em andamento, planejamento e pausados' },
-      { key:'concluidos', title:'Projetos concluídos', sub:'Finalizados e preservados para histórico' },
-      { key:'arquivados', title:'Projetos arquivados', sub:'Passados e guardados em pasta de consulta' }
-    ];
-    function projectCard(p){
-      const acts = activities.filter(a => a.project === p.name);
-      const done = acts.filter(a => a.status === 'Concluído').length;
+    loadFolders();
+
+    // Projetos dentro de alguma pasta customizada
+    const inFolderIds = new Set(projectFolders.flatMap(f => f.projectIds || []));
+
+    // projectCard com drag support + botão mover para pasta
+    function projectCard(p, currentFolderId) {
+      const acts    = activities.filter(a => a.project === p.name);
+      const done    = acts.filter(a => a.status === 'Concluído').length;
       const overdue = acts.filter(a => a.status === 'Vencido').length;
-      const pct = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
-      const group = getProjectStatusGroup(p.status);
-      return `<div class="card" style="overflow:hidden"><div style="height:4px;background:${p.color||'var(--blue)'}"></div><div style="padding:16px 18px">
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="flex:1"><div style="font-family:var(--font-head);font-weight:700;font-size:.9rem;color:var(--text-1)">${esc(p.name)}</div><div style="font-size:.65rem;color:var(--text-4);font-family:var(--font-mono);margin-top:1px">${esc(p.code||'')}</div></div><span class="badge ${group==='ativos'?'badge-blue':group==='concluidos'?'badge-green':'badge-purple'}">${esc(p.status)}</span></div>
-        <div style="font-size:.75rem;color:var(--text-3);margin-bottom:12px;min-height:18px">${esc(p.desc||'')}</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${pct}%;background:${p.color}"></div></div><span style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;color:var(--text-3)">${pct}%</span></div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:.7rem;color:var(--text-3)"><span><i class="fa-solid fa-list-check" style="color:var(--blue)"></i> ${acts.length} ativ.</span><span><i class="fa-solid fa-check" style="color:var(--green)"></i> ${done} concl.</span>${overdue>0?`<span><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> ${overdue} atras.</span>`:''}<span><i class="fa-solid fa-user"></i> ${esc(p.manager||'—')}</span></div>
-      </div>
-      <div style="border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="addActForProject('${esc(p.name)}')"><i class="fa-solid fa-plus"></i> Atividade</button>
-        <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem" onclick="editProj('${p.id}')"><i class="fa-solid fa-pen"></i> Editar</button>
-        ${group!=='arquivados' ? `<button class="btn-secondary" style="font-size:.75rem" onclick="setProjectStatus('${p.id}','Arquivado')"><i class="fa-solid fa-box-archive"></i></button>` : `<button class="btn-secondary" style="font-size:.75rem" onclick="setProjectStatus('${p.id}','Em andamento')"><i class="fa-solid fa-box-open"></i></button>`}
-        <button class="action-btn danger" onclick="deleteProj('${p.id}')" data-tooltip="Excluir"><i class="fa-solid fa-trash"></i></button>
-      </div></div>`;
+      const pct     = acts.length ? Math.round((done/acts.length)*100) : (p.progress||0);
+      const group   = getProjectStatusGroup(p.status);
+
+      // Dropdown de pastas para mover
+      const folderOptions = projectFolders
+        .filter(f => f.id !== currentFolderId)
+        .map(f => `<option value="${f.id}">${esc(f.name)}</option>`)
+        .join('');
+      const moveBtn = projectFolders.length
+        ? `<select class="filter-select" style="font-size:.68rem;height:28px;padding:0 6px"
+             onchange="if(this.value){assignProjectToFolder('${p.id}',this.value==='-'?null:this.value);this.value=''}"
+             onclick="event.stopPropagation()">
+             <option value="">📁 Mover...</option>
+             ${currentFolderId ? `<option value="-">↩ Remover da pasta</option>` : ''}
+             ${folderOptions}
+           </select>`
+        : '';
+
+      return `<div class="card" style="overflow:hidden;cursor:grab" draggable="true"
+        data-proj-id="${p.id}"
+        ondragstart="onProjDragStart(event,'${p.id}')"
+        ondragend="onProjDragEnd()">
+        <div style="height:4px;background:${p.color||'var(--blue)'}"></div>
+        <div style="padding:14px 16px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+            <div style="flex:1">
+              <div style="font-family:var(--font-head);font-weight:700;font-size:.88rem;color:var(--text-1)">${esc(p.name)}</div>
+              <div style="font-size:.62rem;color:var(--text-4);font-family:var(--font-mono);margin-top:1px">${esc(p.code||'')}</div>
+            </div>
+            <span class="badge ${group==='ativos'?'badge-blue':group==='concluidos'?'badge-green':'badge-purple'}">${esc(p.status)}</span>
+          </div>
+          <div style="font-size:.73rem;color:var(--text-3);margin-bottom:10px;min-height:16px">${esc(p.desc||'')}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <div class="progress-bar-track" style="flex:1"><div class="progress-bar-fill" style="width:${pct}%;background:${p.color}"></div></div>
+            <span style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;color:var(--text-3)">${pct}%</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:.68rem;color:var(--text-3)">
+            <span><i class="fa-solid fa-list-check" style="color:var(--blue)"></i> ${acts.length}</span>
+            <span><i class="fa-solid fa-check" style="color:var(--green)"></i> ${done}</span>
+            ${overdue>0?`<span><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> ${overdue}</span>`:''}
+            <span><i class="fa-solid fa-user" style="opacity:.5"></i> ${esc(p.manager||'—')}</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.72rem" onclick="addActForProject('${esc(p.name)}')"><i class="fa-solid fa-plus"></i> Atividade</button>
+          <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.72rem" onclick="editProj('${p.id}')"><i class="fa-solid fa-pen"></i> Editar</button>
+          ${moveBtn}
+          ${group!=='arquivados'
+            ? `<button class="action-btn" onclick="setProjectStatus('${p.id}','Arquivado')" title="Arquivar"><i class="fa-solid fa-box-archive"></i></button>`
+            : `<button class="action-btn" onclick="setProjectStatus('${p.id}','Em andamento')" title="Reativar"><i class="fa-solid fa-box-open"></i></button>`}
+          <button class="action-btn danger" onclick="deleteProj('${p.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`;
     }
+
+    // Renderiza pastas customizadas
+    renderCustomFolders(projectCard);
+
+    // Projetos sem pasta — agrupa por status igual antes
+    const sections = [
+      { key:'ativos',    title:'Projetos ativos',    sub:'Em andamento, planejamento e pausados' },
+      { key:'concluidos',title:'Projetos concluídos', sub:'Finalizados e preservados para histórico' },
+      { key:'arquivados',title:'Projetos arquivados', sub:'Passados e guardados em pasta de consulta' },
+    ];
+
+    const loose = projects.filter(p => !inFolderIds.has(p.id));
+
+    if (!loose.length && !projectFolders.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder-open"></i><p>Nenhum projeto cadastrado</p></div>`;
+      return;
+    }
+
     grid.innerHTML = sections.map(sec => {
-      const list = projects.filter(p => getProjectStatusGroup(p.status) === sec.key);
-      return `<div class="project-folder" style="grid-column:1/-1"><div><div class="project-folder-title"><i class="fa-solid ${sec.key==='ativos'?'fa-folder-open':sec.key==='concluidos'?'fa-folder-check':'fa-box-archive'}"></i>${sec.title}<span class="project-folder-sub">${sec.sub}</span></div></div><div class="project-grid">${list.length?list.map(projectCard).join(''):`<div class="empty-state" style="grid-column:1/-1"><i class="fa-solid fa-folder"></i><p>Nenhum item nesta pasta</p></div>`}</div></div>`;
+      const list = loose.filter(p => getProjectStatusGroup(p.status) === sec.key);
+      if (!list.length) return '';
+      return `<div class="project-folder" style="grid-column:1/-1">
+        <div class="project-folder-title">
+          <i class="fa-solid ${sec.key==='ativos'?'fa-folder-open':sec.key==='concluidos'?'fa-folder-check':'fa-box-archive'}"></i>
+          ${sec.title}<span class="project-folder-sub">${sec.sub}</span>
+        </div>
+        <div class="project-grid">${list.map(p => projectCard(p, null)).join('')}</div>
+      </div>`;
     }).join('');
   };
   window.setProjectStatus = function(id, status){ const p = projects.find(x=>x.id===id); if(!p) return; p.status = status; addHistory('update', `Projeto ${p.name} alterado para ${status}`); save(); renderProjetos(); renderPortfolio(); toast('Status do projeto atualizado', 'success'); };
