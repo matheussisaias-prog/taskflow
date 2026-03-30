@@ -2395,6 +2395,14 @@ function renderAll() {
   renderEquipe();
   updateBadge();
   updateProjectsDatalist();
+  // Re-renderiza a view ativa se for uma das que exibe atividades
+  const activeView = document.querySelector('.view.active')?.id;
+  if (activeView === 'view-gantt')           { if (typeof renderGantt === 'function')      renderGantt(); }
+  if (activeView === 'view-portfolio')       { if (typeof renderPortfolio === 'function')  renderPortfolio(); }
+  if (activeView === 'view-recursos')        { if (typeof renderRecursos === 'function')   renderRecursos(); }
+  if (activeView === 'view-cal-atividades')  { if (typeof renderCalAtiv === 'function')    renderCalAtiv(); }
+  if (activeView === 'view-cal-equipe')      { if (typeof renderCalEquipe === 'function')  renderCalEquipe(); }
+  if (activeView === 'view-historico')       { if (typeof renderHistorico === 'function')  renderHistorico(); }
 }
 
 /* ══════════════════════════════════════════════════
@@ -4594,9 +4602,8 @@ window.calcDurFromDates = calcDurFromDates;
       PROJECT_COLORS_MAP[proj] = color;
     }
     buildEmployeeDatabase();
-    save(); closeModal('modal-activity'); renderAll();
-    if (document.getElementById('view-cal-atividades')?.classList.contains('active')) renderCalAtiv();
-    if (document.getElementById('view-cal-equipe')?.classList.contains('active')) renderCalEquipe();
+    save(); closeModal('modal-activity');
+    renderAll(); // renderAll já re-renderiza a view ativa automaticamente
   };
   window.saveProject = function(){
     const name = document.getElementById('proj-name').value.trim();
