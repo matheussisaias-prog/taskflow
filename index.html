@@ -1427,7 +1427,281 @@ select.form-control { cursor: pointer; }
 /* ═══════════════════════════════════════════════
    IMPORTAR
 ═══════════════════════════════════════════════ */
-.import-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 48px 24px; text-align: center; cursor: pointer; transition: all var(--trans); color: var(--text-4); }
+
+
+    /* ══════════════════════════════════════════════
+       ASSISTENTE IA — CHAT + PREVIEW
+    ══════════════════════════════════════════════ */
+    #view-ia-chat { display:none; padding:0 !important; height:calc(100vh - 56px); overflow:hidden; }
+    #view-ia-chat.active { display:flex; }
+
+    .ia-chat-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* ── Painel esquerdo: chat ── */
+    .ia-chat-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      height: 100%;
+      overflow: hidden;
+    }
+    .ia-chat-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .ia-chat-header-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      border-radius: 8px;
+      display: grid; place-items: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .ia-chat-header-title { font-size: .82rem; font-weight: 700; }
+    .ia-chat-header-sub   { font-size: .68rem; color: var(--text-3); margin-top: 1px; }
+
+    .ia-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ia-msg {
+      display: flex;
+      gap: 8px;
+      animation: msgIn .2s ease;
+    }
+    @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .ia-msg.user { flex-direction: row-reverse; }
+    .ia-msg-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 12px; flex-shrink: 0; margin-top: 2px;
+    }
+    .ia-msg.ia   .ia-msg-avatar { background: linear-gradient(135deg,var(--purple),var(--blue)); color:#fff; }
+    .ia-msg.user .ia-msg-avatar { background: var(--blue-dim); color: var(--blue); }
+    .ia-msg-bubble {
+      max-width: 88%;
+      padding: 9px 12px;
+      border-radius: 12px;
+      font-size: .75rem;
+      line-height: 1.55;
+    }
+    .ia-msg.ia   .ia-msg-bubble { background: var(--bg2, var(--surface2)); color: var(--text-1); border-radius: 4px 12px 12px 12px; }
+    .ia-msg.user .ia-msg-bubble { background: var(--blue); color: #fff; border-radius: 12px 4px 12px 12px; }
+    .ia-msg-bubble ul { padding-left: 14px; margin: 4px 0; }
+    .ia-msg-bubble li { margin: 2px 0; }
+    .ia-msg-time { font-size: .62rem; color: var(--text-4); margin-top: 3px; text-align: right; }
+
+    .ia-typing {
+      display: flex; align-items: center; gap: 6px;
+      padding: 9px 12px; background: var(--surface2);
+      border-radius: 4px 12px 12px 12px;
+      font-size: .72rem; color: var(--text-3);
+      width: fit-content;
+    }
+    .ia-typing-dots span {
+      display: inline-block; width: 4px; height: 4px;
+      background: var(--purple); border-radius: 50%;
+      animation: typBounce 1.1s infinite; margin: 0 1px;
+    }
+    .ia-typing-dots span:nth-child(2){animation-delay:.18s}
+    .ia-typing-dots span:nth-child(3){animation-delay:.36s}
+    @keyframes typBounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
+
+    .ia-chat-footer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ia-chat-input-row {
+      display: flex;
+      gap: 7px;
+      align-items: flex-end;
+    }
+    .ia-chat-textarea {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: .75rem;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      min-height: 38px;
+      max-height: 110px;
+      transition: border-color .18s;
+      line-height: 1.45;
+    }
+    .ia-chat-textarea:focus { border-color: var(--purple); }
+    .ia-chat-textarea::placeholder { color: var(--text-4); }
+    .ia-send-btn {
+      width: 36px; height: 36px; border-radius: var(--radius-sm);
+      background: linear-gradient(135deg,var(--purple),var(--blue));
+      border: none; cursor: pointer; color: #fff;
+      display: grid; place-items: center; font-size: 13px;
+      flex-shrink: 0; transition: filter .18s, transform .18s;
+    }
+    .ia-send-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .ia-send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .ia-quick-btns {
+      display: flex; gap: 5px; flex-wrap: wrap;
+    }
+    .ia-quick-btn {
+      padding: 4px 9px;
+      background: var(--purple-dim);
+      border: 1px solid rgba(124,58,237,.25);
+      color: var(--purple);
+      border-radius: 20px;
+      font-size: .67rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: all .15s; white-space: nowrap;
+    }
+    .ia-quick-btn:hover { background: rgba(124,58,237,.2); }
+
+    /* ── Painel direito: preview ── */
+    .ia-preview-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg, #f8f9fb);
+    }
+    .ia-preview-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0; gap: 10px; flex-wrap: wrap;
+    }
+    .ia-preview-header-left { display: flex; align-items: center; gap: 10px; }
+    .ia-preview-title { font-size: .82rem; font-weight: 700; }
+    .ia-preview-count {
+      background: var(--purple-dim); color: var(--purple);
+      border: 1px solid rgba(124,58,237,.25);
+      font-size: .68rem; font-weight: 700;
+      padding: 2px 9px; border-radius: 20px;
+    }
+    .ia-preview-actions { display: flex; gap: 8px; }
+
+    .ia-preview-body {
+      flex: 1; overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    /* Cards das atividades */
+    .ia-act-group { margin-bottom: 20px; }
+    .ia-act-group-title {
+      font-size: .7rem; font-weight: 700;
+      letter-spacing: .07em; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .ia-act-grid {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ia-act-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--blue);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      display: flex; align-items: flex-start;
+      gap: 10px; transition: border-color .15s, box-shadow .15s;
+      animation: msgIn .25s ease;
+    }
+    .ia-act-card:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .ia-act-card.st-concluido  { border-left-color: var(--green); }
+    .ia-act-card.st-andamento  { border-left-color: var(--blue); }
+    .ia-act-card.st-pendente   { border-left-color: var(--amber); }
+    .ia-act-card-body { flex: 1; min-width: 0; }
+    .ia-act-card-title {
+      font-size: .78rem; font-weight: 700;
+      color: var(--text-1); margin-bottom: 5px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ia-act-card-meta {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      align-items: center;
+    }
+    .ia-act-meta-item {
+      display: flex; align-items: center; gap: 4px;
+      font-size: .67rem; color: var(--text-3);
+    }
+    .ia-act-progress-wrap {
+      flex-shrink: 0; display: flex;
+      flex-direction: column; align-items: flex-end; gap: 3px;
+    }
+    .ia-act-progress-bar {
+      width: 60px; height: 4px;
+      background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .ia-act-progress-fill {
+      height: 100%; border-radius: 2px;
+      background: var(--blue); transition: width .3s ease;
+    }
+    .ia-act-progress-fill.green { background: var(--green); }
+    .ia-act-progress-fill.amber { background: var(--amber); }
+    .ia-act-progress-pct { font-size: .63rem; color: var(--text-4); font-family: var(--font-mono); }
+
+    .badge-sm {
+      padding: 1px 7px; border-radius: 20px;
+      font-size: .63rem; font-weight: 700;
+    }
+    .badge-sm.concluido { background: var(--green-dim); color: var(--green); }
+    .badge-sm.andamento { background: var(--blue-dim);  color: var(--blue);  }
+    .badge-sm.pendente  { background: var(--amber-dim); color: var(--amber); }
+
+    .ia-empty-preview {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 12px; color: var(--text-4);
+      text-align: center; padding: 20px;
+    }
+    .ia-empty-preview .empty-icon { font-size: 3rem; opacity: .3; }
+    .ia-empty-preview p { font-size: .78rem; line-height: 1.6; max-width: 280px; }
+
+    /* ── PDF/IA Import ─────────────────────────────── */
+    .import-tabs{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+    .import-tab{flex:1;padding:8px 10px;font-size:.75rem;font-weight:600;text-align:center;cursor:pointer;background:var(--surface2);color:var(--text-3);border:none;font-family:inherit;transition:all .18s}
+    .import-tab.active{background:var(--blue-dim);color:var(--blue)}
+    .import-tab.active.pdf-tab{background:rgba(167,139,250,.15);color:#a78bfa}
+    .import-panel{display:none}.import-panel.active{display:block}
+    .pdf-drop{border:2px dashed rgba(167,139,250,.35);border-radius:var(--radius);padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;color:var(--text-3)}
+    .pdf-drop:hover,.pdf-drop.dragover{border-color:#a78bfa;background:rgba(167,139,250,.1);color:#a78bfa}
+    .pdf-drop.loaded{border-color:var(--green);background:var(--green-dim);color:var(--green)}
+    .pdf-drop i{font-size:2rem;margin-bottom:10px;opacity:.7;display:block}
+    .api-key-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)}
+    .api-key-row input{flex:1;background:transparent;border:none;outline:none;font-size:.72rem;font-family:var(--font-mono);color:var(--text-1)}
+    .api-key-row input::placeholder{color:var(--text-4)}
+    .api-key-row label{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
+    .btn-ia-extract{width:100%;margin-top:12px;padding:9px;background:linear-gradient(135deg,#7c3aed,#4f7cff);color:#fff;border:none;border-radius:var(--radius-sm);font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:7px}
+    .btn-ia-extract:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+    .btn-ia-extract:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .ia-loading-bar{height:2px;background:linear-gradient(90deg,#a78bfa,#4f7cff,#a78bfa);background-size:200%;animation:iaSlide 1.4s linear infinite;border-radius:2px;margin-top:8px;display:none}
+    @keyframes iaSlide{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .ia-status{font-size:.72rem;color:#a78bfa;margin-top:8px;display:none;align-items:center;gap:6px}
+    .ia-dots-sm span{display:inline-block;width:3px;height:3px;background:#a78bfa;border-radius:50%;animation:bounce .9s infinite;margin:0 1px}
+    .ia-dots-sm span:nth-child(2){animation-delay:.15s}.ia-dots-sm span:nth-child(3){animation-delay:.3s}
+
+    .import-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 48px 24px; text-align: center; cursor: pointer; transition: all var(--trans); color: var(--text-4); }
 .import-drop:hover, .import-drop.dragover { border-color: var(--blue); background: var(--blue-dim); color: var(--blue); }
 .import-drop i { font-size: 2.5rem; margin-bottom: 12px; opacity: .5; display: block; }
 
@@ -1455,7 +1729,109 @@ select.form-control { cursor: pointer; }
   .header-search { width: 140px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
 }
-</style>
+
+    /* ── Modal de anotações ─────────────────────── */
+    .ia-note-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 9999;
+      place-items: center;
+    }
+    .ia-note-modal-backdrop.open { display: grid; }
+    .ia-note-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.35);
+      animation: msgIn .2s ease;
+    }
+    .ia-note-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .ia-note-modal-title {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--text-1);
+    }
+    .ia-note-modal-sub {
+      font-size: .7rem;
+      color: var(--text-3);
+      margin-top: 3px;
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ia-note-close {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .ia-note-close:hover { color: var(--text-1); }
+    .ia-note-textarea {
+      width: 100%;
+      min-height: 100px;
+      max-height: 200px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: .78rem;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color .18s;
+    }
+    .ia-note-textarea:focus { border-color: var(--purple); }
+    .ia-note-textarea::placeholder { color: var(--text-4); }
+    .ia-note-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .ia-note-save {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: .75rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter .18s;
+    }
+    .ia-note-save:hover { filter: brightness(1.12); }
+    .ia-note-cancel {
+      padding: 8px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-3);
+      border-radius: var(--radius-sm);
+      font-size: .75rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .ia-note-cancel:hover { color: var(--text-1); border-color: var(--border2, var(--border)); }
+
+  </style>
 </head>
 <body>
 
@@ -1536,6 +1912,10 @@ select.form-control { cursor: pointer; }
 
   <div class="sidebar-section">
     <div class="sidebar-section-label">Sistema</div>
+    <a class="nav-item" onclick="switchView('ia-chat', this)" data-tooltip="Assistente IA">
+      <span class="nav-icon"><i class="fa-solid fa-robot"></i></span>
+      <span>Assistente IA</span>
+    </a>
     <a class="nav-item" onclick="switchView('importar', this)" data-tooltip="Importar">
       <span class="nav-icon"><i class="fa-solid fa-file-import"></i></span>
       <span>Importar</span>
@@ -1916,26 +2296,164 @@ select.form-control { cursor: pointer; }
     </div>
 
     <!-- ══════════════════ IMPORTAR ══════════════════ -->
+
+    <!-- ══════════════════════════════════════════
+         VIEW: ASSISTENTE IA
+    ══════════════════════════════════════════ -->
+    <div class="view" id="view-ia-chat">
+      <div class="ia-chat-layout">
+
+        <!-- CHAT -->
+        <div class="ia-chat-panel">
+          <div class="ia-chat-header">
+            <div class="ia-chat-header-icon">🤖</div>
+            <div>
+              <div class="ia-chat-header-title">Assistente de Projeto</div>
+              <div class="ia-chat-header-sub" id="ia-chat-header-sub">Carregando contexto...</div>
+            </div>
+          </div>
+
+          <div class="ia-chat-messages" id="ia-chat-messages"></div>
+
+          <div class="ia-chat-footer">
+            <div class="ia-quick-btns">
+              <button class="ia-quick-btn" onclick="iaQuick('Crie um planejamento com 5 etapas para um projeto de instalação em abril')">📋 Planejamento</button>
+              <button class="ia-quick-btn" onclick="iaQuick('Organize essas tarefas em fases e adicione datas realistas')">📅 Organizar datas</button>
+              <button class="ia-quick-btn" onclick="iaQuick('Quebre essa atividade em subtarefas menores')">✂️ Detalhar</button>
+              <button class="ia-quick-btn" onclick="iaQuick('Adicione responsáveis e distribua a carga de trabalho')">👥 Distribuir equipe</button>
+            </div>
+            <!-- Preview do arquivo anexado -->
+            <div id="ia-file-preview-bar" style="display:none" class="ia-file-preview">
+              <i class="fa-solid fa-file" style="font-size:11px;flex-shrink:0"></i>
+              <span class="ia-file-preview-name" id="ia-file-preview-name"></span>
+              <button class="ia-file-preview-remove" onclick="iaRemoverArquivo()" title="Remover">✕</button>
+            </div>
+            <div class="ia-chat-input-row">
+              <!-- Botão anexar arquivo -->
+              <button class="ia-attach-btn" onclick="document.getElementById('ia-file-input-chat').click()" title="Anexar PDF, imagem ou texto">
+                <i class="fa-solid fa-paperclip"></i>
+              </button>
+              <input type="file" id="ia-file-input-chat" accept=".pdf,.txt,.csv,.png,.jpg,.jpeg"
+                style="display:none" onchange="iaAnexarArquivo(this.files[0])"/>
+              <textarea class="ia-chat-textarea" id="ia-chat-input"
+                placeholder="Descreva, cole texto, ou anexe um arquivo 📎..."
+                rows="1"
+                onkeydown="iaKeyDown(event)"
+                oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
+              <button class="ia-send-btn" id="ia-send-btn" onclick="iaEnviar()" title="Enviar (Enter)">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="ia-preview-panel">
+          <div class="ia-preview-header">
+            <div class="ia-preview-header-left">
+              <div class="ia-preview-title">📋 Preview das Atividades</div>
+              <span class="ia-preview-count" id="ia-preview-count" style="display:none">0</span>
+            </div>
+            <div class="ia-preview-actions">
+              <button class="btn-secondary" id="ia-btn-limpar" onclick="iaLimparPreview()" style="display:none;font-size:.72rem;padding:5px 10px">
+                <i class="fa-solid fa-trash"></i> Limpar
+              </button>
+              <button class="btn-primary" id="ia-btn-importar" onclick="iaImportarTudo()" style="display:none;font-size:.72rem;padding:5px 12px">
+                <i class="fa-solid fa-check"></i> Importar Tudo
+              </button>
+            </div>
+          </div>
+          <div class="ia-preview-body" id="ia-preview-body">
+            <div class="ia-empty-preview" id="ia-empty-preview">
+              <div class="empty-icon">🤖</div>
+              <p>Converse com o assistente e as atividades geradas aparecerão aqui como cards visuais, prontas para importar.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <div class="view" id="view-importar">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div class="card">
           <div class="card-header">
             <i class="fa-solid fa-file-import" style="color:var(--blue);font-size:.85rem"></i>
-            <span class="card-title">Importar CSV / JSON</span>
+            <span class="card-title">Importar Dados</span>
           </div>
           <div class="card-body">
-            <div class="import-drop" id="import-drop" onclick="document.getElementById('import-file').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleImportDrop(event)">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
-              <div style="font-size:.85rem;font-weight:600;color:var(--text-2);margin-bottom:4px">Arraste um arquivo ou clique para selecionar</div>
-              <div style="font-size:.72rem">Suporta .csv e .json</div>
+            <!-- Abas CSV/JSON e PDF IA -->
+            <div class="import-tabs">
+              <button class="import-tab active" id="tab-csv" onclick="switchImportTab('csv')">
+                <i class="fa-solid fa-file-csv"></i> CSV / JSON
+              </button>
+              <button class="import-tab pdf-tab" id="tab-pdf" onclick="switchImportTab('pdf')">
+                🤖 PDF com IA
+              </button>
             </div>
-            <input type="file" id="import-file" accept=".csv,.json" style="display:none" onchange="handleImportFile(event)"/>
-            <div id="import-preview" style="margin-top:14px;display:none">
-              <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-bottom:8px">Preview</div>
-              <div id="import-preview-content"></div>
-              <div style="margin-top:12px;display:flex;gap:8px">
-                <button class="btn-primary" onclick="confirmImport()"><i class="fa-solid fa-check"></i> Importar</button>
-                <button class="btn-secondary" onclick="cancelImport()">Cancelar</button>
+
+            <!-- Painel CSV/JSON (original) -->
+            <div class="import-panel active" id="panel-csv">
+              <div class="import-drop" id="import-drop"
+                onclick="document.getElementById('import-file').click()"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="handleImportDrop(event)">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div style="font-size:.85rem;font-weight:600;color:var(--text-2);margin-bottom:4px">Arraste um arquivo ou clique para selecionar</div>
+                <div style="font-size:.72rem">Suporta .csv e .json</div>
+              </div>
+              <input type="file" id="import-file" accept=".csv,.json" style="display:none" onchange="handleImportFile(event)"/>
+              <div id="import-preview" style="margin-top:14px;display:none">
+                <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-bottom:8px">Preview</div>
+                <div id="import-preview-content"></div>
+                <div style="margin-top:12px;display:flex;gap:8px">
+                  <button class="btn-primary" onclick="confirmImport()"><i class="fa-solid fa-check"></i> Importar</button>
+                  <button class="btn-secondary" onclick="cancelImport()">Cancelar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Painel PDF/IA -->
+            <div class="import-panel" id="panel-pdf">
+              <!-- API Key -->
+              <div class="api-key-row">
+                <label>🔑 API Key</label>
+                <input type="password" id="pdf-api-key" placeholder="sk-ant-api03-..."
+                  oninput="localStorage.setItem('tf_apikey',this.value)"
+                  value=""/>
+              </div>
+
+              <!-- Drop PDF -->
+              <div class="pdf-drop" id="pdf-drop"
+                onclick="document.getElementById('pdf-file-input').click()"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="onPdfDrop(event)">
+                <i class="fa-solid fa-file-pdf"></i>
+                <div style="font-size:.82rem;font-weight:600;margin-bottom:4px" id="pdf-drop-title">Arraste o PDF do cronograma aqui</div>
+                <div style="font-size:.68rem" id="pdf-drop-sub">Gantt, EAP, planilhas de projeto...</div>
+              </div>
+              <input type="file" id="pdf-file-input" accept=".pdf" style="display:none" onchange="onPdfFileSelect(this.files[0])"/>
+
+              <!-- Botão extrair -->
+              <button class="btn-ia-extract" id="btn-ia-extract" onclick="extrairPdfComIA()" disabled>
+                🤖 Extrair Atividades com IA
+              </button>
+              <div class="ia-loading-bar" id="ia-loading-bar"></div>
+              <div class="ia-status" id="ia-status">
+                <div class="ia-dots-sm"><span></span><span></span><span></span></div>
+                <span id="ia-status-text">Lendo PDF...</span>
+              </div>
+
+              <!-- Preview PDF -->
+              <div id="pdf-preview" style="margin-top:12px;display:none">
+                <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-bottom:6px" id="pdf-preview-count"></div>
+                <div id="pdf-preview-content"></div>
+                <div style="margin-top:10px;display:flex;gap:8px">
+                  <button class="btn-primary" onclick="confirmPdfImport()"><i class="fa-solid fa-check"></i> Importar Tudo</button>
+                  <button class="btn-secondary" onclick="cancelPdfImport()">Cancelar</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3262,7 +3780,7 @@ function switchView(name, el) {
     projetos:'Projetos', equipe:'Equipe', graficos:'Gráficos',
     gantt:'Gantt', portfolio:'Portfólio', recursos:'Recursos',
     'cal-atividades':'Calendário de Atividades', 'cal-equipe':'Calendário da Equipe',
-    importar:'Importar / Exportar', historico:'Histórico'
+    importar:'Importar / Exportar', historico:'Histórico', 'ia-chat':'Assistente IA'
   };
   document.getElementById('page-title').textContent = titles[name]||name;
   if (name==='graficos')        renderFullCharts();
@@ -3275,6 +3793,7 @@ function switchView(name, el) {
   if (name==='cal-atividades')  renderCalAtiv();
   if (name==='cal-equipe')      renderCalEquipe();
   if (name==='historico')       renderHistorico();
+  if (name==='ia-chat')          iaInitChat();
 }
 
 function closeModal(id) {
@@ -3822,6 +4341,966 @@ function calToday(containerId) {
 /* ══════════════════════════════════════════════════
    IMPORTAR / EXPORTAR
 ══════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════
+   PDF → IA IMPORT
+══════════════════════════════════════════════════ */
+let pdfBase64 = null;
+let pdfAtividades = [];
+
+// Carregar API key salva
+(function() {
+  const saved = localStorage.getItem('tf_apikey');
+  if (saved) {
+    const el = document.getElementById('pdf-api-key');
+    if (el) el.value = saved;
+  }
+})();
+
+function switchImportTab(tab) {
+  ['csv','pdf'].forEach(t => {
+    document.getElementById('tab-'+t)?.classList.toggle('active', t===tab);
+    document.getElementById('panel-'+t)?.classList.toggle('active', t===tab);
+  });
+  // Carregar API key ao abrir aba PDF
+  if (tab === 'pdf') {
+    const saved = localStorage.getItem('tf_apikey');
+    const el = document.getElementById('pdf-api-key');
+    if (el && saved) el.value = saved;
+  }
+}
+
+function onPdfDrop(e) {
+  e.preventDefault();
+  document.getElementById('pdf-drop').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) onPdfFileSelect(file);
+}
+
+function onPdfFileSelect(file) {
+  if (!file || file.type !== 'application/pdf') {
+    toast('Selecione um arquivo PDF', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pdfBase64 = e.target.result.split(',')[1];
+    document.getElementById('pdf-drop').classList.add('loaded');
+    document.getElementById('pdf-drop').querySelector('i').className = 'fa-solid fa-circle-check';
+    document.getElementById('pdf-drop-title').textContent = file.name;
+    document.getElementById('pdf-drop-sub').textContent = (file.size/1024).toFixed(0) + ' KB · pronto para análise';
+    document.getElementById('btn-ia-extract').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extrairPdfComIA() {
+  const apiKey = document.getElementById('pdf-api-key')?.value?.trim();
+  if (!apiKey) { toast('Informe a API Key da Anthropic', 'error'); return; }
+  if (!pdfBase64) { toast('Carregue um PDF primeiro', 'error'); return; }
+
+  document.getElementById('btn-ia-extract').disabled = true;
+  document.getElementById('ia-loading-bar').style.display = 'block';
+  document.getElementById('ia-status').style.display = 'flex';
+  document.getElementById('ia-status-text').textContent = 'Analisando cronograma com IA...';
+  document.getElementById('pdf-preview').style.display = 'none';
+
+  const prompt = `Você é especialista em gerenciamento de projetos.
+
+Analise este PDF de cronograma de projeto e extraia TODAS as atividades/tarefas.
+
+Retorne APENAS um JSON válido (sem markdown, sem texto extra):
+
+{
+  "projeto": "Nome do projeto",
+  "atividades": [
+    {
+      "titulo": "Nome da atividade",
+      "inicio": "YYYY-MM-DD",
+      "termino": "YYYY-MM-DD",
+      "status": "Concluído|Em Andamento|Pendente",
+      "progresso": 0
+    }
+  ]
+}
+
+Regras:
+- Datas em YYYY-MM-DD (use 2026 se o ano não aparecer)
+- status: "Concluído" para 100%/Finalizadas, "Em Andamento" para progresso > 0, "Pendente" para 0%/Novas
+- progresso: inteiro 0-100
+- Inclua TODAS as tarefas (pai e filho)
+- Retorne SÓ o JSON`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':            'application/json',
+        'x-api-key':               apiKey,
+        'anthropic-version':       '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data    = await res.json();
+    const texto   = data.content.find(b => b.type === 'text')?.text || '';
+    const jsonStr = texto.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    const resultado = JSON.parse(jsonStr);
+
+    pdfAtividades = (resultado.atividades || []).map(a => ({
+      id:          uid(),
+      project:     resultado.projeto || 'Projeto',
+      description: a.titulo || '',
+      responsible: '',
+      startDate:   a.inicio || '',
+      dueDate:     a.termino || '',
+      status:      a.status || 'Pendente',
+      progress:    parseInt(a.progresso) || 0,
+      isCritical:  false, obs: '', duration: ''
+    })).filter(a => a.description);
+
+    if (!pdfAtividades.length) throw new Error('Nenhuma atividade encontrada');
+
+    showPdfPreview(pdfAtividades);
+    toast('✓ ' + pdfAtividades.length + ' atividades extraídas!', 'success');
+
+  } catch(err) {
+    document.getElementById('ia-status-text').textContent = 'Erro: ' + err.message;
+    toast('Erro: ' + err.message, 'error');
+  } finally {
+    document.getElementById('ia-loading-bar').style.display = 'none';
+    document.getElementById('btn-ia-extract').disabled = false;
+    if (!document.getElementById('ia-status-text').textContent.startsWith('Erro')) {
+      document.getElementById('ia-status').style.display = 'none';
+    }
+  }
+}
+
+function showPdfPreview(data) {
+  const preview = document.getElementById('pdf-preview');
+  const content = document.getElementById('pdf-preview-content');
+  document.getElementById('pdf-preview-count').textContent = data.length + ' atividade(s) encontradas';
+  preview.style.display = 'block';
+
+  content.innerHTML = data.slice(0, 6).map(a =>
+    `<div style="font-size:.7rem;padding:5px 8px;background:var(--surface2);border-radius:4px;margin-bottom:3px;display:flex;gap:8px;align-items:center">
+      <span style="font-weight:600;color:var(--text-1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.description)}</span>
+      <span style="color:var(--text-4);white-space:nowrap">${esc(a.startDate)}</span>
+      <span style="color:var(--text-4);white-space:nowrap">${a.progress}%</span>
+    </div>`
+  ).join('') +
+  (data.length > 6 ? `<div style="font-size:.67rem;color:var(--text-4);margin-top:4px">...e mais ${data.length-6} atividades</div>` : '');
+}
+
+function confirmPdfImport() {
+  if (!pdfAtividades.length) return;
+  pdfAtividades.forEach(a => activities.push(a));
+  save(); renderAll();
+  addHistory('import', pdfAtividades.length + ' atividades importadas via PDF/IA');
+  toast('✓ ' + pdfAtividades.length + ' atividade(s) importadas!', 'success');
+  cancelPdfImport();
+}
+
+function cancelPdfImport() {
+  pdfAtividades = [];
+  pdfBase64 = null;
+  document.getElementById('pdf-preview').style.display = 'none';
+  document.getElementById('pdf-drop').classList.remove('loaded');
+  document.getElementById('pdf-drop').querySelector('i').className = 'fa-solid fa-file-pdf';
+  document.getElementById('pdf-drop-title').textContent = 'Arraste o PDF do cronograma aqui';
+  document.getElementById('pdf-drop-sub').textContent = 'Gantt, EAP, planilhas de projeto...';
+  document.getElementById('btn-ia-extract').disabled = true;
+  document.getElementById('pdf-file-input').value = '';
+  document.getElementById('ia-status').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════
+   ASSISTENTE IA — CHAT + PREVIEW DE ATIVIDADES
+══════════════════════════════════════════════════ */
+
+
+/* ── Arquivo anexado no chat ──────────────────── */
+let iaChatAnexo = null; // { tipo, nome, conteudo, mediaType }
+
+async function iaAnexarArquivo(file) {
+  if (!file) return;
+
+  const maxMB = 5;
+  if (file.size > maxMB * 1024 * 1024) {
+    toast('Arquivo muito grande (máx ' + maxMB + 'MB)', 'error'); return;
+  }
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const tipos = { pdf:'document', txt:'text', csv:'text', png:'image', jpg:'image', jpeg:'image' };
+  if (!tipos[ext]) { toast('Tipo não suportado. Use PDF, TXT, CSV, PNG ou JPG', 'error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const resultado = e.target.result;
+    if (ext === 'txt' || ext === 'csv') {
+      iaChatAnexo = { tipo: 'text', nome: file.name, conteudo: resultado, mediaType: null };
+    } else if (ext === 'pdf') {
+      iaChatAnexo = { tipo: 'document', nome: file.name, conteudo: resultado.split(',')[1], mediaType: 'application/pdf' };
+    } else {
+      const mt = ext === 'png' ? 'image/png' : 'image/jpeg';
+      iaChatAnexo = { tipo: 'image', nome: file.name, conteudo: resultado.split(',')[1], mediaType: mt };
+    }
+
+    // Mostra preview
+    document.getElementById('ia-file-preview-bar').style.display  = 'flex';
+    document.getElementById('ia-file-preview-name').textContent   = file.name;
+    document.getElementById('ia-file-input-chat').value           = '';
+    toast('📎 ' + file.name + ' pronto para enviar', 'success');
+  };
+
+  if (ext === 'txt' || ext === 'csv') reader.readAsText(file);
+  else reader.readAsDataURL(file);
+}
+
+function iaRemoverArquivo() {
+  iaChatAnexo = null;
+  document.getElementById('ia-file-preview-bar').style.display = 'none';
+  document.getElementById('ia-file-preview-name').textContent  = '';
+  document.getElementById('ia-file-input-chat').value          = '';
+}
+
+/* ── Anotações nas atividades ─────────────────── */
+let iaNoteTargetId = null;
+
+function iaAbrirNota(id) {
+  const at = iaAtividadesGeradas.find(a => a.id === id);
+  if (!at) return;
+  iaNoteTargetId = id;
+  document.getElementById('ia-note-modal-sub').textContent = at.description;
+  document.getElementById('ia-note-textarea').value        = at.obs || '';
+  document.getElementById('ia-note-modal-backdrop').classList.add('open');
+  setTimeout(() => document.getElementById('ia-note-textarea').focus(), 80);
+}
+
+function iaNoteFechar(e) {
+  if (e && e.target !== document.getElementById('ia-note-modal-backdrop')) return;
+  document.getElementById('ia-note-modal-backdrop').classList.remove('open');
+  iaNoteTargetId = null;
+}
+
+function iaNoteSalvar() {
+  if (!iaNoteTargetId) return;
+  const idx = iaAtividadesGeradas.findIndex(a => a.id === iaNoteTargetId);
+  if (idx < 0) return;
+  const nota = document.getElementById('ia-note-textarea').value.trim();
+  iaAtividadesGeradas[idx].obs = nota;
+  document.getElementById('ia-note-modal-backdrop').classList.remove('open');
+  iaNoteTargetId = null;
+  // Re-renderiza o preview para atualizar indicador
+  iaRefreshPreview();
+  toast('📝 Anotação salva', 'success');
+}
+
+function iaRefreshPreview() {
+  if (!iaAtividadesGeradas.length) return;
+  // Chama render com os dados atuais sem adicionar novos
+  const projeto = iaAtividadesGeradas[0]?.project || 'Projeto';
+  iaRenderPreviewDados(iaAtividadesGeradas, projeto);
+}
+
+
+/* ══════════════════════════════════════════════════
+   DETECÇÃO DE DUPLICATAS
+══════════════════════════════════════════════════ */
+
+/**
+ * iaDetectarDuplicatas(novas)
+ * Compara lista de atividades novas com as existentes no TaskFlow.
+ * Retorna { exatas, parciais, conflitos, novas }
+ */
+function iaDetectarDuplicatas(novas) {
+  const existentes = (typeof activities !== 'undefined') ? activities : [];
+  const resultado  = { exatas: [], parciais: [], conflitos: [], novas: [] };
+
+  // Normaliza string para comparação
+  const norm = s => s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+  novas.forEach(nova => {
+    const nNova = norm(nova.description || '');
+    let foiDuplicata = false;
+
+    existentes.forEach(ex => {
+      const nEx = norm(ex.description || '');
+      if (!nNova || !nEx) return;
+
+      // Duplicata exata
+      if (nNova === nEx) {
+        resultado.exatas.push({ nova: nova.description, existente: ex.description, id: ex.id });
+        foiDuplicata = true;
+        return;
+      }
+
+      // Similaridade (uma contém a outra ou distância curta)
+      const sim = iaSimilaridade(nNova, nEx);
+      if (sim >= 0.80 && sim < 1.0) {
+        resultado.parciais.push({
+          nova: nova.description, existente: ex.description,
+          similaridade: Math.round(sim * 100), id: ex.id
+        });
+        foiDuplicata = true;
+        return;
+      }
+
+      // Conflito de data no mesmo projeto
+      if (nova.project === ex.project && nova.startDate && ex.startDate) {
+        const ni = new Date(nova.startDate), nf = new Date(nova.dueDate || nova.startDate);
+        const ei = new Date(ex.startDate),  ef = new Date(ex.dueDate  || ex.startDate);
+        if (ni <= ef && nf >= ei && nova.responsible && ex.responsible && nova.responsible === ex.responsible) {
+          resultado.conflitos.push({
+            nova: nova.description, existente: ex.description,
+            motivo: `Mesmo responsável (${nova.responsible}) no período ${nova.startDate} → ${nova.dueDate}`
+          });
+        }
+      }
+    });
+
+    if (!foiDuplicata && !resultado.exatas.find(e => e.nova === nova.description)
+        && !resultado.parciais.find(e => e.nova === nova.description)) {
+      resultado.novas.push(nova.description);
+    }
+  });
+
+  return resultado;
+}
+
+/**
+ * iaSimilaridade(a, b) — coeficiente de Jaccard por bigramas
+ */
+function iaSimilaridade(a, b) {
+  const bigramas = s => new Set([...s].map((c,i) => s.slice(i,i+2)).filter(g => g.length===2));
+  const A = bigramas(a), B = bigramas(b);
+  if (!A.size && !B.size) return 1;
+  if (!A.size || !B.size) return 0;
+  const inter = [...A].filter(g => B.has(g)).length;
+  return inter / (A.size + B.size - inter);
+}
+
+/**
+ * iaRenderDuplicatasBanner(resultado)
+ * Exibe banner de aviso no preview quando há duplicatas
+ */
+function iaRenderDuplicatasBanner(resultado) {
+  // Remove banner anterior
+  document.getElementById('ia-dup-banner')?.remove();
+
+  const total = resultado.exatas.length + resultado.parciais.length + resultado.conflitos.length;
+  if (!total) return;
+
+  const body = document.getElementById('ia-preview-body');
+  if (!body) return;
+
+  const banner = document.createElement('div');
+  banner.className = 'ia-dup-banner';
+  banner.id = 'ia-dup-banner';
+
+  let html = `<div class="ia-dup-banner-icon">⚠️</div>
+    <div class="ia-dup-banner-body">
+      <div class="ia-dup-banner-title">${total} problema(s) detectado(s)</div>
+      <ul class="ia-dup-banner-list">`;
+
+  resultado.exatas.forEach(d =>
+    html += `<li>🔴 <b>Duplicata exata:</b> "${d.nova}" já existe no TaskFlow</li>`
+  );
+  resultado.parciais.forEach(d =>
+    html += `<li>🟡 <b>Muito similar (${d.similaridade}%):</b> "${d.nova}" ≈ "${d.existente}"</li>`
+  );
+  resultado.conflitos.forEach(d =>
+    html += `<li>🟠 <b>Conflito de agenda:</b> "${d.nova}" — ${d.motivo}</li>`
+  );
+
+  html += `</ul>
+      <div style="margin-top:6px;font-size:.67rem;color:var(--text-3)">
+        Revise os cards marcados antes de importar. Atividades novas: ${resultado.novas.length}
+      </div>
+    </div>`;
+
+  banner.innerHTML = html;
+  body.insertBefore(banner, body.firstChild);
+}
+
+/**
+ * iaParseDuplicatasIA(resposta)
+ * Extrai o bloco ===DUPLICATAS=== da resposta da IA (quando ela detecta)
+ */
+function iaParseDuplicatasIA(resposta) {
+  const match = resposta.match(/===DUPLICATAS===([\s\S]*?)===FIM_DUPLICATAS===/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1].trim());
+  } catch { return null; }
+}
+
+let iaChatHistory  = [];   // histórico da conversa (role/content)
+let iaAtividadesGeradas = []; // atividades no preview
+let iaIsTyping     = false;
+
+/**
+ * iaGerarSystemPrompt()
+ * Gera o system prompt dinamicamente incluindo TODOS os dados
+ * atuais do TaskFlow (projetos + atividades) para a IA ter
+ * contexto completo desde a primeira mensagem.
+ */
+function iaGerarSystemPrompt() {
+  // ── Coleta dados atuais do TaskFlow ──────────────
+  const todasAtividades = (typeof activities !== 'undefined') ? activities : [];
+  const todosProjetos   = (typeof projects   !== 'undefined') ? projects   : [];
+
+  // Resume projetos
+  const projetosResumo = todosProjetos.length
+    ? todosProjetos.map(p => `  • ${p.name || p.id}`).join('\n')
+    : '  (nenhum projeto cadastrado)';
+
+  // Resume atividades agrupadas por projeto
+  const porProjeto = {};
+  todasAtividades.forEach(a => {
+    const proj = a.project || 'Sem projeto';
+    if (!porProjeto[proj]) porProjeto[proj] = [];
+    porProjeto[proj].push(a);
+  });
+
+  let atividadesResumo = '';
+  if (!todasAtividades.length) {
+    atividadesResumo = '  (nenhuma atividade cadastrada ainda)';
+  } else {
+    for (const [proj, lista] of Object.entries(porProjeto)) {
+      atividadesResumo += `\n  [${proj}] — ${lista.length} atividade(s):\n`;
+      lista.forEach(a => {
+        const pct  = a.progress ?? 0;
+        const ini  = a.startDate || '?';
+        const fim  = a.dueDate   || '?';
+        const resp = a.responsible ? ` | resp: ${a.responsible}` : '';
+        const obs  = a.obs ? ` | obs: "${a.obs}"` : '';
+        atividadesResumo += `    - [${a.status || 'Pendente'}] ${a.description} (${ini} → ${fim}, ${pct}%${resp}${obs})\n`;
+      });
+    }
+  }
+
+  const totalAtiv  = todasAtividades.length;
+  const concluidas = todasAtividades.filter(a => a.status === 'Concluído').length;
+  const andamento  = todasAtividades.filter(a => a.status === 'Em Andamento').length;
+  const pendentes  = todasAtividades.filter(a => a.status === 'Pendente').length;
+  const progMedio  = totalAtiv
+    ? Math.round(todasAtividades.reduce((s,a) => s + (a.progress||0), 0) / totalAtiv)
+    : 0;
+
+  return `Você é um assistente especializado em gerenciamento de projetos integrado ao TaskFlow PRO.
+
+════════════════════════════════════════
+CONTEXTO ATUAL DO TASKFLOW (leia com atenção)
+════════════════════════════════════════
+
+PROJETOS CADASTRADOS:
+${projetosResumo}
+
+RESUMO GERAL:
+  • Total de atividades : ${totalAtiv}
+  • Concluídas          : ${concluidas}
+  • Em andamento        : ${andamento}
+  • Pendentes           : ${pendentes}
+  • Progresso médio     : ${progMedio}%
+
+TODAS AS ATIVIDADES (detalhes completos):
+${atividadesResumo}
+════════════════════════════════════════
+
+Com base nesses dados, você pode:
+- Responder perguntas sobre qualquer atividade ou projeto acima
+- Analisar riscos, atrasos ou gargalos
+- Sugerir melhorias no cronograma
+- Criar novas atividades coerentes com o que já existe
+- Redistribuir tarefas ou ajustar datas
+
+REGRAS PARA CRIAÇÃO/EDIÇÃO DE ATIVIDADES:
+Quando o usuário pedir para criar ou organizar atividades, SEMPRE retorne um JSON estruturado — e também uma resposta amigável em texto. Separe os dois com o marcador ===JSON===:
+
+Resposta amigável aqui...
+
+===JSON===
+{
+  "projeto": "Nome do projeto (use os existentes acima quando possível)",
+  "atividades": [
+    {
+      "titulo": "Nome da atividade",
+      "inicio": "YYYY-MM-DD",
+      "termino": "YYYY-MM-DD",
+      "status": "Pendente|Em Andamento|Concluído",
+      "progresso": 0,
+      "responsavel": ""
+    }
+  ]
+}
+
+Regras de datas:
+- Mês/ano atual: março/2026
+- "próximo mês" = abril/2026
+- Distribua atividades em sequência lógica
+- Duração mínima 1 dia, máxima 30 dias
+
+DETECÇÃO DE DUPLICATAS E CONFLITOS (OBRIGATÓRIO ao receber arquivos):
+Sempre que o usuário enviar um arquivo (PDF, CSV, imagem) ou uma lista de atividades, você DEVE:
+1. Comparar cada atividade nova com as existentes no CONTEXTO ATUAL DO TASKFLOW acima
+2. Identificar DUPLICATAS EXATAS: mesmo nome (ou nome muito similar, ex: "INSTALAÇÃO" e "Instalação")
+3. Identificar DUPLICATAS PARCIAIS: mesma atividade com datas/status diferentes
+4. Identificar CONFLITOS: atividades que se sobrepõem no mesmo período do mesmo projeto
+5. Identificar ATIVIDADES NOVAS: não existem no sistema
+
+Ao detectar qualquer um dos casos acima, ADICIONE uma seção especial na sua resposta de texto:
+
+===DUPLICATAS===
+{
+  "duplicatas_exatas": ["nome1", "nome2"],
+  "duplicatas_parciais": [{"nova": "nome novo", "existente": "nome existente", "motivo": "explicação"}],
+  "conflitos": [{"atividade": "nome", "conflito_com": "outra atividade", "motivo": "explicação"}],
+  "novas": ["nome3", "nome4"]
+}
+===FIM_DUPLICATAS===
+
+Regras gerais:
+- Seja conciso e direto
+- Se for só conversa ou análise, responda sem o bloco JSON
+- Para ajustes, retorne O CONJUNTO COMPLETO atualizado
+- Ao referenciar atividades existentes, use os nomes exatos do contexto acima`;
+}
+
+function iaInitChat() {
+  if (iaChatHistory.length === 0) {
+    // Gera boas-vindas contextualizada com os dados reais
+    const todasAtiv  = (typeof activities !== 'undefined') ? activities : [];
+    const projetos   = (typeof projects   !== 'undefined') ? projects   : [];
+    const total      = todasAtiv.length;
+    const emAndamento= todasAtiv.filter(a => a.status === 'Em Andamento').length;
+    const pendentes  = todasAtiv.filter(a => a.status === 'Pendente').length;
+    const nProj      = projetos.length;
+
+    let boasVindas = 'Olá! Sou seu assistente de projetos e já li todo o seu TaskFlow. 👋\n\n';
+
+    if (total > 0) {
+      boasVindas += `**Contexto carregado:**\n`;
+      boasVindas += `• ${nProj} projeto(s) · ${total} atividade(s) no total\n`;
+      if (emAndamento) boasVindas += `• ${emAndamento} em andamento\n`;
+      if (pendentes)   boasVindas += `• ${pendentes} pendente(s)\n`;
+      boasVindas += `\nPode me perguntar sobre qualquer atividade ou projeto — já sei tudo que está cadastrado.\n\n`;
+    } else {
+      boasVindas += 'Seu TaskFlow ainda está vazio. Posso ajudar a criar o primeiro projeto!\n\n';
+    }
+
+    boasVindas += 'O que deseja fazer?\n\n• Pergunte sobre uma atividade específica\n• Peça análise de riscos ou atrasos\n• Crie novas atividades ou projetos\n• Annexe um PDF para eu interpretar';
+
+    iaAddMessage('ia', boasVindas);
+  }
+
+  // Atualiza subtítulo do header com contagem atual
+  const subEl = document.getElementById('ia-chat-header-sub');
+  if (subEl) {
+    const t = (typeof activities !== 'undefined') ? activities.length : 0;
+    const p = (typeof projects   !== 'undefined') ? projects.length   : 0;
+    subEl.textContent = t > 0
+      ? `${p} projeto(s) · ${t} atividade(s) carregadas`
+      : 'Nenhuma atividade — pronto para criar';
+  }
+}
+
+function iaKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    iaEnviar();
+  }
+}
+
+function iaQuick(texto) {
+  document.getElementById('ia-chat-input').value = texto;
+  iaEnviar();
+}
+
+async function iaEnviar() {
+  const input  = document.getElementById('ia-chat-input');
+  const texto  = input.value.trim();
+  if (!texto || iaIsTyping) return;
+
+  // Pega API key do campo da aba PDF (reutiliza)
+  const apiKey = localStorage.getItem('tf_apikey');
+  if (!apiKey) {
+    iaAddMessage('ia', '⚠️ Você precisa informar sua API Key da Anthropic. Vá em **Importar → PDF com IA** e cole sua chave lá — ela fica salva automaticamente.');
+    return;
+  }
+
+  // Mostra mensagem do usuário (com tag de arquivo se houver)
+  const textoComTag = iaChatAnexo
+    ? `<span class="ia-msg-file-tag"><i class="fa-solid fa-paperclip"></i> ${iaChatAnexo.nome}</span><br>${texto || '(arquivo enviado)'}`
+    : texto;
+  iaAddMessage('user', textoComTag, true);
+  input.value = '';
+  input.style.height = 'auto';
+  iaRemoverArquivo(); // limpa arquivo após enviar
+
+  // Monta conteúdo da mensagem (texto + arquivo opcional)
+  let userContent;
+  if (iaChatAnexo) {
+    const partsContent = [];
+    if (iaChatAnexo.tipo === 'text') {
+      // Texto: inclui como parte do prompt
+      partsContent.push({ type: 'text', text: (texto ? texto + '\n\n' : '') + '--- CONTEÚDO DO ARQUIVO: ' + iaChatAnexo.nome + ' ---\n' + iaChatAnexo.conteudo.slice(0, 12000) });
+    } else if (iaChatAnexo.tipo === 'document') {
+      if (texto) partsContent.push({ type: 'text', text: texto });
+      partsContent.push({ type: 'document', source: { type: 'base64', media_type: iaChatAnexo.mediaType, data: iaChatAnexo.conteudo } });
+    } else if (iaChatAnexo.tipo === 'image') {
+      if (texto) partsContent.push({ type: 'text', text: texto });
+      partsContent.push({ type: 'image', source: { type: 'base64', media_type: iaChatAnexo.mediaType, data: iaChatAnexo.conteudo } });
+    }
+    userContent = partsContent;
+  } else {
+    userContent = texto;
+  }
+
+  // Adiciona ao histórico (armazena só o texto para o histórico futuro)
+  iaChatHistory.push({ role: 'user', content: userContent });
+
+  // Mostra typing
+  iaIsTyping = true;
+  document.getElementById('ia-send-btn').disabled = true;
+  const typingEl = iaShowTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':       'application/json',
+        'x-api-key':          apiKey,
+        'anthropic-version':  '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system:     iaGerarSystemPrompt(),  // sempre atualizado com dados atuais
+        messages:   iaChatHistory,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data      = await res.json();
+    const resposta  = data.content.find(b => b.type === 'text')?.text || '';
+
+    // Salva no histórico
+    iaChatHistory.push({ role: 'assistant', content: resposta });
+
+    // Separa texto e JSON
+    const partes = resposta.split('===JSON===');
+    const textoMsg = partes[0].trim();
+    const jsonPart = partes[1]?.trim();
+
+    // Remove typing e mostra resposta
+    typingEl.remove();
+    iaAddMessage('ia', textoMsg);
+
+    // Processa JSON se existir
+    if (jsonPart) {
+      try {
+        const jsonStr  = jsonPart.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+        const resultado = JSON.parse(jsonStr);
+        if (resultado.atividades?.length) {
+          iaRenderPreview(resultado);
+        }
+      } catch(e) {
+        console.warn('JSON parse error:', e);
+      }
+    }
+
+    // Processa bloco de duplicatas vindo da IA (análise de arquivo)
+    const dupIA = iaParseDuplicatasIA(resposta);
+    if (dupIA) {
+      const totalDup = (dupIA.duplicatas_exatas||[]).length
+        + (dupIA.duplicatas_parciais||[]).length
+        + (dupIA.conflitos||[]).length;
+      if (totalDup > 0) {
+        // Converte para formato do banner local
+        const convertido = {
+          exatas:    (dupIA.duplicatas_exatas||[]).map(n => ({ nova: n, existente: n })),
+          parciais:  (dupIA.duplicatas_parciais||[]).map(d => ({ nova: d.nova, existente: d.existente, similaridade: 90 })),
+          conflitos: (dupIA.conflitos||[]).map(d => ({ nova: d.atividade, motivo: d.motivo })),
+          novas:     (dupIA.novas||[])
+        };
+        iaRenderDuplicatasBanner(convertido);
+      }
+    }
+
+  } catch(err) {
+    typingEl.remove();
+    iaAddMessage('ia', '❌ Erro ao conectar com a IA: ' + err.message);
+  } finally {
+    iaIsTyping = false;
+    document.getElementById('ia-send-btn').disabled = false;
+  }
+}
+
+/* ── Render mensagens ─────────────────────────── */
+function iaAddMessage(role, texto, rawHtml = false) {
+  const wrap = document.getElementById('ia-chat-messages');
+  const hora  = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+  const el = document.createElement('div');
+  el.className = 'ia-msg ' + role;
+
+  // Converte markdown simples (ou usa html raw)
+  const html = rawHtml ? texto : texto
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/\n/g, '<br>')
+    .replace(/• /g, '• ');
+
+  el.innerHTML = `
+    <div class="ia-msg-avatar">${role === 'ia' ? '🤖' : '<i class="fa-solid fa-user" style="font-size:10px"></i>'}</div>
+    <div>
+      <div class="ia-msg-bubble">${html}</div>
+      <div class="ia-msg-time">${hora}</div>
+    </div>`;
+
+  wrap.appendChild(el);
+  wrap.scrollTop = wrap.scrollHeight;
+  return el;
+}
+
+function iaShowTyping() {
+  const wrap = document.getElementById('ia-chat-messages');
+  const el = document.createElement('div');
+  el.className = 'ia-msg ia';
+  el.innerHTML = `
+    <div class="ia-msg-avatar">🤖</div>
+    <div class="ia-typing">
+      <div class="ia-typing-dots"><span></span><span></span><span></span></div>
+      Pensando...
+    </div>`;
+  wrap.appendChild(el);
+  wrap.scrollTop = wrap.scrollHeight;
+  return el;
+}
+
+/* ── Render preview de atividades ─────────────── */
+function iaRenderPreview(resultado) {
+  const projeto = resultado.projeto || 'Novo Projeto';
+  const novas   = (resultado.atividades || []).map(a => ({
+    id:          uid(),
+    project:     projeto,
+    description: a.titulo   || '',
+    responsible: a.responsavel || '',
+    startDate:   a.inicio   || '',
+    dueDate:     a.termino  || '',
+    status:      a.status   || 'Pendente',
+    progress:    parseInt(a.progresso) || 0,
+    isCritical: false, obs: '', duration: ''
+  })).filter(a => a.description);
+
+  if (!novas.length) return;
+
+  // ── Detecção de duplicatas (client-side) ──────────
+  const dupResult = iaDetectarDuplicatas(novas);
+  // Marca cards com flag de duplicata
+  novas.forEach(a => {
+    if (dupResult.exatas.find(d => d.nova === a.description)) a._dupExata = true;
+    if (dupResult.parciais.find(d => d.nova === a.description)) a._dupParcial = true;
+  });
+
+  // Acumula atividades (não substitui — permite refinamentos)
+  iaAtividadesGeradas = [...iaAtividadesGeradas, ...novas];
+
+  const body     = document.getElementById('ia-preview-body');
+  const emptyEl  = document.getElementById('ia-empty-preview');
+  const countEl  = document.getElementById('ia-preview-count');
+  const btnImp   = document.getElementById('ia-btn-importar');
+  const btnLim   = document.getElementById('ia-btn-limpar');
+
+  emptyEl.style.display = 'none';
+  countEl.style.display = 'inline-flex';
+  btnImp.style.display  = 'inline-flex';
+  btnLim.style.display  = 'inline-flex';
+  countEl.textContent   = iaAtividadesGeradas.length + ' atividades';
+
+  // Agrupa por status
+  const grupos = {
+    'Em Andamento': iaAtividadesGeradas.filter(a => a.status === 'Em Andamento'),
+    'Pendente':     iaAtividadesGeradas.filter(a => a.status === 'Pendente'),
+    'Concluído':    iaAtividadesGeradas.filter(a => a.status === 'Concluído'),
+  };
+  const icones = { 'Em Andamento':'🔵', 'Pendente':'🟡', 'Concluído':'🟢' };
+  const slugMap = { 'Em Andamento':'andamento', 'Pendente':'pendente', 'Concluído':'concluido' };
+
+  let html = `<div style="font-size:.7rem;font-weight:700;color:var(--text-3);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+    <i class="fa-solid fa-folder-open" style="color:var(--purple)"></i> ${esc(projeto)}
+  </div>`;
+
+  for (const [statusLabel, lista] of Object.entries(grupos)) {
+    if (!lista.length) continue;
+    html += `<div class="ia-act-group">
+      <div class="ia-act-group-title">${icones[statusLabel]} ${statusLabel} (${lista.length})</div>
+      <div class="ia-act-grid">`;
+    for (const a of lista) {
+      const slug  = slugMap[a.status] || 'pendente';
+      const pct   = a.progress || 0;
+      const fillClass = pct === 100 ? 'green' : pct > 0 ? '' : 'amber';
+      const dur   = (a.startDate && a.dueDate)
+        ? Math.max(1, Math.round((new Date(a.dueDate)-new Date(a.startDate))/(86400000))) + 'd'
+        : '';
+      const isDupEx  = !!a._dupExata;
+      const isDupPar = !!a._dupParcial;
+      const dupClass = isDupEx ? ' is-duplicate' : '';
+      html += `
+        <div class="ia-act-card st-${slug}${dupClass}">
+          <div class="ia-act-card-body">
+            <div class="ia-act-card-title">${esc(a.description)}</div>
+            <div class="ia-act-card-meta">
+              ${a.startDate ? `<span class="ia-act-meta-item"><i class="fa-regular fa-calendar"></i> ${a.startDate}</span>` : ''}
+              ${a.dueDate   ? `<span class="ia-act-meta-item"><i class="fa-solid fa-arrow-right" style="font-size:.55rem"></i> ${a.dueDate}</span>` : ''}
+              ${dur         ? `<span class="ia-act-meta-item"><i class="fa-regular fa-clock"></i> ${dur}</span>` : ''}
+              ${a.responsible ? `<span class="ia-act-meta-item"><i class="fa-solid fa-user"></i> ${esc(a.responsible)}</span>` : ''}
+              <span class="badge-sm ${slug}">${statusLabel}</span>
+              ${isDupEx  ? '<span class="ia-dup-tag">⛔ duplicata</span>' : ''}
+              ${isDupPar ? '<span class="ia-sim-tag">⚠️ similar</span>'  : ''}
+            </div>
+            ${a.obs
+              ? `<div style="margin-top:6px;font-size:.67rem;color:var(--amber);background:var(--amber-dim);border-radius:4px;padding:4px 7px;line-height:1.4">
+                  📝 ${esc(a.obs)}
+                  <button class="ia-note-indicator" onclick="iaAbrirNota('${a.id}')" style="margin-left:6px">editar</button>
+                </div>`
+              : `<button class="ia-note-btn" onclick="iaAbrirNota('${a.id}')" style="margin-top:5px">
+                  <i class="fa-solid fa-plus" style="font-size:.6rem"></i> Adicionar anotação
+                </button>`
+            }
+          </div>
+          <div class="ia-act-progress-wrap">
+            <div class="ia-act-progress-bar">
+              <div class="ia-act-progress-fill ${fillClass}" style="width:${pct}%"></div>
+            </div>
+            <div class="ia-act-progress-pct">${pct}%</div>
+          </div>
+        </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  body.innerHTML = html;
+}
+
+function iaRenderPreviewDados(lista, projeto) {
+  // Re-renderiza o preview com a lista atual (sem adicionar novos itens)
+  const body    = document.getElementById('ia-preview-body');
+  const countEl = document.getElementById('ia-preview-count');
+  const btnImp  = document.getElementById('ia-btn-importar');
+  const btnLim  = document.getElementById('ia-btn-limpar');
+
+  countEl.style.display = 'inline-flex';
+  btnImp.style.display  = 'inline-flex';
+  btnLim.style.display  = 'inline-flex';
+  countEl.textContent   = lista.length + ' atividades';
+
+  const grupos  = {
+    'Em Andamento': lista.filter(a => a.status === 'Em Andamento'),
+    'Pendente':     lista.filter(a => a.status === 'Pendente'),
+    'Concluído':    lista.filter(a => a.status === 'Concluído'),
+  };
+  const icones  = { 'Em Andamento':'🔵', 'Pendente':'🟡', 'Concluído':'🟢' };
+  const slugMap = { 'Em Andamento':'andamento', 'Pendente':'pendente', 'Concluído':'concluido' };
+
+  let html = `<div style="font-size:.7rem;font-weight:700;color:var(--text-3);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+    <i class="fa-solid fa-folder-open" style="color:var(--purple)"></i> ${esc(projeto)}
+  </div>`;
+
+  for (const [statusLabel, itemLista] of Object.entries(grupos)) {
+    if (!itemLista.length) continue;
+    const slug = slugMap[statusLabel] || 'pendente';
+    html += `<div class="ia-act-group">
+      <div class="ia-act-group-title">${icones[statusLabel]} ${statusLabel} (${itemLista.length})</div>
+      <div class="ia-act-grid">`;
+    for (const a of itemLista) {
+      const pct  = a.progress || 0;
+      const fillClass = pct === 100 ? 'green' : pct > 0 ? '' : 'amber';
+      const dur  = (a.startDate && a.dueDate)
+        ? Math.max(1, Math.round((new Date(a.dueDate)-new Date(a.startDate))/(86400000))) + 'd'
+        : '';
+      html += `
+        <div class="ia-act-card st-${slug}">
+          <div class="ia-act-card-body">
+            <div class="ia-act-card-title">${esc(a.description)}</div>
+            <div class="ia-act-card-meta">
+              ${a.startDate ? `<span class="ia-act-meta-item"><i class="fa-regular fa-calendar"></i> ${a.startDate}</span>` : ''}
+              ${a.dueDate   ? `<span class="ia-act-meta-item"><i class="fa-solid fa-arrow-right" style="font-size:.55rem"></i> ${a.dueDate}</span>` : ''}
+              ${dur         ? `<span class="ia-act-meta-item"><i class="fa-regular fa-clock"></i> ${dur}</span>` : ''}
+              ${a.responsible ? `<span class="ia-act-meta-item"><i class="fa-solid fa-user"></i> ${esc(a.responsible)}</span>` : ''}
+              <span class="badge-sm ${slug}">${statusLabel}</span>
+            </div>
+            ${a.obs
+              ? `<div style="margin-top:6px;font-size:.67rem;color:var(--amber);background:var(--amber-dim);border-radius:4px;padding:4px 7px;line-height:1.4">
+                  📝 ${esc(a.obs)}
+                  <button class="ia-note-indicator" onclick="iaAbrirNota('${a.id}')" style="margin-left:6px">editar</button>
+                </div>`
+              : `<button class="ia-note-btn" onclick="iaAbrirNota('${a.id}')" style="margin-top:5px">
+                  <i class="fa-solid fa-plus" style="font-size:.6rem"></i> Adicionar anotação
+                </button>`
+            }
+          </div>
+          <div class="ia-act-progress-wrap">
+            <div class="ia-act-progress-bar">
+              <div class="ia-act-progress-fill ${fillClass}" style="width:${pct}%"></div>
+            </div>
+            <div class="ia-act-progress-pct">${pct}%</div>
+          </div>
+        </div>`;
+    }
+    html += '</div></div>';
+  }
+  body.innerHTML = html;
+
+  // Banner de duplicatas
+  const dupRes = iaDetectarDuplicatas(iaAtividadesGeradas);
+  iaRenderDuplicatasBanner(dupRes);
+}
+
+function iaLimparPreview() {
+  iaAtividadesGeradas = [];
+  document.getElementById('ia-preview-body').innerHTML =
+    '<div class="ia-empty-preview" id="ia-empty-preview"><div class="empty-icon">🤖</div><p>Converse com o assistente e as atividades geradas aparecerão aqui como cards visuais, prontas para importar.</p></div>';
+  document.getElementById('ia-preview-count').style.display = 'none';
+  document.getElementById('ia-btn-importar').style.display  = 'none';
+  document.getElementById('ia-btn-limpar').style.display    = 'none';
+}
+
+function iaImportarTudo() {
+  if (!iaAtividadesGeradas.length) return;
+  iaAtividadesGeradas.forEach(a => activities.push(a));
+  save(); renderAll();
+  addHistory('import', iaAtividadesGeradas.length + ' atividades criadas via Assistente IA');
+  toast('✓ ' + iaAtividadesGeradas.length + ' atividade(s) importadas com sucesso!', 'success');
+  iaLimparPreview();
+  // Navega para atividades
+  const navAtvEl = document.querySelector('[onclick*=\'atividades\']');
+  switchView('atividades', navAtvEl);
+}
+
 let importData = null;
 
 function handleImportDrop(e) {
@@ -5403,6 +6882,26 @@ Digite: Folga, Férias, Outra atividade, Treinamento ou Limpar`, '');
   document.addEventListener('DOMContentLoaded', function(){ ensureProjectStatusOptions(); ensureActivityModalExtras(); injectViewButtons(); renderTeamCalendarSelector(); });
 })();
 </script>
+
+
+  <!-- MODAL: ANOTAÇÃO NA ATIVIDADE -->
+  <div class="ia-note-modal-backdrop" id="ia-note-modal-backdrop" onclick="iaNoteFechar(event)">
+    <div class="ia-note-modal" onclick="event.stopPropagation()">
+      <div class="ia-note-modal-header">
+        <div>
+          <div class="ia-note-modal-title">📝 Anotação</div>
+          <div class="ia-note-modal-sub" id="ia-note-modal-sub"></div>
+        </div>
+        <button class="ia-note-close" onclick="iaNoteFechar()">✕</button>
+      </div>
+      <textarea class="ia-note-textarea" id="ia-note-textarea"
+        placeholder="Ex: Verificar disponibilidade da equipe antes de iniciar. Depende da entrega do material..."></textarea>
+      <div class="ia-note-actions">
+        <button class="ia-note-save" onclick="iaNoteSalvar()">💾 Salvar anotação</button>
+        <button class="ia-note-cancel" onclick="iaNoteFechar()">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
