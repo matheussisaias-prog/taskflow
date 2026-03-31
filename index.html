@@ -2420,7 +2420,7 @@ select.form-control { cursor: pointer; }
               <div class="api-key-row">
                 <label>🔑 API Key</label>
                 <input type="password" id="pdf-api-key" placeholder="sk-ant-api03-..."
-                  oninput="localStorage.setItem('tf_apikey',this.value)"
+                  oninput="localStorage.setItem('tf_apikey', iaSanitizarApiKey(this.value))"
                   value=""/>
               </div>
 
@@ -4350,8 +4350,9 @@ let pdfAtividades = [];
 
 // Carregar API key salva
 (function() {
-  const saved = localStorage.getItem('tf_apikey');
+  const saved = iaSanitizarApiKey(localStorage.getItem('tf_apikey') || '');
   if (saved) {
+    localStorage.setItem('tf_apikey', saved); // re-salva já limpa
     const el = document.getElementById('pdf-api-key');
     if (el) el.value = saved;
   }
@@ -4394,8 +4395,12 @@ function onPdfFileSelect(file) {
 }
 
 async function extrairPdfComIA() {
-  const apiKey = document.getElementById('pdf-api-key')?.value?.trim();
+  const apiKey = iaSanitizarApiKey(document.getElementById('pdf-api-key')?.value || iaGetApiKey());
   if (!apiKey) { toast('Informe a API Key da Anthropic', 'error'); return; }
+  if (!apiKey.startsWith('sk-ant-')) {
+    toast('⚠️ Chave inválida? Deve começar com sk-ant-...', 'error');
+    // Não bloqueia — tenta mesmo assim (pode ser formato novo)
+  }
   if (!pdfBase64) { toast('Carregue um PDF primeiro', 'error'); return; }
 
   document.getElementById('btn-ia-extract').disabled = true;
@@ -4535,6 +4540,30 @@ function cancelPdfImport() {
 
 
 /* ── Arquivo anexado no chat ──────────────────── */
+
+/* ── Sanitização da API Key ──────────────────────
+   Remove caracteres invisíveis e não-ASCII que
+   quebram o header HTTP (ISO-8859-1 obrigatório)
+────────────────────────────────────────────────── */
+function iaSanitizarApiKey(raw) {
+  if (!raw) return '';
+  return raw
+    .trim()
+    // Remove caracteres invisíveis: zero-width space, BOM, soft hyphen, etc.
+    .replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u180E]/g, '')
+    // Remove aspas "inteligentes" que o Word/PDF coloca
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    // Mantém só caracteres ASCII imprimíveis (32-126) que são ISO-8859-1 válidos
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
+}
+
+function iaGetApiKey() {
+  const raw = localStorage.getItem('tf_apikey') || '';
+  return iaSanitizarApiKey(raw);
+}
+
 let iaChatAnexo = null; // { tipo, nome, conteudo, mediaType }
 
 async function iaAnexarArquivo(file) {
@@ -4940,7 +4969,7 @@ async function iaEnviar() {
   if (!texto || iaIsTyping) return;
 
   // Pega API key do campo da aba PDF (reutiliza)
-  const apiKey = localStorage.getItem('tf_apikey');
+  const apiKey = iaGetApiKey();
   if (!apiKey) {
     iaAddMessage('ia', '⚠️ Você precisa informar sua API Key da Anthropic. Vá em **Importar → PDF com IA** e cole sua chave lá — ela fica salva automaticamente.');
     return;
