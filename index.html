@@ -1364,16 +1364,27 @@ select.form-control { cursor: pointer; }
 ═══════════════════════════════════════════════ */
 .gantt-wrap { overflow-x: auto; }
 .gantt-table { width: 100%; border-collapse: collapse; font-size: .76rem; }
-.gantt-table th { background: var(--surface2); color: var(--text-3); font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.gantt-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.gantt-table tbody tr:hover td { background: var(--surface2); }
+.gantt-table th { background: var(--surface2); color: var(--text-3); font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; padding: 8px 10px; border-bottom: 2px solid var(--border2); white-space: nowrap; }
+.gantt-table td { padding: 0 10px; border-bottom: 1px solid var(--border); vertical-align: middle; height: 36px; }
+.gantt-table tbody tr:hover td { background: var(--blue-dim); }
 .gantt-bar-cell { min-width: 500px; position: relative; padding: 0 !important; }
-.gantt-bar-bg { height: 44px; position: relative; }
-.gantt-bar { position: absolute; height: 20px; top: 12px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: .6rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.15); transition: opacity .15s; cursor: pointer; }
+.gantt-bar-bg { height: 36px; position: relative; }
+.gantt-bar { position: absolute; height: 18px; top: 9px; border-radius: 3px; display: flex; align-items: center; padding: 0 6px; font-size: .58rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.15); transition: opacity .15s; cursor: pointer; }
 .gantt-bar:hover { opacity: .85; filter: brightness(1.1); }
-.gantt-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(220,38,38,.6); z-index: 2; pointer-events: none; }
+.gantt-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(220,38,38,.7); z-index: 2; pointer-events: none; }
 .gantt-header-months { display: flex; border-bottom: 1px solid var(--border); }
 .gantt-month { flex-shrink: 0; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); padding: 6px 8px; border-right: 1px dashed var(--border); }
+.gantt-group-row td { background: var(--surface2) !important; cursor: pointer; user-select: none; border-top: 2px solid var(--border2); }
+.gantt-group-row:hover td { filter: brightness(.96); }
+.gantt-group-label { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: .8rem; color: var(--text-1); font-family: var(--font-head); }
+.gantt-chevron { font-size: .62rem; color: var(--text-3); transition: transform .2s ease; display: inline-flex; width: 14px; flex-shrink: 0; }
+.gantt-chevron.open { transform: rotate(90deg); }
+.gantt-group-bar { position: absolute; height: 10px; top: 13px; border-radius: 2px; opacity: .85; }
+.gantt-act-name { display: flex; align-items: center; gap: 5px; padding-left: 24px; font-size: .73rem; color: var(--text-2); }
+.gantt-act-hidden { display: none; }
+.gantt-progress-inner { position: absolute; left:0; top:0; bottom:0; background: rgba(255,255,255,.28); border-radius: 3px 0 0 3px; }
+/* PDF Export button area */
+.gantt-export-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
 /* ═══════════════════════════════════════════════
    CALENDARIO
@@ -1831,7 +1842,87 @@ select.form-control { cursor: pointer; }
     }
     .ia-note-cancel:hover { color: var(--text-1); border-color: var(--border2, var(--border)); }
 
-  </style>
+  
+/* BOTÕES GANTT */
+.btn-add-sub {
+  color:#2563eb;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn-del-act {
+  color:#dc2626;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+
+
+/* Gantt text helpers */
+.gantt-name-main,
+.gantt-name-sub{
+  min-width:0;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-inline-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  flex-shrink:0;
+}
+.gantt-icon-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  font-weight:700;
+}
+.btn-add-sub{ color:#2563eb !important; }
+.btn-del-act{ color:#dc2626 !important; }
+.gantt-expand-text{
+  color:var(--text-4);
+  font-size:.72rem;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.gantt-desc-expanded{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:unset !important;
+  line-height:1.3;
+}
+
+
+/* Gantt interações avançadas */
+.gantt-row-selectable{ cursor:pointer; }
+.gantt-row-selected td{
+  background: rgba(37,99,235,.12) !important;
+}
+.gantt-activity-col{
+  min-width: 440px !important;
+  max-width: 440px !important;
+  overflow: visible !important;
+}
+.gantt-level-0{ padding-left: 12px !important; }
+.gantt-level-1{ padding-left: 36px !important; }
+.gantt-level-2{ padding-left: 60px !important; }
+.gantt-level-3{ padding-left: 84px !important; }
+.gantt-level-4{ padding-left: 108px !important; }
+.gantt-level-5{ padding-left: 132px !important; }
+.gantt-tree-icon{
+  font-size:.6rem;
+  color:var(--text-4);
+  flex-shrink:0;
+}
+
+</style>
 </head>
 <body>
 
@@ -2227,6 +2318,14 @@ select.form-control { cursor: pointer; }
             <i class="fa-solid fa-xmark"></i> Limpar
           </button>
           <span style="margin-left:auto;font-size:.7rem;color:var(--text-4)" id="gantt-count"></span>
+          <div class="gantt-export-bar" style="margin-left:8px">
+            <button class="btn-primary" style="font-size:.72rem;gap:5px" onclick="ganttExportPDF('gantt')" title="Exportar Gantt em PDF">
+              <i class="fa-solid fa-file-pdf"></i> PDF Gantt
+            </button>
+            <button class="btn-secondary" style="font-size:.72rem;gap:5px" onclick="ganttExportPDF('projetos')" title="Exportar relatório por projetos">
+              <i class="fa-solid fa-layer-group"></i> PDF por Projetos
+            </button>
+          </div>
         </div>
         <div class="gantt-wrap" id="gantt-wrap">
           <div style="padding:32px;text-align:center;color:var(--text-4)">Carregando Gantt...</div>
@@ -2811,65 +2910,39 @@ select.form-control { cursor: pointer; }
 
 <script>
 /* ══════════════════════════════════════════════════
-   GITHUB GIST SYNC — configuração
+   GITHUB GIST SYNC
 ══════════════════════════════════════════════════ */
 const GIST_ID    = '230ac4b334b371cc6f536c6afa22f0d8';
 const GIST_TOKEN = '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';
 const GIST_FILE  = 'taskflow.json';
-const GIST_API   = `https://api.github.com/gists/${GIST_ID}`;
-
+const GIST_API   = 'https://api.github.com/gists/' + GIST_ID;
 let _gistSaveTimer = null;
-
 async function gistLoad() {
   try {
-    const res = await fetch(GIST_API, {
-      headers: { 'Authorization': `token ${GIST_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
-    });
-    if (!res.ok) throw new Error('Gist load failed');
+    const res = await fetch(GIST_API, { headers: { 'Authorization': 'token ' + GIST_TOKEN, 'Accept': 'application/vnd.github.v3+json' } });
+    if (!res.ok) throw new Error('fail');
     const data = await res.json();
     const raw = data.files[GIST_FILE]?.content;
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed;
-  } catch(e) {
-    console.warn('Gist load error:', e);
-    return null;
-  }
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
 }
-
 async function gistSave(payload) {
   try {
-    await fetch(GIST_API, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `token ${GIST_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        files: { [GIST_FILE]: { content: JSON.stringify(payload, null, 2) } }
-      })
-    });
-  } catch(e) {
-    console.warn('Gist save error:', e);
-  }
+    await fetch(GIST_API, { method: 'PATCH', headers: { 'Authorization': 'token ' + GIST_TOKEN, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(payload, null, 2) } } }) });
+  } catch(e) {}
 }
-
 function scheduleGistSave() {
   clearTimeout(_gistSaveTimer);
   _gistSaveTimer = setTimeout(() => {
-    const payload = {
-      activities,
-      projects,
+    gistSave({ activities, projects,
       employees: typeof employees !== 'undefined' ? employees : [],
       teamCalendar: typeof teamCalendar !== 'undefined' ? teamCalendar : {},
       resourceRegistry: typeof resourceRegistry !== 'undefined' ? resourceRegistry : [],
       projectFolders: typeof projectFolders !== 'undefined' ? projectFolders : [],
-    };
-    gistSave(payload);
+    });
   }, 1500);
 }
-
 /* ══════════════════════════════════════════════════
    STATE
 ══════════════════════════════════════════════════ */
@@ -2924,7 +2997,6 @@ const SEED_ACTS = [
    INIT
 ══════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', async () => {
-  // Tenta carregar do Gist primeiro
   const gistData = await gistLoad();
   if (gistData && (gistData.activities || gistData.projects)) {
     try {
@@ -2935,19 +3007,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (gistData.resourceRegistry) { try { resourceRegistry = gistData.resourceRegistry; } catch(_){} }
       if (gistData.projectFolders)   { try { projectFolders   = gistData.projectFolders; } catch(_){} }
       projects.forEach((p,i) => { PROJECT_COLORS_MAP[p.name] = p.color || COLORS[i % COLORS.length]; });
-      setTimeout(() => toast('✅ Dados sincronizados do servidor', 'success'), 1500);
-    } catch(e) {
-      load();
-    }
-  } else {
-    load();
-  }
-
-  // Loader
-  setTimeout(() => {
-    document.getElementById('loader').classList.add('hidden');
-  }, 1200);
-
+      setTimeout(() => toast('✅ Dados sincronizados', 'success'), 1500);
+    } catch(e) { load(); }
+  } else { load(); }
+  setTimeout(() => { document.getElementById('loader').classList.add('hidden'); }, 1200);
   renderAll();
   buildColorPicker();
   scheduleTelegram();
@@ -4096,78 +4159,446 @@ function renderGantt() {
   const wrap = document.getElementById('gantt-wrap');
   if (!wrap) return;
 
-  const acts = [...activities].filter(a => a.startDate || a.dueDate);
-  if (!acts.length) { wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade com datas</p></div>'; return; }
+  const fSearch  = (document.getElementById('gantt-f-search')?.value  || '').toLowerCase();
+  const fProject = document.getElementById('gantt-f-project')?.value  || '';
+  const fStatus  = document.getElementById('gantt-f-status')?.value   || '';
+  const fResp    = document.getElementById('gantt-f-resp')?.value     || '';
 
-  // Calcular range de datas
+  let acts = activities.filter(a => a.startDate || a.dueDate);
+  if (fSearch)  acts = acts.filter(a => a.description.toLowerCase().includes(fSearch) || (a.project||'').toLowerCase().includes(fSearch));
+  if (fProject) acts = acts.filter(a => a.project === fProject);
+  if (fStatus)  acts = acts.filter(a => a.status  === fStatus);
+  if (fResp)    acts = acts.filter(a => a.responsible === fResp);
+
+  const countEl = document.getElementById('gantt-count');
+  if (countEl) countEl.textContent = acts.length + ' atividade(s)';
+
+  if (!acts.length) {
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade com datas</p></div>';
+    return;
+  }
+
   const allDates = acts.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
-  const minDate = new Date(allDates[0] + 'T00:00:00');
-  const maxDate = new Date(allDates[allDates.length-1] + 'T00:00:00');
+  const minDate  = new Date(allDates[0] + 'T00:00:00');
+  const maxDate  = new Date(allDates[allDates.length-1] + 'T00:00:00');
   maxDate.setDate(maxDate.getDate() + 14);
   minDate.setDate(minDate.getDate() - 7);
   const totalDays = Math.round((maxDate - minDate) / 86400000);
-  const pxPerDay = 5;
-  const totalW = totalDays * pxPerDay;
+  const pxPerDay  = 5;
+  const totalW    = totalDays * pxPerDay;
 
-  document.getElementById('gantt-range').textContent = `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
+  document.getElementById('gantt-range').textContent =
+    fmtDate(minDate.toISOString().slice(0,10)) + ' \u2192 ' + fmtDate(maxDate.toISOString().slice(0,10));
 
-  // Header meses
   let monthsHtml = '';
   let cur = new Date(minDate);
   while (cur < maxDate) {
-    const start = new Date(cur);
-    const end   = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
-    const days  = Math.round(Math.min(end,maxDate) - start) / 86400000;
-    const w     = days * pxPerDay;
-    const mLabel = start.toLocaleDateString('pt-BR', { month:'short', year:'2-digit' });
-    monthsHtml += `<div class="gantt-month" style="width:${w}px">${mLabel}</div>`;
+    const s = new Date(cur);
+    const e = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    const w = Math.round(Math.min(e,maxDate) - s) / 86400000 * pxPerDay;
+    const lbl = s.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    monthsHtml += '<div class="gantt-month" style="width:' + w + 'px">' + lbl + '</div>';
     cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
   }
 
-  // Today line
-  const todayOffset = Math.round((new Date() - minDate) / 86400000);
-  const todayLeft   = todayOffset * pxPerDay;
+  const todayLeft = Math.round((new Date() - minDate) / 86400000) * pxPerDay;
 
-  // Rows
-  const rows = acts.map((a,i) => {
-    const sd   = a.startDate ? new Date(a.startDate+'T00:00:00') : new Date(a.dueDate+'T00:00:00');
-    const ed   = a.dueDate   ? new Date(a.dueDate+'T00:00:00')   : sd;
-    const left = Math.max(0, Math.round((sd - minDate)/86400000)) * pxPerDay;
-    const w    = Math.max(4, Math.round((ed - sd)/86400000 + 1)) * pxPerDay;
-    const pct  = a.progress || 0;
-    const color = projColor(a.project);
+  const projOrder = projects.map(p => p.name);
+  const groupMap  = {};
+  acts.forEach(a => {
+    const k = a.project || '(Sem projeto)';
+    if (!groupMap[k]) groupMap[k] = [];
+    groupMap[k].push(a);
+  });
+  const groupKeys = [
+    ...projOrder.filter(n => groupMap[n]),
+    ...Object.keys(groupMap).filter(k => !projOrder.includes(k))
+  ];
 
-    let barStyle = `left:${left}px;width:${w}px;background:${color};opacity:${a.status==='Concluído' ? .6 : 1}`;
-    const diff = diffDays(a.dueDate);
-    if (diff < 0 && a.status !== 'Concluído') barStyle += ';background:var(--red)';
+  if (!window._ganttCollapsed) window._ganttCollapsed = {};
 
-    return `<tr>
-      <td style="min-width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text-1)">${esc(a.description)}</td>
-      <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${color}"></span>${esc(a.project)}</span></td>
-      <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3)">${fmtDate(a.startDate)}</td>
-      <td style="font-family:var(--font-mono);font-size:.68rem;color:${diffDays(a.dueDate)<0?'var(--red)':'var(--text-3)'}">${fmtDate(a.dueDate)}</td>
-      <td class="gantt-bar-cell" style="min-width:${totalW}px">
-        <div class="gantt-bar-bg" style="width:${totalW}px">
-          <div class="gantt-today-line" style="left:${todayLeft}px"></div>
-          <div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} (${pct}%)">
-            ${pct > 0 ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.25);border-radius:4px 0 0 4px"></div>` : ''}
-            <span style="position:relative;z-index:1">${esc(a.description)}</span>
-          </div>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
+  let rows = '';
+  groupKeys.forEach(projName => {
+    const groupActs = groupMap[projName];
+    const color     = projColor(projName);
+    const isOpen    = window._ganttCollapsed[projName] !== false;
+    const chevCls   = isOpen ? ' open' : '';
 
-  wrap.innerHTML = `<table class="gantt-table">
-    <thead>
-      <tr>
-        <th>Atividade</th><th>Projeto</th><th>Início</th><th>Término</th>
-        <th><div style="display:flex">${monthsHtml}</div></th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+    const gDates = groupActs.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+    let groupBarHtml = '';
+    if (gDates.length) {
+      const gL = Math.max(0, Math.round((new Date(gDates[0]+'T00:00:00') - minDate)/86400000)) * pxPerDay;
+      const gW = Math.max(6, Math.round((new Date(gDates[gDates.length-1]+'T00:00:00') - new Date(gDates[0]+'T00:00:00'))/86400000+1)) * pxPerDay;
+      groupBarHtml = '<div class="gantt-group-bar" style="left:' + gL + 'px;width:' + gW + 'px;background:' + color + '"></div>';
+    }
+
+    rows += '<tr class="gantt-group-row" onclick="ganttToggleGroup(\'' + projName.replace(/'/g,"\\'") + '\')" data-group="' + esc(projName) + '">' +
+      '<td colspan="4" style="min-width:370px">' +
+        '<div class="gantt-group-label">' +
+          '<i class="fa-solid fa-chevron-right gantt-chevron' + chevCls + '"></i>' +
+          '<span style="background:' + color + ';width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0"></span>' +
+          esc(projName) +
+          '<span style="font-size:.62rem;font-weight:500;color:var(--text-4);margin-left:2px">(' + groupActs.length + ')</span>' +
+        '</div>' +
+      '</td>' +
+      '<td class="gantt-bar-cell" style="min-width:' + totalW + 'px">' +
+        '<div class="gantt-bar-bg" style="width:' + totalW + 'px">' +
+          '<div class="gantt-today-line" style="left:' + todayLeft + 'px"></div>' +
+          groupBarHtml +
+        '</div>' +
+      '</td></tr>';
+
+    const hidCls = isOpen ? '' : ' gantt-act-hidden';
+    groupActs.forEach(a => {
+      const sd   = new Date((a.startDate || a.dueDate) + 'T00:00:00');
+      const ed   = new Date((a.dueDate   || a.startDate) + 'T00:00:00');
+      const left = Math.max(0, Math.round((sd - minDate)/86400000)) * pxPerDay;
+      const w    = Math.max(4, Math.round((ed - sd)/86400000 + 1)) * pxPerDay;
+      const pct  = a.progress || 0;
+      const diff = diffDays(a.dueDate);
+      let barColor = color;
+      if (diff < 0 && a.status !== 'Conclu\u00eddo') barColor = 'var(--red)';
+      if (a.status === 'Conclu\u00eddo') barColor = 'var(--green)';
+      const icon = a.status === 'Conclu\u00eddo' ? '\u2705' : a.isCritical ? '\uD83D\uDD34' : diff < 0 ? '\u26A0\uFE0F' : '\u25B8';
+
+      rows += '<tr class="gantt-act-row' + hidCls + '" data-group-child="' + esc(projName) + '">' +
+        '<td colspan="4" style="min-width:370px">' +
+          '<div class="gantt-act-name">' +
+            '<span style="font-size:.65rem;flex-shrink:0">' + icon + '</span>' +
+            '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;font-weight:600;color:var(--text-1)">' + esc(a.description) + '</span>' +
+            '<span style="font-size:.6rem;color:var(--text-4);white-space:nowrap;flex-shrink:0">' + fmtDate(a.startDate) + ' \u2192 ' + fmtDate(a.dueDate) + '</span>' +
+          '</div>' +
+        '</td>' +
+        '<td class="gantt-bar-cell" style="min-width:' + totalW + 'px">' +
+          '<div class="gantt-bar-bg" style="width:' + totalW + 'px">' +
+            '<div class="gantt-today-line" style="left:' + todayLeft + 'px"></div>' +
+            '<div class="gantt-bar" style="left:' + left + 'px;width:' + w + 'px;background:' + barColor + ';opacity:' + (a.status==='Conclu\u00eddo'?.7:1) + '" title="' + esc(a.description) + ' (' + pct + '%)" onclick="editAct(\'' + a.id + '\')">' +
+              (pct > 0 ? '<div class="gantt-progress-inner" style="width:' + pct + '%"></div>' : '') +
+              '<span style="position:relative;z-index:1">' + esc(a.description) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</td></tr>';
+    });
+  });
+
+  wrap.innerHTML = '<table class="gantt-table">' +
+    '<thead><tr>' +
+      '<th colspan="4">Projeto / Atividade</th>' +
+      '<th><div style="display:flex">' + monthsHtml + '</div></th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+  '</table>';
 }
+
+window.ganttToggleGroup = function(projName) {
+  if (!window._ganttCollapsed) window._ganttCollapsed = {};
+  const isOpen = window._ganttCollapsed[projName] !== false;
+  window._ganttCollapsed[projName] = !isOpen;
+  document.querySelectorAll('[data-group-child="' + CSS.escape(projName) + '"]').forEach(tr => {
+    tr.classList.toggle('gantt-act-hidden', isOpen);
+  });
+  const chevEl = document.querySelector('[data-group="' + CSS.escape(projName) + '"] .gantt-chevron');
+  if (chevEl) chevEl.classList.toggle('open', !isOpen);
+};
+
+/* ──────────────────────────────────────────────────
+   GANTT PDF EXPORT
+────────────────────────────────────────────────── */
+window.ganttExportPDF = function(mode) {
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permita pop-ups para exportar PDF', 'warning'); return; }
+
+  const projOrder = projects.map(p => p.name);
+  const groupMap  = {};
+  activities.filter(a => a.startDate || a.dueDate).forEach(a => {
+    const k = a.project || '(Sem projeto)';
+    if (!groupMap[k]) groupMap[k] = [];
+    groupMap[k].push(a);
+  });
+  const groupKeys = [
+    ...projOrder.filter(n => groupMap[n]),
+    ...Object.keys(groupMap).filter(k => !projOrder.includes(k))
+  ];
+
+  const allDates = activities.filter(a=>a.startDate||a.dueDate)
+    .flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+  const minDate = new Date(allDates[0]+'T00:00:00');
+  const maxDate = new Date(allDates[allDates.length-1]+'T00:00:00');
+  maxDate.setDate(maxDate.getDate()+14);
+  minDate.setDate(minDate.getDate()-7);
+  const totalDays = Math.round((maxDate-minDate)/86400000);
+  const pxPerDay  = 4;
+  const totalW    = totalDays * pxPerDay;
+  const todayLeft = Math.round((new Date()-minDate)/86400000)*pxPerDay;
+
+  const statusColor = { 'Concluído':'#059669','Vencido':'#dc2626','Reprogramado':'#7c3aed','Em Andamento':'#2563eb','Pendente':'#64748b' };
+
+  // Months header
+  let monthsHtml = '';
+  let cur = new Date(minDate);
+  while (cur < maxDate) {
+    const s = new Date(cur);
+    const e = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    const w = Math.round(Math.min(e,maxDate)-s)/86400000*pxPerDay;
+    const lbl = s.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+    monthsHtml += '<div style="flex-shrink:0;width:'+w+'px;font-size:9px;font-weight:700;text-transform:uppercase;color:#64748b;padding:4px 6px;border-right:1px dashed #e2e8f0;letter-spacing:.05em">'+lbl+'</div>';
+    cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+  }
+
+  let body = '';
+
+  if (mode === 'gantt') {
+    // ── MODE 1: Gantt visual ───────────────────────────────────────────────
+    let tableRows = '';
+    groupKeys.forEach(projName => {
+      const groupActs = groupMap[projName];
+      const proj = projects.find(p=>p.name===projName);
+      const color = proj?.color || '#2563eb';
+      const gDates = groupActs.flatMap(a=>[a.startDate,a.dueDate].filter(Boolean)).sort();
+      let grpBar = '';
+      if (gDates.length) {
+        const gL = Math.max(0,Math.round((new Date(gDates[0]+'T00:00:00')-minDate)/86400000))*pxPerDay;
+        const gW = Math.max(6,Math.round((new Date(gDates[gDates.length-1]+'T00:00:00')-new Date(gDates[0]+'T00:00:00'))/86400000+1))*pxPerDay;
+        grpBar = '<div style="position:absolute;height:8px;top:10px;left:'+gL+'px;width:'+gW+'px;background:'+color+';border-radius:2px;opacity:.9"></div>';
+      }
+      tableRows += '<tr style="background:#f1f5f9"><td colspan="3" style="padding:7px 10px;border-bottom:2px solid #cbd5e1;border-top:2px solid #cbd5e1">' +
+        '<div style="display:flex;align-items:center;gap:7px">' +
+          '<span style="width:10px;height:10px;border-radius:50%;background:'+color+';display:inline-block;flex-shrink:0"></span>' +
+          '<strong style="font-size:11px;font-family:Arial,sans-serif;color:#0f172a">'+projName+'</strong>' +
+          '<span style="font-size:9px;color:#94a3b8">('+groupActs.length+' atividade'+(groupActs.length>1?'s':'')+')</span>' +
+        '</div></td>' +
+        '<td style="padding:0;border-bottom:2px solid #cbd5e1;border-top:2px solid #cbd5e1;min-width:'+totalW+'px">' +
+          '<div style="position:relative;height:28px;width:'+totalW+'px">' +
+            '<div style="position:absolute;top:0;bottom:0;left:'+todayLeft+'px;width:2px;background:rgba(220,38,38,.6)"></div>' +
+            grpBar +
+          '</div></td></tr>';
+
+      groupActs.forEach(a => {
+        const sd = new Date((a.startDate||a.dueDate)+'T00:00:00');
+        const ed = new Date((a.dueDate||a.startDate)+'T00:00:00');
+        const left = Math.max(0,Math.round((sd-minDate)/86400000))*pxPerDay;
+        const w    = Math.max(4,Math.round((ed-sd)/86400000+1))*pxPerDay;
+        const pct  = a.progress||0;
+        const diff = Math.round((ed - new Date())/86400000);
+        let bColor = color;
+        if (diff<0 && a.status!=='Concluído') bColor='#dc2626';
+        if (a.status==='Concluído') bColor='#059669';
+        const sColor = statusColor[a.status] || '#64748b';
+        tableRows += '<tr>' +
+          '<td style="padding:5px 10px 5px 24px;border-bottom:1px solid #e2e8f0;font-size:10px;color:#0f172a;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.description+'</td>' +
+          '<td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:9px;color:#64748b;white-space:nowrap">'+(a.responsible||'—')+'</td>' +
+          '<td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:9px;white-space:nowrap"><span style="background:'+sColor+'22;color:'+sColor+';padding:1px 6px;border-radius:8px;font-weight:700">'+a.status+'</span></td>' +
+          '<td style="padding:0;border-bottom:1px solid #e2e8f0;min-width:'+totalW+'px">' +
+            '<div style="position:relative;height:26px;width:'+totalW+'px">' +
+              '<div style="position:absolute;top:0;bottom:0;left:'+todayLeft+'px;width:2px;background:rgba(220,38,38,.4)"></div>' +
+              '<div style="position:absolute;left:'+left+'px;width:'+w+'px;height:14px;top:6px;background:'+bColor+';border-radius:3px;opacity:'+(a.status==='Concluído'?.7:1)+';overflow:hidden">' +
+                (pct>0?'<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;background:rgba(255,255,255,.3)"></div>':'') +
+              '</div>' +
+            '</div></td></tr>';
+      });
+    });
+
+    body = '<div style="margin-bottom:16px">' +
+      '<h1 style="font-size:18px;font-weight:800;color:#0f172a;margin:0 0 4px">Cronograma Gantt</h1>' +
+      '<div style="font-size:11px;color:#64748b">Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})+'</div>' +
+    '</div>' +
+    '<div style="overflow-x:auto">' +
+    '<table style="border-collapse:collapse;font-family:Arial,sans-serif;width:100%">' +
+      '<thead><tr style="background:#f8fafc">' +
+        '<th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;font-size:10px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;min-width:180px">Atividade</th>' +
+        '<th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;font-size:10px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;min-width:100px">Responsável</th>' +
+        '<th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;font-size:10px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;min-width:80px">Status</th>' +
+        '<th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;min-width:'+totalW+'px">' +
+          '<div style="display:flex">'+monthsHtml+'</div>' +
+        '</th>' +
+      '</tr></thead>' +
+      '<tbody>'+tableRows+'</tbody>' +
+    '</table></div>';
+
+  } else {
+    // ── MODE 2: Relatório por projetos ─────────────────────────────────────
+    let sections = '';
+    groupKeys.forEach(projName => {
+      const proj = projects.find(p=>p.name===projName);
+      const color = proj?.color || '#2563eb';
+      const groupActs = groupMap[projName];
+      const total  = groupActs.length;
+      const done   = groupActs.filter(a=>a.status==='Concluído').length;
+      const late   = groupActs.filter(a=>{ const d=diffDays(a.dueDate); return d<0&&a.status!=='Concluído'; }).length;
+      const pctDone = total ? Math.round(done/total*100) : 0;
+      const allProjDates = groupActs.flatMap(a=>[a.startDate,a.dueDate].filter(Boolean)).sort();
+      const projStart = allProjDates[0]||'—';
+      const projEnd   = allProjDates[allProjDates.length-1]||'—';
+
+      let actRows = groupActs.map((a,idx) => {
+        const diff = diffDays(a.dueDate);
+        const sColor = statusColor[a.status]||'#64748b';
+        const rowBg  = idx%2===0 ? '#ffffff' : '#f8fafc';
+        const critical = a.isCritical ? '<span style="background:#fef2f2;color:#dc2626;font-size:8px;padding:1px 5px;border-radius:8px;font-weight:700;margin-left:4px">CRÍTICO</span>' : '';
+        return '<tr style="background:'+rowBg+'">' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:10px;font-weight:600;color:#0f172a">'+(idx+1)+'. '+a.description+critical+'</td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;color:#334155;white-space:nowrap">'+(a.responsible||'—')+'</td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;color:#64748b;white-space:nowrap;font-family:monospace">'+(a.startDate||'—')+'</td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;color:'+(diff<0&&a.status!=='Concluído'?'#dc2626':'#64748b')+';white-space:nowrap;font-family:monospace">'+(a.dueDate||'—')+'</td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;white-space:nowrap"><span style="background:'+sColor+'22;color:'+sColor+';padding:2px 8px;border-radius:8px;font-weight:700">'+a.status+'</span></td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;color:#64748b;text-align:center">'+(a.progress||0)+'%</td>' +
+          '<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:9px;color:#64748b;text-align:center">'+(a.duration||'—')+'</td>' +
+        '</tr>';
+      }).join('');
+
+      sections += '<div style="margin-bottom:32px;page-break-inside:avoid">' +
+        // Project header
+        '<div style="background:'+color+';color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
+          '<div>' +
+            '<div style="font-size:14px;font-weight:800;font-family:Arial,sans-serif">'+projName+'</div>' +
+            (proj?.code ? '<div style="font-size:10px;opacity:.85;margin-top:2px">Código: '+proj.code+'</div>' : '') +
+          '</div>' +
+          '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
+            '<div style="text-align:center"><div style="font-size:18px;font-weight:800">'+total+'</div><div style="font-size:9px;opacity:.85">Atividades</div></div>' +
+            '<div style="text-align:center"><div style="font-size:18px;font-weight:800">'+done+'</div><div style="font-size:9px;opacity:.85">Concluídas</div></div>' +
+            '<div style="text-align:center"><div style="font-size:18px;font-weight:800">'+late+'</div><div style="font-size:9px;opacity:.85">Atrasadas</div></div>' +
+            '<div style="text-align:center"><div style="font-size:18px;font-weight:800">'+pctDone+'%</div><div style="font-size:9px;opacity:.85">Progresso</div></div>' +
+          '</div>' +
+        '</div>' +
+        // Progress bar
+        '<div style="background:#e2e8f0;height:6px"><div style="background:'+color+';height:6px;width:'+pctDone+'%;transition:width .3s"></div></div>' +
+        // Meta row
+        '<div style="background:#f8fafc;padding:8px 16px;border:1px solid #e2e8f0;border-top:none;display:flex;gap:20px;font-size:9px;color:#64748b;flex-wrap:wrap">' +
+          (proj?.manager ? '<span><strong>Responsável:</strong> '+proj.manager+'</span>' : '') +
+          '<span><strong>Início:</strong> '+fmtDate(projStart)+'</span>' +
+          '<span><strong>Término:</strong> '+fmtDate(projEnd)+'</span>' +
+          (proj?.desc ? '<span><strong>Descrição:</strong> '+proj.desc+'</span>' : '') +
+        '</div>' +
+        // Table
+        '<table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;border:1px solid #e2e8f0;border-top:none">' +
+          '<thead><tr style="background:#f1f5f9">' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0">Atividade</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0;white-space:nowrap">Responsável</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0;white-space:nowrap">Início</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0;white-space:nowrap">Término</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0">Status</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:center;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0">%</th>' +
+            '<th style="padding:7px 10px;font-size:9px;text-align:center;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0">Duração</th>' +
+          '</tr></thead>' +
+          '<tbody>'+actRows+'</tbody>' +
+        '</table>' +
+      '</div>';
+    });
+
+    const totalActs = activities.length;
+    const totalDone = activities.filter(a=>a.status==='Concluído').length;
+    const totalLate = activities.filter(a=>{ const d=diffDays(a.dueDate); return d<0&&a.status!=='Concluído'; }).length;
+
+    body = '<div style="margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2563eb">' +
+      '<h1 style="font-size:22px;font-weight:800;color:#0f172a;margin:0 0 6px">Relatório de Projetos</h1>' +
+      '<div style="font-size:11px;color:#64748b">Gerado em '+new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})+'</div>' +
+      '<div style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap">' +
+        '<div style="background:#eff6ff;padding:10px 16px;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#2563eb">'+projects.length+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Projetos</div></div>' +
+        '<div style="background:#f0fdf4;padding:10px 16px;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#059669">'+totalDone+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Concluídas</div></div>' +
+        '<div style="background:#fef2f2;padding:10px 16px;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#dc2626">'+totalLate+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Atrasadas</div></div>' +
+        '<div style="background:#f8fafc;padding:10px 16px;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#334155">'+totalActs+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Total</div></div>' +
+      '</div>' +
+    '</div>' + sections;
+  }
+
+  const title = mode === 'gantt' ? 'Cronograma Gantt' : 'Relatório por Projetos';
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Arial, sans-serif; background: #fff; color: #0f172a; padding: 24px; }
+      @media print {
+        body { padding: 0; }
+        @page { margin: 15mm; size: A4 landscape; }
+      }
+    
+/* BOTÕES GANTT */
+.btn-add-sub {
+  color:#2563eb;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn-del-act {
+  color:#dc2626;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+
+
+/* Gantt text helpers */
+.gantt-name-main,
+.gantt-name-sub{
+  min-width:0;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-inline-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  flex-shrink:0;
+}
+.gantt-icon-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  font-weight:700;
+}
+.btn-add-sub{ color:#2563eb !important; }
+.btn-del-act{ color:#dc2626 !important; }
+.gantt-expand-text{
+  color:var(--text-4);
+  font-size:.72rem;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.gantt-desc-expanded{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:unset !important;
+  line-height:1.3;
+}
+
+
+/* Gantt interações avançadas */
+.gantt-row-selectable{ cursor:pointer; }
+.gantt-row-selected td{
+  background: rgba(37,99,235,.12) !important;
+}
+.gantt-activity-col{
+  min-width: 440px !important;
+  max-width: 440px !important;
+  overflow: visible !important;
+}
+.gantt-level-0{ padding-left: 12px !important; }
+.gantt-level-1{ padding-left: 36px !important; }
+.gantt-level-2{ padding-left: 60px !important; }
+.gantt-level-3{ padding-left: 84px !important; }
+.gantt-level-4{ padding-left: 108px !important; }
+.gantt-level-5{ padding-left: 132px !important; }
+.gantt-tree-icon{
+  font-size:.6rem;
+  color:var(--text-4);
+  flex-shrink:0;
+}
+
+</style>
+  </head><body>
+    <div style="max-width:100%">${body}</div>
+    <script>setTimeout(()=>{ window.print(); }, 400);<\/script>
+  </body></html>`);
+  win.document.close();
+};
 
 /* ══════════════════════════════════════════════════
    PORTFÓLIO
@@ -5968,6 +6399,86 @@ window.calcDurFromDates = calcDurFromDates;
 .gantt-toolbar-extra,.calendar-toolbar-extra{display:flex;gap:8px;align-items:center;margin-left:auto}
 @media (max-width:980px){.portfolio-row{grid-template-columns:1fr 1fr}.team-calendar-table th:first-child,.team-calendar-table td:first-child{min-width:150px;max-width:150px}}
 @media print{body *{visibility:hidden !important}.print-section,.print-section *{visibility:visible !important}.print-section{position:absolute;left:0;top:0;width:100%;background:#fff;padding:20px}}
+
+/* BOTÕES GANTT */
+.btn-add-sub {
+  color:#2563eb;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn-del-act {
+  color:#dc2626;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+
+
+/* Gantt text helpers */
+.gantt-name-main,
+.gantt-name-sub{
+  min-width:0;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-inline-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  flex-shrink:0;
+}
+.gantt-icon-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  font-weight:700;
+}
+.btn-add-sub{ color:#2563eb !important; }
+.btn-del-act{ color:#dc2626 !important; }
+.gantt-expand-text{
+  color:var(--text-4);
+  font-size:.72rem;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.gantt-desc-expanded{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:unset !important;
+  line-height:1.3;
+}
+
+
+/* Gantt interações avançadas */
+.gantt-row-selectable{ cursor:pointer; }
+.gantt-row-selected td{
+  background: rgba(37,99,235,.12) !important;
+}
+.gantt-activity-col{
+  min-width: 440px !important;
+  max-width: 440px !important;
+  overflow: visible !important;
+}
+.gantt-level-0{ padding-left: 12px !important; }
+.gantt-level-1{ padding-left: 36px !important; }
+.gantt-level-2{ padding-left: 60px !important; }
+.gantt-level-3{ padding-left: 84px !important; }
+.gantt-level-4{ padding-left: 108px !important; }
+.gantt-level-5{ padding-left: 132px !important; }
+.gantt-tree-icon{
+  font-size:.6rem;
+  color:var(--text-4);
+  flex-shrink:0;
+}
+
 </style>
 <script>
 (function(){
@@ -6566,9 +7077,16 @@ window.assignProjectToFolder = assignProjectToFolder;
   };
   window.setProjectStatus = function(id, status){ const p = projects.find(x=>x.id===id); if(!p) return; p.status = status; addHistory('update', `Projeto ${p.name} alterado para ${status}`); save(); renderProjetos(); renderPortfolio(); toast('Status do projeto atualizado', 'success'); };
   window.addSubactivityFromGantt = function(parentId=''){
+    if (!parentId) {
+      toast('Selecione uma atividade principal para criar a subatividade', 'warning');
+      return;
+    }
+    const parent = activities.find(a => a.id === parentId);
+    if (!parent) {
+      toast('Atividade principal não encontrada', 'error');
+      return;
+    }
     window._openModalActivity();
-    if (!parentId) return;
-    const parent = activities.find(a => a.id === parentId); if (!parent) return;
     document.getElementById('act-parent-id').value = parent.id;
     document.getElementById('act-project').value = parent.project || '';
     document.getElementById('act-start').value = parent.startDate || todayISO();
@@ -6603,14 +7121,43 @@ window.assignProjectToFolder = assignProjectToFolder;
     renderGantt();
   };
 
+  window.ganttToggleTask = function(taskId){
+    if (!window._ganttTaskCollapsed) window._ganttTaskCollapsed = {};
+    window._ganttTaskCollapsed[taskId] = !window._ganttTaskCollapsed[taskId];
+    renderGantt();
+  };
+
+  window.deleteActivity = function(id){
+    const target = activities.find(a => a.id === id);
+    if (!target) return;
+    const children = activities.filter(a => a.parentId === id);
+    const msg = children.length
+      ? `Deseja excluir esta atividade e ${children.length} subatividade(s)?`
+      : 'Deseja excluir esta atividade?';
+    if (!confirm(msg)) return;
+    activities = activities.filter(a => a.id !== id && a.parentId !== id);
+    save();
+    renderAll();
+    toast('Atividade excluída', 'success');
+  };
+
+  window.toggleGanttText = function(btn){
+    const targetId = btn?.getAttribute('data-target');
+    if (!targetId) return;
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const expanded = el.classList.toggle('gantt-desc-expanded');
+    btn.textContent = expanded ? 'menos' : 'mais';
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  };
+
   window.renderGantt = function(){
     const wrap = document.getElementById('gantt-wrap'); if (!wrap) return;
-
-    /* ── Popula selects ── */
     const fpEl = document.getElementById('gantt-f-project');
     const frEl = document.getElementById('gantt-f-resp');
+
     if (fpEl && fpEl.options.length <= 1) {
-      [...new Set(activities.map(a=>a.project).filter(Boolean))].sort().forEach(p=>{
+      [...new Set(projects.map(p=>p.name).filter(Boolean))].forEach(p=>{
         const o=document.createElement('option'); o.value=p; o.textContent=p; fpEl.appendChild(o);
       });
     }
@@ -6620,81 +7167,140 @@ window.assignProjectToFolder = assignProjectToFolder;
       });
     }
 
-    /* ── Filtros ── */
     const fSearch  = (document.getElementById('gantt-f-search')?.value  || '').toLowerCase();
     const fProject = document.getElementById('gantt-f-project')?.value  || '';
     const fStatus  = document.getElementById('gantt-f-status')?.value   || '';
     const fResp    = document.getElementById('gantt-f-resp')?.value     || '';
 
-    /* ── Gera WBS hierárquico para TODAS as atividades ── */
-    function buildWBS(list) {
-      // monta árvore com WBS recursivo
-      const byId = {};
-      list.forEach(a => byId[a.id] = {...a});
-      const roots = list.filter(a => !a.parentId || !byId[a.parentId]);
-      const result = [];
-      let rootIdx = 0;
-      function walk(node, prefix) {
-        const wbs = prefix;
-        result.push({...node, _wbs: wbs});
-        const children = list.filter(c => c.parentId === node.id);
-        children.forEach((child, ci) => walk(child, prefix + '.' + (ci+1)));
+    const childParentIds = new Set(
+      activities
+        .filter(a => a.parentId && (a.startDate || a.dueDate))
+        .map(a => a.parentId)
+    );
+    const baseActs = [...activities].filter(a => a.startDate || a.dueDate || childParentIds.has(a.id));
+    const childrenByParent = {};
+    baseActs.forEach(a => {
+      if (a.parentId) {
+        if (!childrenByParent[a.parentId]) childrenByParent[a.parentId] = [];
+        childrenByParent[a.parentId].push(a);
       }
-      roots.forEach((r, ri) => {
-        rootIdx++;
-        walk(r, String(rootIdx));
-      });
-      // Orphans (parentId aponta para id fora da lista filtrada)
-      const inResult = new Set(result.map(r=>r.id));
-      list.filter(a => !inResult.has(a.id)).forEach((a, i) => {
-        result.push({...a, _wbs: '?.' + (i+1)});
-      });
-      return result;
-    }
-
-    /* ── Aplica filtros ── */
-    let allActs = [...activities].filter(a => a.startDate || a.dueDate);
-
-    /* Ordena pais antes de filtrar para WBS correto */
-    const sortField = window._ganttSort.field;
-    const sortDir   = window._ganttSort.dir;
-    const sortFn = {
-      wbs:         (a,b) => (a.startDate||'').localeCompare(b.startDate||''),
-      description: (a,b) => (a.description||'').localeCompare(b.description||''),
-      project:     (a,b) => (a.project||'').localeCompare(b.project||''),
-      startDate:   (a,b) => (a.startDate||'').localeCompare(b.startDate||''),
-      dueDate:     (a,b) => (a.dueDate||'').localeCompare(b.dueDate||''),
-      responsible: (a,b) => (a.responsible||'').localeCompare(b.responsible||''),
-    };
-    if (sortFn[sortField]) {
-      allActs.sort((a,b) => sortDir * sortFn[sortField](a,b));
-    }
-
-    /* Gera WBS antes de filtrar */
-    const withWBS = buildWBS(allActs);
-
-    /* Aplica filtros preservando a estrutura hierárquica */
-    let filtered = withWBS.filter(a => {
-      if (fSearch  && !a.description?.toLowerCase().includes(fSearch) &&
-                      !a.project?.toLowerCase().includes(fSearch) &&
-                      !a.responsible?.toLowerCase().includes(fSearch) &&
-                      !a._wbs?.includes(fSearch)) return false;
-      if (fProject && a.project     !== fProject) return false;
-      if (fStatus  && a.status      !== fStatus)  return false;
-      if (fResp    && a.responsible !== fResp)    return false;
-      return true;
     });
 
-    /* Contador */
+    function matchesFilters(a){
+      if (fSearch) {
+        const hay = `${a.description||''} ${a.project||''} ${a.responsible||''}`.toLowerCase();
+        if (!hay.includes(fSearch)) return false;
+      }
+      if (fProject && a.project !== fProject) return false;
+      if (fStatus && a.status !== fStatus) return false;
+      if (fResp && a.responsible !== fResp) return false;
+      return true;
+    }
+
+    function summarizeTask(parent){
+      const children = (childrenByParent[parent.id] || []).filter(c => c.startDate || c.dueDate);
+      if (!children.length) {
+        return {
+          ...parent,
+          _summaryStart: parent.startDate,
+          _summaryEnd: parent.dueDate,
+          _summaryProgress: parseInt(parent.progress)||0,
+          _summaryStatus: parent.status || 'Pendente',
+          _children: []
+        };
+      }
+      const starts = children.map(c => c.startDate || c.dueDate).filter(Boolean).sort();
+      const ends = children.map(c => c.dueDate || c.startDate).filter(Boolean).sort();
+      const avg = Math.round(children.reduce((s,c)=>s+(parseInt(c.progress)||0),0) / children.length);
+      const status = children.every(c => c.status === 'Concluído') ? 'Concluído'
+        : children.some(c => c.status === 'Vencido') ? 'Vencido'
+        : children.some(c => c.status === 'Em Andamento') ? 'Em Andamento'
+        : children.some(c => c.status === 'Reprogramado') ? 'Reprogramado'
+        : 'Pendente';
+      return {
+        ...parent,
+        _summaryStart: starts[0] || parent.startDate,
+        _summaryEnd: ends[ends.length-1] || parent.dueDate,
+        _summaryProgress: avg,
+        _summaryStatus: status,
+        _children: children.sort((a,b)=>(a.startDate||a.dueDate||'').localeCompare(b.startDate||b.dueDate||''))
+      };
+    }
+
+    let visibleProjects = [];
+    let visibleCount = 0;
+
+    const topLevel = baseActs.filter(a => !a.parentId);
+    const projOrder = projects.map(p => p.name);
+    const projectBuckets = {};
+
+    topLevel.forEach(parent => {
+      const pack = summarizeTask(parent);
+      const parentMatch = matchesFilters(parent) || matchesFilters({
+        description: parent.description,
+        project: parent.project,
+        responsible: parent.responsible,
+        status: pack._summaryStatus
+      });
+      const childMatches = pack._children.filter(matchesFilters);
+      const include = parentMatch || childMatches.length > 0;
+      if (!include) return;
+      const visibleChildren = childMatches.length > 0 && !parentMatch ? childMatches : pack._children.filter(c => {
+        if (fSearch || fStatus || fResp) return matchesFilters(c) || parentMatch;
+        return true;
+      });
+      pack._visibleChildren = visibleChildren;
+      pack._hasFilteredChildren = childMatches.length > 0;
+      const key = parent.project || '(Sem projeto)';
+      if (!projectBuckets[key]) projectBuckets[key] = [];
+      projectBuckets[key].push(pack);
+      visibleCount += 1 + visibleChildren.length;
+    });
+
+    // órfãs: subatividades cujo pai não existe
+    baseActs.filter(a => a.parentId && !baseActs.some(p => p.id === a.parentId)).forEach(orphan => {
+      if (!matchesFilters(orphan)) return;
+      const fakeParent = summarizeTask({
+        ...orphan,
+        id: orphan.id,
+        parentId: '',
+        description: orphan.description,
+        responsible: orphan.responsible,
+        project: orphan.project,
+        startDate: orphan.startDate,
+        dueDate: orphan.dueDate,
+        progress: orphan.progress,
+        status: orphan.status
+      });
+      fakeParent._children = [];
+      fakeParent._visibleChildren = [];
+      const key = orphan.project || '(Sem projeto)';
+      if (!projectBuckets[key]) projectBuckets[key] = [];
+      projectBuckets[key].push(fakeParent);
+      visibleCount += 1;
+    });
+
+    visibleProjects = [
+      ...projOrder.filter(n => projectBuckets[n]),
+      ...Object.keys(projectBuckets).filter(k => !projOrder.includes(k))
+    ];
+
     const countEl = document.getElementById('gantt-count');
-    if (countEl) countEl.textContent = filtered.length > 0 ? `${filtered.length} atividade(s)` : '';
-    if (!filtered.length) {
+    if (countEl) countEl.textContent = visibleCount > 0 ? `${visibleCount} linha(s)` : '';
+    if (!visibleProjects.length) {
       wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade encontrada</p></div>';
       return;
     }
 
-    /* ── Datas ── */
-    const allDates = filtered.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
+    const visibleDateActs = [];
+    visibleProjects.forEach(projName => {
+      (projectBuckets[projName] || []).forEach(parent => {
+        visibleDateActs.push({ startDate: parent._summaryStart, dueDate: parent._summaryEnd });
+        (parent._visibleChildren || []).forEach(sub => visibleDateActs.push(sub));
+      });
+    });
+
+    const allDates = visibleDateActs.flatMap(a => [a.startDate, a.dueDate].filter(Boolean)).sort();
     const minDate  = new Date(allDates[0] + 'T00:00:00');
     const maxDate  = new Date(allDates[allDates.length-1] + 'T00:00:00');
     maxDate.setDate(maxDate.getDate() + 14);
@@ -6706,92 +7312,158 @@ window.assignProjectToFolder = assignProjectToFolder;
     document.getElementById('gantt-range').textContent =
       `${fmtDate(minDate.toISOString().slice(0,10))} → ${fmtDate(maxDate.toISOString().slice(0,10))}`;
 
-    /* ── Header meses ── */
     let monthsHtml = '';
     let cur = new Date(minDate);
     while (cur < maxDate) {
-      const start = new Date(cur);
-      const end   = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
-      const days  = Math.max(1, Math.round((Math.min(end, maxDate) - start) / 86400000));
-      const w     = days * pxPerDay;
-      monthsHtml += `<div class="gantt-month" style="width:${w}px">${start.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
+      const s = new Date(cur);
+      const e = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      const w = Math.max(1, Math.round((Math.min(e, maxDate) - s) / 86400000)) * pxPerDay;
+      monthsHtml += `<div class="gantt-month" style="width:${w}px">${s.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})}</div>`;
       cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
     }
     const todayLeft = Math.round((new Date() - minDate) / 86400000) * pxPerDay;
 
-    /* ── Helpers de sort arrow ── */
-    const sf = window._ganttSort.field;
-    const sd = window._ganttSort.dir;
-    function sortIcon(field) {
-      if (sf !== field) return '<i class="fa-solid fa-sort" style="opacity:.25;font-size:.6rem;margin-left:3px"></i>';
-      return sd > 0
-        ? '<i class="fa-solid fa-sort-up" style="color:var(--blue);font-size:.6rem;margin-left:3px"></i>'
-        : '<i class="fa-solid fa-sort-down" style="color:var(--blue);font-size:.6rem;margin-left:3px"></i>';
-    }
+    if (!window._ganttCollapsed) window._ganttCollapsed = {};
+    if (!window._ganttTaskCollapsed) window._ganttTaskCollapsed = {};
 
-    /* ── Linhas ── */
-    const rows = filtered.map(a => {
-      const wbs    = a._wbs || '—';
-      const depth  = (wbs.match(/\./g)||[]).length;
-      const isSub  = depth > 0;
-      const indent = depth * 14;
+    let rows = '';
+    let ganttGlobalIndex = 0;
+    visibleProjects.forEach(projName => {
+      const groupActs = projectBuckets[projName] || [];
+      const color = projColor(projName);
+      const isOpen = window._ganttCollapsed[projName] !== false;
+      const chevCls = isOpen ? 'open' : '';
 
-      const sd_d = isoToDate(a.startDate || a.dueDate);
-      const ed_d = isoToDate(a.dueDate   || a.startDate);
-      const left = Math.max(0, Math.round((sd_d - minDate) / 86400000)) * pxPerDay;
-      const bw   = Math.max(4, Math.round((ed_d - sd_d) / 86400000 + 1)) * pxPerDay;
-      const pct  = a.progress || 0;
-      const diff = diffDays(a.dueDate);
+      const gDates = groupActs.flatMap(a => [a._summaryStart, a._summaryEnd].filter(Boolean)).sort();
+      let groupBarHtml = '';
+      if (gDates.length) {
+        const gL = Math.max(0, Math.round((new Date(gDates[0]+'T00:00:00') - minDate)/86400000)) * pxPerDay;
+        const gW = Math.max(8, Math.round((new Date(gDates[gDates.length-1]+'T00:00:00') - new Date(gDates[0]+'T00:00:00'))/86400000+1)) * pxPerDay;
+        groupBarHtml = `<div style="position:absolute;height:8px;top:14px;left:${gL}px;width:${gW}px;background:${color};border-radius:2px;opacity:.85"></div>`;
+      }
 
-      /* Cor da barra */
-      let barColor = isSub ? 'var(--purple)' : projColor(a.project);
-      if (diff < 0 && a.status !== 'Concluído') barColor = 'var(--red)';
-      const opacity = a.status === 'Concluído' ? .55 : 1;
-      const barStyle = `left:${left}px;width:${bw}px;background:${barColor};opacity:${opacity}`;
-
-      /* Seta de conexão pai → filho */
-      const arrowHtml = isSub
-        ? `<span style="color:var(--text-4);font-size:.7rem;margin-right:3px;padding-left:${indent-10}px">↳</span>`
-        : '';
-
-      /* Barra de progresso interna */
-      const progressLayer = pct > 0
-        ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.28);border-radius:4px 0 0 4px;pointer-events:none"></div>`
-        : '';
-
-      return `<tr style="${isSub ? 'background:rgba(124,58,237,.03)' : ''}">
-        <td style="width:52px;min-width:52px;font-family:var(--font-mono);font-size:.65rem;color:${isSub?'var(--purple)':'var(--text-4)'};font-weight:${isSub?600:500};white-space:nowrap">${wbs}</td>
-        <td style="min-width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-          <div style="display:flex;align-items:center;padding-left:${indent}px">
-            ${arrowHtml}
-            <span style="font-weight:${isSub?500:600};color:var(--text-1);font-size:${isSub?'.77rem':'.8rem'}">${esc(a.description)}</span>
-            <button class="gantt-inline-btn" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" title="Criar subatividade" style="margin-left:5px"><i class="fa-solid fa-plus"></i></button>
+      rows += `<tr class="gantt-group-row" onclick="window.ganttToggleGroup(this.getAttribute('data-group'))" data-group="${esc(projName)}"
+        style="cursor:pointer;user-select:none;background:var(--surface2)!important">
+        <td style="width:52px;min-width:52px;font-family:var(--font-mono);font-size:.65rem;color:var(--text-4)">—</td>
+        <td colspan="3">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:.82rem;color:var(--text-1);font-family:var(--font-head);padding:2px 0">
+            <i class="fa-solid fa-chevron-right gantt-chevron ${chevCls}" style="font-size:.62rem;color:var(--text-3);transition:transform .2s;width:14px;flex-shrink:0"></i>
+            <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+            ${esc(projName)}
+            <span style="font-size:.62rem;font-weight:500;color:var(--text-4)">(${groupActs.length} atividade${groupActs.length>1?'s':''})</span>
           </div>
         </td>
-        <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${projColor(a.project)}"></span>${esc(a.project)}</span></td>
-        <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3);white-space:nowrap">${fmtDate(a.startDate)}</td>
-        <td style="font-family:var(--font-mono);font-size:.68rem;color:${diff<0?'var(--red)':'var(--text-3)'};white-space:nowrap">${fmtDate(a.dueDate)}</td>
+        <td style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-4);white-space:nowrap">${fmtDate(gDates[0]||'')}</td>
         <td class="gantt-bar-cell" style="min-width:${totalW}px">
           <div class="gantt-bar-bg" style="width:${totalW}px">
             <div class="gantt-today-line" style="left:${todayLeft}px"></div>
-            <div class="gantt-bar" style="${barStyle}" title="${esc(a.description)} [${wbs}] (${pct}%)" onclick="editAct('${a.id}')">
-              ${progressLayer}
-              <span style="position:relative;z-index:1;font-size:.6rem">${esc(a.description)}</span>
-            </div>
+            ${groupBarHtml}
           </div>
         </td>
       </tr>`;
-    }).join('');
 
-    /* ── Monta tabela ── */
+      const hidCls = isOpen ? '' : ' gantt-act-hidden';
+      groupActs.forEach((a, ai) => {
+        ganttGlobalIndex += 1;
+        const wbsParent = String(ganttGlobalIndex);
+        const childRowsOpen = window._ganttTaskCollapsed[a.id] !== false;
+        const childChev = childRowsOpen ? 'open' : '';
+        const hasSubs = (a._visibleChildren || []).length > 0;
+        const sd_d = isoToDate(a._summaryStart || a._summaryEnd);
+        const ed_d = isoToDate(a._summaryEnd || a._summaryStart);
+        const left = Math.max(0, Math.round((sd_d - minDate)/86400000)) * pxPerDay;
+        const bw   = Math.max(4, Math.round((ed_d - sd_d)/86400000 + 1)) * pxPerDay;
+        const pct  = a._summaryProgress || 0;
+        const diff = diffDays(a._summaryEnd);
+        let barColor = color;
+        if (diff < 0 && a._summaryStatus !== 'Concluído') barColor = 'var(--red)';
+        const opacity = a._summaryStatus === 'Concluído' ? .55 : 1;
+        const progressLayer = pct > 0 ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.28);border-radius:4px 0 0 4px;pointer-events:none"></div>` : '';
+        const addSubBtn = `<button class="action-btn" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" data-tooltip="Nova subatividade"><i class="fa-solid fa-plus"></i></button>`;
+
+        rows += `<tr class="${hidCls.trim()}" data-group-child="${esc(projName)}" style="background:${ai%2===0?'':'rgba(0,0,0,.012)'}">
+          <td style="width:52px;min-width:52px;font-family:var(--font-mono);font-size:.65rem;color:var(--text-4);padding-left:16px">${wbsParent}</td>
+          <td style="min-width:320px;max-width:320px;overflow:visible">
+            <div style="display:flex;align-items:center;gap:6px;padding-left:12px;min-width:0">
+              ${hasSubs ? `<i class="fa-solid fa-chevron-right gantt-chevron ${childChev}" onclick="event.stopPropagation();ganttToggleTask('${a.id}')" style="font-size:.62rem;color:var(--text-3);transition:transform .2s;width:14px;flex-shrink:0;cursor:pointer"></i>` : '<span style="width:14px;display:inline-block"></span>'}
+              <span style="font-size:.62rem;color:var(--text-4);flex-shrink:0"><i class="fa-solid fa-list-tree"></i></span>
+              <span style="font-family:var(--font-mono);font-size:.63rem;color:var(--text-4);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;flex-shrink:0">${wbsParent}</span>
+              <span id="gantt-txt-${a.id}" class="gantt-name-main" title="${esc(a.description)}" style="font-weight:700;color:var(--text-1);font-size:.78rem">${esc(a.description)}</span>
+              ${hasSubs ? `<span class="badge badge-purple" style="font-size:.55rem">${a._visibleChildren.length} sub</span>` : ''}
+              <span class="gantt-inline-actions">
+                <button class="gantt-icon-btn btn-add-sub" onclick="event.stopPropagation();addSubactivityFromGantt('${a.id}')" data-tooltip="Nova subatividade" title="Nova subatividade">+</button>
+                <button class="gantt-icon-btn btn-del-act" onclick="event.stopPropagation();deleteActivity('${a.id}')" data-tooltip="Excluir atividade" title="Excluir atividade">-</button>
+                <button class="gantt-icon-btn gantt-expand-text" onclick="event.stopPropagation();toggleGanttText(this)" data-target="gantt-txt-${a.id}" title="Expandir texto">mais</button>
+              </span>
+            </div>
+          </td>
+          <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${color}"></span>${esc(a.project||'')}</span></td>
+          <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3);white-space:nowrap">${fmtDate(a._summaryStart)}</td>
+          <td style="font-family:var(--font-mono);font-size:.68rem;color:${diff<0?'var(--red)':'var(--text-3)'};white-space:nowrap">${fmtDate(a._summaryEnd)}</td>
+          <td class="gantt-bar-cell" style="min-width:${totalW}px">
+            <div class="gantt-bar-bg" style="width:${totalW}px">
+              <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+              <div class="gantt-bar" style="left:${left}px;width:${bw}px;background:${barColor};opacity:${opacity}" title="${esc(a.description)} (${pct}%)" onclick="editAct('${a.id}')">
+                ${progressLayer}
+                <span style="position:relative;z-index:1;font-size:.6rem" title="${esc(a.description)}">${esc(a.description)}</span>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+
+        if (hasSubs) {
+          const subHidden = (!isOpen || !childRowsOpen) ? ' gantt-act-hidden' : '';
+          a._visibleChildren.forEach((sub, si) => {
+            const wbsChild = `${wbsParent}.${si+1}`;
+            const subSd = isoToDate(sub.startDate || sub.dueDate);
+            const subEd = isoToDate(sub.dueDate || sub.startDate);
+            const subLeft = Math.max(0, Math.round((subSd - minDate)/86400000)) * pxPerDay;
+            const subBw = Math.max(4, Math.round((subEd - subSd)/86400000 + 1)) * pxPerDay;
+            const subPct = parseInt(sub.progress)||0;
+            const subDiff = diffDays(sub.dueDate);
+            let subColor = color;
+            if (subDiff < 0 && sub.status !== 'Concluído') subColor = 'var(--red)';
+            const subOpacity = sub.status === 'Concluído' ? .55 : 1;
+            const subProgress = subPct > 0 ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${subPct}%;background:rgba(255,255,255,.28);border-radius:4px 0 0 4px;pointer-events:none"></div>` : '';
+            rows += `<tr class="${subHidden.trim()}" data-group-child="${esc(projName)}" data-parent-child="${esc(a.id)}" style="background:rgba(37,99,235,.02)">
+              <td style="width:52px;min-width:52px;font-family:var(--font-mono);font-size:.65rem;color:var(--text-4);padding-left:32px">${wbsChild}</td>
+              <td style="min-width:320px;max-width:320px;overflow:visible">
+                <div style="display:flex;align-items:center;gap:6px;padding-left:36px;min-width:0">
+                  <span style="font-size:.6rem;color:var(--text-4);flex-shrink:0">↳</span>
+                  <span style="font-family:var(--font-mono);font-size:.61rem;color:var(--text-4);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;flex-shrink:0">${wbsChild}</span>
+                  <span id="gantt-subtxt-${sub.id}" class="gantt-name-sub" title="${esc(sub.description)}" style="font-weight:500;color:var(--text-1);font-size:.76rem">${esc(sub.description)}</span>
+                  <span class="gantt-inline-actions">
+                    <button class="gantt-icon-btn btn-del-act" onclick="event.stopPropagation();deleteActivity('${sub.id}')" data-tooltip="Excluir subatividade" title="Excluir subatividade">-</button>
+                    <button class="gantt-icon-btn gantt-expand-text" onclick="event.stopPropagation();toggleGanttText(this)" data-target="gantt-subtxt-${sub.id}" title="Expandir texto">mais</button>
+                  </span>
+                </div>
+              </td>
+              <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${color}"></span>${esc(sub.project||'')}</span></td>
+              <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3);white-space:nowrap">${fmtDate(sub.startDate)}</td>
+              <td style="font-family:var(--font-mono);font-size:.68rem;color:${subDiff<0?'var(--red)':'var(--text-3)'};white-space:nowrap">${fmtDate(sub.dueDate)}</td>
+              <td class="gantt-bar-cell" style="min-width:${totalW}px">
+                <div class="gantt-bar-bg" style="width:${totalW}px">
+                  <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+                  <div class="gantt-bar" style="left:${subLeft}px;width:${subBw}px;background:${subColor};opacity:${subOpacity}" title="${esc(sub.description)} (${subPct}%)" onclick="editAct('${sub.id}')">
+                    ${subProgress}
+                    <span style="position:relative;z-index:1;font-size:.6rem" title="${esc(sub.description)}">${esc(sub.description)}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>`;
+          });
+        }
+      });
+    });
+
     wrap.innerHTML = `<table class="gantt-table">
       <thead>
         <tr>
-          <th style="width:52px;cursor:pointer" onclick="ganttSortBy('wbs')">WBS${sortIcon('wbs')}</th>
-          <th style="cursor:pointer" onclick="ganttSortBy('description')">Atividade${sortIcon('description')}</th>
-          <th style="cursor:pointer" onclick="ganttSortBy('project')">Projeto${sortIcon('project')}</th>
-          <th style="cursor:pointer" onclick="ganttSortBy('startDate')">Início${sortIcon('startDate')}</th>
-          <th style="cursor:pointer" onclick="ganttSortBy('dueDate')">Término${sortIcon('dueDate')}</th>
+          <th style="width:52px">#</th>
+          <th>Atividade</th>
+          <th>Projeto</th>
+          <th>Início</th>
+          <th>Término</th>
           <th><div style="display:flex">${monthsHtml}</div></th>
         </tr>
       </thead>
@@ -6979,11 +7651,404 @@ Digite: Folga, Férias, Outra atividade, Treinamento ou Limpar`, '');
     const section = document.getElementById('cal-ativ-wrap'); if (!section) return;
     const win = window.open('', '_blank');
     if (!win) { toast('Permita pop-up para exportar o PDF', 'warning'); return; }
-    win.document.write(`<!DOCTYPE html><html><head><title>Calendário de Atividades</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-day-header{font-weight:700;padding:8px;background:#e5e7eb;border:1px solid #d1d5db}.cal-day{min-height:110px;border:1px solid #d1d5db;padding:6px;border-radius:6px}.cal-event{font-size:11px;background:#2563eb;color:#fff;border-radius:4px;padding:3px 5px;margin-bottom:3px}.cal-day-num{font-weight:700;margin-bottom:6px}.cal-header{display:flex;justify-content:center;margin-bottom:14px}.cal-title{font-size:22px;font-weight:700}</style></head><body><h2 style="margin-bottom:16px">Calendário de Atividades</h2>${section.innerHTML}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><title>Calendário de Atividades</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-day-header{font-weight:700;padding:8px;background:#e5e7eb;border:1px solid #d1d5db}.cal-day{min-height:110px;border:1px solid #d1d5db;padding:6px;border-radius:6px}.cal-event{font-size:11px;background:#2563eb;color:#fff;border-radius:4px;padding:3px 5px;margin-bottom:3px}.cal-day-num{font-weight:700;margin-bottom:6px}.cal-header{display:flex;justify-content:center;margin-bottom:14px}.cal-title{font-size:22px;font-weight:700}
+/* BOTÕES GANTT */
+.btn-add-sub {
+  color:#2563eb;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn-del-act {
+  color:#dc2626;
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+
+
+/* Gantt text helpers */
+.gantt-name-main,
+.gantt-name-sub{
+  min-width:0;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-inline-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  flex-shrink:0;
+}
+.gantt-icon-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  font-weight:700;
+}
+.btn-add-sub{ color:#2563eb !important; }
+.btn-del-act{ color:#dc2626 !important; }
+.gantt-expand-text{
+  color:var(--text-4);
+  font-size:.72rem;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.gantt-desc-expanded{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:unset !important;
+  line-height:1.3;
+}
+
+
+/* Gantt interações avançadas */
+.gantt-row-selectable{ cursor:pointer; }
+.gantt-row-selected td{
+  background: rgba(37,99,235,.12) !important;
+}
+.gantt-activity-col{
+  min-width: 440px !important;
+  max-width: 440px !important;
+  overflow: visible !important;
+}
+.gantt-level-0{ padding-left: 12px !important; }
+.gantt-level-1{ padding-left: 36px !important; }
+.gantt-level-2{ padding-left: 60px !important; }
+.gantt-level-3{ padding-left: 84px !important; }
+.gantt-level-4{ padding-left: 108px !important; }
+.gantt-level-5{ padding-left: 132px !important; }
+.gantt-tree-icon{
+  font-size:.6rem;
+  color:var(--text-4);
+  flex-shrink:0;
+}
+
+</style></head><body><h2 style="margin-bottom:16px">Calendário de Atividades</h2>${section.innerHTML}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
     win.document.close();
   };
   document.addEventListener('DOMContentLoaded', function(){ ensureProjectStatusOptions(); ensureActivityModalExtras(); injectViewButtons(); renderTeamCalendarSelector(); });
 })();
+
+/* ===== Override Gantt: seleção, duplo clique, coluna maior e subníveis ===== */
+window.selectGanttRow = function(id){
+  window._ganttSelectedRowId = id;
+  document.querySelectorAll('#gantt-wrap .gantt-row-selected').forEach(el=>el.classList.remove('gantt-row-selected'));
+  document.querySelectorAll(`#gantt-wrap tr[data-row-id="${id}"]`).forEach(el=>el.classList.add('gantt-row-selected'));
+};
+
+window.deleteActivity = function(id){
+  const target = activities.find(a => a.id === id);
+  if (!target) return;
+  const ids = new Set([id]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    activities.forEach(a => {
+      if (a.parentId && ids.has(a.parentId) && !ids.has(a.id)) {
+        ids.add(a.id);
+        changed = true;
+      }
+    });
+  }
+  const totalChildren = ids.size - 1;
+  const msg = totalChildren > 0
+    ? `Deseja excluir esta atividade e ${totalChildren} subatividade(s)?`
+    : 'Deseja excluir esta atividade?';
+  if (!confirm(msg)) return;
+  activities = activities.filter(a => !ids.has(a.id));
+  save();
+  renderAll();
+  toast('Atividade excluída', 'success');
+};
+
+window.addSubactivityFromGantt = function(parentId=''){
+  if (!parentId) {
+    toast('Selecione uma atividade para criar a subatividade', 'warning');
+    return;
+  }
+  const parent = activities.find(a => a.id === parentId);
+  if (!parent) {
+    toast('Atividade não encontrada', 'error');
+    return;
+  }
+  window._openModalActivity();
+  document.getElementById('act-parent-id').value = parent.id;
+  document.getElementById('act-project').value = parent.project || '';
+  document.getElementById('act-start').value = parent.startDate || todayISO();
+  document.getElementById('act-due').value = parent.dueDate || '';
+  document.getElementById('act-description').value = `Subatividade — ${parent.description}`;
+  document.getElementById('modal-act-title').textContent = 'Nova Subatividade';
+};
+
+window.renderGantt = function(){
+  const wrap = document.getElementById('gantt-wrap'); if (!wrap) return;
+  const fpEl = document.getElementById('gantt-f-project');
+  const frEl = document.getElementById('gantt-f-resp');
+
+  if (fpEl && fpEl.options.length <= 1) {
+    [...new Set(projects.map(p=>p.name).filter(Boolean))].forEach(p=>{
+      const o=document.createElement('option'); o.value=p; o.textContent=p; fpEl.appendChild(o);
+    });
+  }
+  if (frEl && frEl.options.length <= 1) {
+    [...new Set(activities.map(a=>a.responsible).filter(Boolean))].sort().forEach(r=>{
+      const o=document.createElement('option'); o.value=r; o.textContent=r; frEl.appendChild(o);
+    });
+  }
+
+  const fSearch  = (document.getElementById('gantt-f-search')?.value  || '').toLowerCase();
+  const fProject = document.getElementById('gantt-f-project')?.value  || '';
+  const fStatus  = document.getElementById('gantt-f-status')?.value   || '';
+  const fResp    = document.getElementById('gantt-f-resp')?.value     || '';
+
+  function matchesFilters(a){
+    if (fSearch) {
+      const hay = `${a.description||''} ${a.project||''} ${a.responsible||''}`.toLowerCase();
+      if (!hay.includes(fSearch)) return false;
+    }
+    if (fProject && a.project !== fProject) return false;
+    if (fStatus && (a.status || 'Pendente') !== fStatus) return false;
+    if (fResp && (a.responsible || '') !== fResp) return false;
+    return true;
+  }
+
+  const allActs = [...activities];
+  const byId = new Map(allActs.map(a => [a.id, {...a, _children: []}]));
+  const roots = [];
+  byId.forEach(node => {
+    if (node.parentId && byId.has(node.parentId)) byId.get(node.parentId)._children.push(node);
+    else roots.push(node);
+  });
+
+  const sortChildren = arr => arr.sort((a,b)=>(a.startDate||a.dueDate||'9999').localeCompare(b.startDate||b.dueDate||'9999') || (a.description||'').localeCompare(b.description||'', 'pt-BR'));
+  byId.forEach(node => sortChildren(node._children));
+  sortChildren(roots);
+
+  function summarize(node){
+    const kids = node._children.map(summarize);
+    const datedKids = kids.filter(k => k._summaryStart || k._summaryEnd);
+    const starts = [node.startDate, ...datedKids.map(k=>k._summaryStart || k._summaryEnd)].filter(Boolean).sort();
+    const ends   = [node.dueDate, ...datedKids.map(k=>k._summaryEnd || k._summaryStart)].filter(Boolean).sort();
+    const baseProgress = parseInt(node.progress)||0;
+    const summaryProgress = datedKids.length
+      ? Math.round(datedKids.reduce((s,k)=>s+(parseInt(k._summaryProgress)||0),0)/datedKids.length)
+      : baseProgress;
+    const statuses = [node.status || 'Pendente', ...datedKids.map(k=>k._summaryStatus)];
+    const summaryStatus = statuses.every(s=>s==='Concluído') ? 'Concluído'
+      : statuses.some(s=>s==='Vencido') ? 'Vencido'
+      : statuses.some(s=>s==='Em Andamento') ? 'Em Andamento'
+      : statuses.some(s=>s==='Reprogramado') ? 'Reprogramado'
+      : 'Pendente';
+    node._summaryStart = starts[0] || '';
+    node._summaryEnd = ends[ends.length-1] || '';
+    node._summaryProgress = summaryProgress;
+    node._summaryStatus = summaryStatus;
+    node._depth = 0;
+    return node;
+  }
+  roots.forEach(summarize);
+
+  function decorateDepth(node, depth=0){
+    node._depth = depth;
+    node._children.forEach(ch => decorateDepth(ch, depth+1));
+  }
+  roots.forEach(r => decorateDepth(r,0));
+
+  function filterTree(node){
+    const childFiltered = node._children.map(filterTree).filter(Boolean);
+    const selfMatch = matchesFilters({
+      description: node.description,
+      project: node.project,
+      responsible: node.responsible,
+      status: node._summaryStatus || node.status || 'Pendente'
+    });
+    const hasDates = !!(node._summaryStart || node._summaryEnd);
+    if (!selfMatch && childFiltered.length === 0 && !(hasDates && !fSearch && !fProject && !fStatus && !fResp)) return null;
+    return { ...node, _childrenFiltered: childFiltered };
+  }
+
+  const filteredRoots = roots.map(filterTree).filter(Boolean);
+  if (!filteredRoots.length) {
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-bars-staggered"></i><p>Nenhuma atividade encontrada</p></div>';
+    const countEl = document.getElementById('gantt-count'); if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  const visibleDateActs = [];
+  const projectBuckets = {};
+  const projOrder = projects.map(p=>p.name);
+
+  function collectDates(node){
+    if (node._summaryStart || node._summaryEnd) visibleDateActs.push(node);
+    (node._childrenFiltered || []).forEach(collectDates);
+  }
+  filteredRoots.forEach(r=>{
+    const key = r.project || '(Sem projeto)';
+    if (!projectBuckets[key]) projectBuckets[key] = [];
+    projectBuckets[key].push(r);
+    collectDates(r);
+  });
+
+  let visibleCount = 0;
+  function countRows(node){
+    visibleCount += 1;
+    if (window._ganttTaskCollapsed?.[node.id] === false) return;
+    (node._childrenFiltered || []).forEach(countRows);
+  }
+  filteredRoots.forEach(countRows);
+
+  const countEl = document.getElementById('gantt-count');
+  if (countEl) countEl.textContent = visibleCount > 0 ? `${visibleCount} linha(s)` : '';
+
+  const starts = visibleDateActs.map(a=>a._summaryStart || a._summaryEnd).filter(Boolean).sort();
+  const ends   = visibleDateActs.map(a=>a._summaryEnd || a._summaryStart).filter(Boolean).sort();
+  let minDate = isoToDate(starts[0] || todayISO());
+  let maxDate = isoToDate(ends[ends.length-1] || todayISO());
+  minDate = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()-3);
+  maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()+5);
+
+  const totalDays = Math.max(1, Math.round((maxDate - minDate)/86400000) + 1);
+  const pxPerDay = 26;
+  const totalW = totalDays * pxPerDay;
+  const todayLeft = Math.max(0, Math.round((isoToDate(todayISO()) - minDate)/86400000)) * pxPerDay;
+
+  const rangeEl = document.getElementById('gantt-range');
+  if (rangeEl) rangeEl.textContent = `${fmtDate(dateToISO(minDate))} — ${fmtDate(dateToISO(maxDate))}`;
+
+  function monthHeaderHtml(){
+    let html = '<div class="gantt-header-months">';
+    let cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    while (cursor <= maxDate) {
+      const monthStart = new Date(cursor);
+      const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+      const start = monthStart < minDate ? minDate : monthStart;
+      const end = new Date(Math.min(maxDate, new Date(nextMonth - 86400000)));
+      const days = Math.round((end - start)/86400000) + 1;
+      html += `<div class="gantt-month" style="width:${days*pxPerDay}px">${cursor.toLocaleDateString('pt-BR',{month:'short', year:'numeric'})}</div>`;
+      cursor = nextMonth;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function statusColor(node, baseColor){
+    const diff = diffDays(node._summaryEnd || node.dueDate);
+    if (diff < 0 && (node._summaryStatus || node.status) !== 'Concluído') return 'var(--red)';
+    return baseColor;
+  }
+
+  function rowHtml(node, wbs, projName, color){
+    const hasSubs = (node._childrenFiltered || []).length > 0;
+    const isOpen = window._ganttTaskCollapsed?.[node.id] !== false;
+    const levelClass = `gantt-level-${Math.min(node._depth, 5)}`;
+    const leftDate = isoToDate(node._summaryStart || node._summaryEnd || todayISO());
+    const rightDate = isoToDate(node._summaryEnd || node._summaryStart || todayISO());
+    const left = Math.max(0, Math.round((leftDate - minDate)/86400000)) * pxPerDay;
+    const bw = Math.max(4, Math.round((rightDate - leftDate)/86400000 + 1)) * pxPerDay;
+    const pct = parseInt(node._summaryProgress)||0;
+    const rowColor = statusColor(node, color);
+    const opacity = (node._summaryStatus || node.status) === 'Concluído' ? .55 : 1;
+    const progressLayer = pct > 0 ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(255,255,255,.28);border-radius:4px 0 0 4px;pointer-events:none"></div>` : '';
+    const icon = node._depth === 0 ? '<i class="fa-solid fa-list-tree"></i>' : '↳';
+    let html = `<tr class="gantt-row-selectable ${window._ganttSelectedRowId===node.id?'gantt-row-selected':''}" data-row-id="${node.id}" onclick="selectGanttRow('${node.id}')" ondblclick="editAct('${node.id}')">
+      <td style="width:62px;min-width:62px;font-family:var(--font-mono);font-size:.65rem;color:var(--text-4);padding-left:${16 + (node._depth*16)}px">${wbs}</td>
+      <td class="gantt-activity-col">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0" class="${levelClass}">
+          ${hasSubs ? `<i class="fa-solid fa-chevron-right gantt-chevron ${isOpen ? 'open' : ''}" onclick="event.stopPropagation();ganttToggleTask('${node.id}')" style="font-size:.62rem;color:var(--text-3);transition:transform .2s;width:14px;flex-shrink:0;cursor:pointer"></i>` : '<span style="width:14px;display:inline-block"></span>'}
+          <span class="gantt-tree-icon">${icon}</span>
+          <span style="font-family:var(--font-mono);font-size:.61rem;color:var(--text-4);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;flex-shrink:0">${wbs}</span>
+          <span id="gantt-txt-${node.id}" class="gantt-name-${node._depth===0?'main':'sub'}" title="${esc(node.description||'')}" style="font-weight:${node._depth===0?700:500};color:var(--text-1);font-size:${node._depth===0?'.78rem':'.76rem'}">${esc(node.description||'')}</span>
+          ${hasSubs ? `<span class="badge badge-purple" style="font-size:.55rem">${(node._childrenFiltered || []).length} sub</span>` : ''}
+          <span class="gantt-inline-actions">
+            <button class="gantt-icon-btn btn-add-sub" onclick="event.stopPropagation();addSubactivityFromGantt('${node.id}')" title="Nova subatividade">+</button>
+            <button class="gantt-icon-btn btn-del-act" onclick="event.stopPropagation();deleteActivity('${node.id}')" title="Excluir atividade">-</button>
+            <button class="gantt-icon-btn gantt-expand-text" onclick="event.stopPropagation();toggleGanttText(this)" data-target="gantt-txt-${node.id}" title="Expandir texto">mais</button>
+          </span>
+        </div>
+      </td>
+      <td style="min-width:100px"><span class="project-chip"><span class="project-dot" style="background:${color}"></span>${esc(node.project||projName||'')}</span></td>
+      <td style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-3);white-space:nowrap">${fmtDate(node._summaryStart || node.startDate)}</td>
+      <td style="font-family:var(--font-mono);font-size:.68rem;color:${diffDays(node._summaryEnd || node.dueDate)<0?'var(--red)':'var(--text-3)'};white-space:nowrap">${fmtDate(node._summaryEnd || node.dueDate)}</td>
+      <td class="gantt-bar-cell" style="min-width:${totalW}px">
+        <div class="gantt-bar-bg" style="width:${totalW}px">
+          <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+          <div class="gantt-bar" style="left:${left}px;width:${bw}px;background:${rowColor};opacity:${opacity}" title="${esc(node.description||'')} (${pct}%)" onclick="event.stopPropagation();editAct('${node.id}')">
+            ${progressLayer}
+            <span style="position:relative;z-index:1;font-size:.6rem" title="${esc(node.description||'')}">${esc(node.description||'')}</span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+    if (hasSubs && isOpen) {
+      (node._childrenFiltered || []).forEach((ch, i) => {
+        html += rowHtml(ch, `${wbs}.${i+1}`, projName, color);
+      });
+    }
+    return html;
+  }
+
+  const visibleProjects = [...projOrder.filter(n=>projectBuckets[n]), ...Object.keys(projectBuckets).filter(k=>!projOrder.includes(k))];
+
+  let rows = '';
+  visibleProjects.forEach((projName, pi) => {
+    const groupActs = projectBuckets[projName] || [];
+    const collapsed = window._ganttCollapsed?.[projName];
+    const isOpen = !collapsed;
+    const allSummaries = [];
+    const collect = n => { allSummaries.push(n); (n._childrenFiltered||[]).forEach(collect); };
+    groupActs.forEach(collect);
+    const gStarts = allSummaries.map(a=>a._summaryStart || a.startDate).filter(Boolean).sort();
+    const gEnds = allSummaries.map(a=>a._summaryEnd || a.dueDate).filter(Boolean).sort();
+    const gs = gStarts[0] ? isoToDate(gStarts[0]) : minDate;
+    const ge = gEnds.length ? isoToDate(gEnds[gEnds.length-1]) : gs;
+    const groupColor = PROJECT_COLORS_MAP[projName] || projectColor(projName);
+    const left = Math.max(0, Math.round((gs - minDate)/86400000)) * pxPerDay;
+    const bw = Math.max(4, Math.round((ge - gs)/86400000 + 1)) * pxPerDay;
+    const count = allSummaries.length;
+    rows += `<tr class="gantt-group-row" onclick="ganttToggleProject('${esc(projName)}')">
+      <td colspan="5">
+        <div class="gantt-group-label">
+          <i class="fa-solid fa-chevron-right gantt-chevron ${isOpen?'open':''}"></i>
+          <span class="project-dot" style="background:${groupColor};width:12px;height:12px"></span>
+          ${esc(projName)} <span style="font-size:.7rem;color:var(--text-4);font-weight:600">(${count} atividades)</span>
+        </div>
+      </td>
+      <td class="gantt-bar-cell" style="min-width:${totalW}px">
+        <div class="gantt-bar-bg" style="width:${totalW}px">
+          <div class="gantt-today-line" style="left:${todayLeft}px"></div>
+          <div class="gantt-group-bar" style="left:${left}px;width:${bw}px;background:${groupColor}"></div>
+        </div>
+      </td>
+    </tr>`;
+    if (isOpen) groupActs.forEach((node, i)=>{ rows += rowHtml(node, String(i+1), projName, groupColor); });
+  });
+
+  wrap.innerHTML = `
+    ${monthHeaderHtml()}
+    <table class="gantt-table">
+      <thead>
+        <tr>
+          <th style="width:62px;min-width:62px">#</th>
+          <th style="min-width:440px">Atividade</th>
+          <th style="min-width:100px">Projeto</th>
+          <th style="min-width:90px">Início</th>
+          <th style="min-width:90px">Término</th>
+          <th style="min-width:${totalW}px">Timeline</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+};
+
 </script>
 
 
