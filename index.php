@@ -56,7 +56,7 @@ $B = BASE_URL;
       <button type="submit" class="login-btn"><i class="fa-solid fa-right-to-bracket"></i> Entrar</button>
     </form>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.3);text-align:center">
-      Admin padrão: <strong style="color:rgba(255,255,255,.5)">admin@terrasystem.com.br</strong> / <strong style="color:rgba(255,255,255,.5)">password</strong>
+      Terra System CRM &copy; <?= date('Y') ?>
     </div>
   </div>
 </div>
