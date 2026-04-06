@@ -61,7 +61,6 @@ case 'create_v2':
         'obrig_contratante'=> $body['obrig_contratante']??'',
         'observacoes'      => $body['observacoes']??'',
         'grupos'           => $body['grupos']??[],
-        'fotos'            => $body['fotos']??[],
     ];
     $id = db_insert('propostas',[
         'numero'        => $numero,

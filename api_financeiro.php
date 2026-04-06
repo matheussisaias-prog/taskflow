@@ -12,8 +12,9 @@ if ($_SERVER['REQUEST_METHOD']==='GET' && !$action) {
     $lista = db_all('financeiro','id DESC');
     foreach ($lista as &$f) {
         $emp = $f['empresa_id'] ? db_find('empresas',(int)$f['empresa_id']) : null;
-        $f['empresa_nome'] = $emp['nome']??'–';
+        $f['empresa_nome'] = $emp ? $emp['nome'] : '–';
     }
+    unset($f);
     jsonResponse($lista);
 }
 
@@ -45,7 +46,8 @@ case 'create':
 
 case 'update':
     $id = (int)($body['id']??0);
-    db_update('financeiro',$id,[
+    $status = $body['status']??'pendente';
+    $upd = [
         'descricao'      => $body['descricao']??'',
         'tipo'           => $body['tipo']??'receita',
         'categoria'      => $body['categoria']??'',
@@ -54,7 +56,14 @@ case 'update':
         'empresa_id'     => (int)($body['empresa_id']??0)?:null,
         'forma_pagamento'=> $body['forma_pagamento']??'pix',
         'observacao'     => $body['observacao']??'',
-    ]);
+        'status'         => $status,
+        'data_pagamento' => ($body['data_pagamento']??'')?:null,
+    ];
+    if ($status === 'pago' && empty($upd['data_pagamento'])) {
+        $upd['data_pagamento'] = date('Y-m-d');
+    }
+    db_update('financeiro',$id,$upd);
+    registrarLog($uid,'UPDATE','financeiro',$id,"Lançamento #{$id} atualizado");
     jsonResponse(['success'=>true]);
 
 case 'pagar':
